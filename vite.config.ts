@@ -1,29 +1,25 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import path from 'path'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { fileURLToPath, URL } from 'url'; // Importación necesaria
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      // Añadir alias para dependencias si es necesario
-      '@': path.resolve(__dirname, './src'),
+      '@': fileURLToPath(new URL('./src', import.meta.url)), // Usar `fileURLToPath` y `URL`
     },
   },
   optimizeDeps: {
-    include: ['blurhash'], // Aseguramos que Vite incluya blurhash al optimizar las dependencias
-    esbuildOptions: {
-      external: ['blurhash'], // Evitamos que intente agrupar este paquete
-    },
+    include: ['blurhash'],
   },
   css: {
     modules: {
-      localsConvention: 'camelCaseOnly', // Configuración CSS en módulos
+      localsConvention: 'camelCaseOnly',
     },
   },
   build: {
     commonjsOptions: {
-      include: [/node_modules/], // Asegura que se procesen las dependencias en formato CommonJS
+      include: [/node_modules/],
     },
   },
-})
+});

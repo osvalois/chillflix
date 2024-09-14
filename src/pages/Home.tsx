@@ -16,7 +16,7 @@ import useDebounce from "../hooks/useDebounce";
 import SearchBar from "../components/Search/SearchBar";
 import MovieList from "../components/Movie/MovieList";
 
-const MotionBox = motion(Box);
+const MotionBox = motion(Box as any);
 
 export const Home: React.FC = () => {
   const [query, setQuery] = useState("");

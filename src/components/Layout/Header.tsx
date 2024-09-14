@@ -9,13 +9,12 @@ import {
   useColorMode,
   useColorModeValue,
   Image,
-  Button,
 } from "@chakra-ui/react";
 import { MoonIcon, SunIcon } from "@chakra-ui/icons";
 import { motion } from 'framer-motion';
 import GlassmorphicBox from "../UI/GlassmorphicBox";
 
-const MotionBox = motion(Box);
+const MotionBox = motion(Box as any);
 
 const Header: React.FC = () => {
   const { colorMode, toggleColorMode } = useColorMode();
@@ -29,6 +28,7 @@ const Header: React.FC = () => {
       zIndex="sticky"
       borderRadius="0"
       px={4}
+      backgroundColor={bgColor} // Asegúrate de aplicar bgColor aquí
     >
       <Flex h={20} alignItems="center" justifyContent="space-between">
         <HStack spacing={8} alignItems="center">

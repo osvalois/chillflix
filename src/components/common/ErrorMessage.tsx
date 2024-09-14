@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Text, Button, VStack } from '@chakra-ui/react';
+import { Box, Text, Button } from '@chakra-ui/react';
 import { WarningIcon } from '@chakra-ui/icons';
 
 interface ErrorMessageProps {

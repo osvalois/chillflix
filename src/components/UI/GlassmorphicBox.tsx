@@ -11,7 +11,7 @@ export interface GlassmorphicBoxProps extends BoxProps {
   motionProps?: MotionProps;
 }
 
-const MotionBox = motion(Box);
+const MotionBox = motion(Box as any);
 
 export const GlassmorphicBox: React.FC<GlassmorphicBoxProps> = ({
   intensity = 0.5,

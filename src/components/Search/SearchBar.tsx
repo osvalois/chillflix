@@ -10,7 +10,7 @@ import {
 import { SearchIcon } from "@chakra-ui/icons";
 import { motion } from 'framer-motion';
 
-const MotionInputGroup = motion(InputGroup);
+const MotionInputGroup = motion(InputGroup as any);
 
 interface SearchBarProps {
   query: string;

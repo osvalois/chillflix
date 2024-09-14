@@ -46,7 +46,7 @@ import 'swiper/css/navigation';
 // Import Swiper modules
 import { EffectCoverflow, Pagination, Navigation } from 'swiper/modules';
 
-const MotionBox = motion(Box);
+const MotionBox = motion(Box as any);
 const AnimatedBox = animated(Box);
 
 interface MovieInfo {
@@ -122,11 +122,12 @@ const MoviePage: React.FC = () => {
             src="https://assets9.lottiefiles.com/packages/lf20_p8bfn5to.json"
             style={{ width: "200px", height: "200px" }}
           />
-          <Text mt={4} fontSize="xl" color={textColor}>Cargando tu experiencia cinematográfica...</Text>
+          <Text mt={4} fontSize="xl" color={textColor}>Cargando...</Text>
         </VStack>
       </Box>
     );
   }
+  
   if (error || !movieInfo) {
     return (
       <Box
@@ -189,7 +190,6 @@ const MoviePage: React.FC = () => {
           position="relative"
           zIndex={1}
         >
-
           <VStack
             spacing={12}
             align="stretch"
@@ -198,7 +198,6 @@ const MoviePage: React.FC = () => {
             py={12}
             px={4}
           >
-
             {isPlaying && (
               <MotionBox
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -258,7 +257,7 @@ const MoviePage: React.FC = () => {
               </HStack>
             </HStack>
 
-            <AnimatedBox style={fadeIn}>
+            <AnimatedBox style={fadeIn} ref={ref}>
               <Box p={8} borderRadius="2xl" boxShadow="2xl" bg={`${bgColor}CC`} backdropFilter="blur(10px)">
                 <VStack spacing={6} align="stretch">
                   <Heading
@@ -291,7 +290,6 @@ const MoviePage: React.FC = () => {
                 </VStack>
               </Box>
             </AnimatedBox>
-
 
             <Box>
               <Heading as="h2" size="xl" mb={4}>Escenas Destacadas</Heading>
