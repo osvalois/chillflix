@@ -1,91 +1,126 @@
 import React, { useMemo } from 'react';
-import { Box, BoxProps, useColorModeValue, useTheme } from '@chakra-ui/react';
-import { motion, MotionProps } from 'framer-motion';
+import { Box, useColorModeValue, BoxProps, useTheme } from '@chakra-ui/react';
+import { motion, MotionProps, useMotionTemplate, useTransform, useMotionValue } from 'framer-motion';
+import { rgba } from 'polished';
 
-export interface GlassmorphicBoxProps extends BoxProps {
+interface GlassmorphicBoxProps extends BoxProps, MotionProps {
+  isActive?: boolean;
   intensity?: number;
-  tint?: string;
-  blurAmount?: number;
-  borderWidth?: number;
-  isInteractive?: boolean;
-  motionProps?: MotionProps;
+  gradientColors?: string[];
+  hoverEffect?: 'lift' | 'glow' | 'tilt' | 'none';
+  glareEffect?: boolean;
 }
 
-const MotionBox = motion(Box as any);
-
-export const GlassmorphicBox: React.FC<GlassmorphicBoxProps> = ({
+export const GlassmorphicBox: React.FC<GlassmorphicBoxProps> = React.memo(({
+  isActive = false,
   intensity = 0.5,
-  tint,
-  blurAmount = 10,
-  borderWidth = 1,
-  isInteractive = false,
-  motionProps,
+  gradientColors,
+  hoverEffect = 'lift',
+  glareEffect = true,
   children,
-  ...rest
+  ...props
 }) => {
   const theme = useTheme();
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
 
-  const bgColor = useColorModeValue(
-    `rgba(255, 255, 255, ${intensity})`,
-    `rgba(0, 0, 0, ${intensity})`
+  const defaultLightColors = [theme.colors.blue[300], theme.colors.purple[300]];
+  const defaultDarkColors = [theme.colors.blue[700], theme.colors.purple[700]];
+
+  const colors = useColorModeValue(
+    gradientColors || defaultLightColors,
+    gradientColors || defaultDarkColors
   );
 
-  const borderColor = useColorModeValue(
-    'rgba(255, 255, 255, 0.3)',
-    'rgba(255, 255, 255, 0.1)'
-  );
+  const baseColor = useColorModeValue('255, 255, 255', '26, 32, 44');
 
-  const customTint = tint 
-    ? useColorModeValue(
-        `${tint}${Math.round(intensity * 20).toString(16)}`,
-        `${tint}${Math.round(intensity * 10).toString(16)}`
-      )
-    : undefined;
-
-  const hoverStyles = useMemo(() => {
-    if (!isInteractive) return {};
+  const glassEffect = useMemo(() => {
+    const activeIntensity = isActive ? intensity + 0.1 : intensity;
+    
     return {
-      _hover: {
-        transform: 'scale(1.02)',
-        boxShadow: 'xl',
-        transition: 'all 0.2s ease-in-out',
-      },
-      _active: {
-        transform: 'scale(0.98)',
-      },
+      background: `linear-gradient(135deg, ${rgba(colors[0], activeIntensity)} 0%, ${rgba(colors[1], activeIntensity)} 100%)`,
+      boxShadow: isActive 
+        ? `0 8px 32px 0 rgba(${baseColor}, 0.37), inset 0 0 0 1px rgba(${baseColor}, 0.1)`
+        : `0 4px 16px 0 rgba(${baseColor}, 0.2), inset 0 0 0 1px rgba(${baseColor}, 0.05)`,
+      backdropFilter: 'blur(20px)',
+      border: isActive 
+        ? `1px solid rgba(${baseColor}, 0.2)`
+        : `1px solid rgba(${baseColor}, 0.1)`,
+      borderRadius: 'xl',
+      transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
     };
-  }, [isInteractive]);
+  }, [colors, isActive, intensity, baseColor]);
 
-  const boxStyles = useMemo(() => ({
-    background: customTint || bgColor,
-    backdropFilter: `blur(${blurAmount}px)`,
-    borderRadius: 'xl',
-    boxShadow: 'lg',
-    border: `${borderWidth}px solid`,
-    borderColor: borderColor,
-    transition: 'all 0.3s ease-in-out',
-    ...hoverStyles,
-  }), [bgColor, customTint, blurAmount, borderWidth, borderColor, hoverStyles]);
+  const glareAngle = useTransform(
+    [mouseX, mouseY],
+    ([x, y]) => `${Math.round((Math.atan2(y, x) * 180) / Math.PI)}deg`
+  );
 
-  if (isInteractive) {
-    return (
-      <MotionBox
-        {...boxStyles}
-        {...rest}
-        whileHover={{ scale: 1.02, boxShadow: theme.shadows.xl }}
-        whileTap={{ scale: 0.98 }}
-        {...motionProps}
-      >
-        {children}
-      </MotionBox>
-    );
-  }
+  const glareOpacity = useTransform(
+    [mouseX, mouseY],
+    ([x, y]) => Math.min(Math.sqrt(x * x + y * y) / 500, 0.5)
+  );
+
+  const glareBackground = useMotionTemplate`
+    radial-gradient(
+      circle at ${mouseX}px ${mouseY}px,
+      rgba(255, 255, 255, 0.15) 0%,
+      rgba(255, 255, 255, 0) 80%
+    )
+  `;
+
+  const hoverVariants = {
+    lift: {
+      y: -5,
+      boxShadow: `0 20px 40px rgba(${baseColor}, 0.15)`,
+    },
+    glow: {
+      boxShadow: `0 0 25px ${rgba(colors[0], 0.6)}`,
+    },
+    tilt: {
+      rotateX: useTransform(mouseY, [0, 300], [5, -5]),
+      rotateY: useTransform(mouseX, [0, 300], [-5, 5]),
+    },
+    none: {},
+  };
 
   return (
-    <Box {...boxStyles} {...rest}>
+    <Box
+      as={motion.div}
+      {...glassEffect}
+      {...props}
+      whileHover={hoverVariants[hoverEffect]}
+      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+      onMouseMove={(e) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        mouseX.set(e.clientX - rect.left);
+        mouseY.set(e.clientY - rect.top);
+      }}
+      position="relative"
+      overflow="hidden"
+    >
       {children}
+      {glareEffect && (
+        <Box
+          as={motion.div}
+          position="absolute"
+          top={0}
+          left={0}
+          right={0}
+          bottom={0}
+          borderRadius="inherit"
+          style={{
+            background: glareBackground,
+            opacity: glareOpacity,
+            transform: `rotate(${glareAngle})`,
+          }}
+          pointerEvents="none"
+        />
+      )}
     </Box>
   );
-};
+});
+
+GlassmorphicBox.displayName = 'GlassmorphicBox';
 
 export default GlassmorphicBox;

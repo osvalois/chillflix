@@ -1,67 +1,77 @@
-import React from "react";
-import { Link as RouterLink } from "react-router-dom";
-import {
-  Box,
-  Flex,
-  HStack,
-  Link,
-  IconButton,
-  useColorMode,
-  useColorModeValue,
-  Image,
-} from "@chakra-ui/react";
-import { MoonIcon, SunIcon } from "@chakra-ui/icons";
-import { motion } from 'framer-motion';
-import GlassmorphicBox from "../UI/GlassmorphicBox";
+// Header.tsx
+import React, {useEffect } from "react";
+import { Box, Flex, HStack, useColorMode, useMediaQuery } from "@chakra-ui/react";
+import { motion, useViewportScroll, useTransform } from 'framer-motion';
+import { rgba } from 'polished';
+import Logo from "../UI/Logo";
+import Navigation from "./Navigation";
+import NotificationIcon from "./NotificationIcon";
+import UserMenu from "./UserMenu";
+import MobileMenu from "./MobileMenu";
+import SearchBar from "../Search/SearchBar";
 
 const MotionBox = motion(Box as any);
 
 const Header: React.FC = () => {
   const { colorMode, toggleColorMode } = useColorMode();
-  const bgColor = useColorModeValue("rgba(255, 255, 255, 0.8)", "rgba(26, 32, 44, 0.8)");
+  const [isLargeScreen] = useMediaQuery("(min-width: 48em)");
+  const { scrollY } = useViewportScroll();
+
+  const backgroundColor = useTransform(
+    scrollY,
+    [0, 50],
+    [
+      rgba(colorMode === 'light' ? 255 : 20, colorMode === 'light' ? 255 : 20, colorMode === 'light' ? 255 : 20, 0.1),
+      rgba(colorMode === 'light' ? 255 : 20, colorMode === 'light' ? 255 : 20, colorMode === 'light' ? 255 : 20, 0.8)
+    ]
+  );
+
+  const boxShadow = useTransform(
+    scrollY,
+    [0, 50],
+    ['none', '0 4px 30px rgba(0, 0, 0, 0.1)']
+  );
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = () => {
+      if (mediaQuery.matches) {
+        toggleColorMode();
+      }
+    };
+    mediaQuery.addListener(handleChange);
+    return () => mediaQuery.removeListener(handleChange);
+  }, [toggleColorMode]);
 
   return (
-    <GlassmorphicBox
+    <MotionBox
       as="nav"
       position="fixed"
       w="100%"
-      zIndex="sticky"
-      borderRadius="0"
+      zIndex={1000}
       px={4}
-      backgroundColor={bgColor} // Asegúrate de aplicar bgColor aquí
+      py={2}
+      style={{
+        backgroundColor,
+        boxShadow,
+        backdropFilter: 'blur(10px)',
+      }}
+      transition="all 0.3s"
     >
-      <Flex h={20} alignItems="center" justifyContent="space-between">
+      <Flex h={16} alignItems="center" justifyContent="space-between">
         <HStack spacing={8} alignItems="center">
-          <MotionBox whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-            <Image src="/api/placeholder/40/40" alt="Chillflix" h="40px" />
-          </MotionBox>
-          <HStack as="nav" spacing={4} display={{ base: "none", md: "flex" }}>
-            {["Inicio", "Películas", "Series"].map((item) => (
-              <Link
-                key={item}
-                as={RouterLink}
-                to={item === "Inicio" ? "/" : `/${item.toLowerCase()}`}
-                px={3}
-                py={2}
-                rounded="md"
-                _hover={{ textDecoration: "none", bg: useColorModeValue("purple.100", "purple.700") }}
-                fontWeight="medium"
-              >
-                {item}
-              </Link>
-            ))}
-          </HStack>
+          <Logo />
+          
+          {isLargeScreen && <Navigation />}
         </HStack>
-        <IconButton
-          aria-label="Cambiar tema"
-          icon={colorMode === "light" ? <MoonIcon /> : <SunIcon />}
-          onClick={toggleColorMode}
-          variant="ghost"
-          size="lg"
-          _hover={{ bg: useColorModeValue("purple.100", "purple.700") }}
-        />
+        <HStack spacing={4}>
+          <SearchBar />
+          <NotificationIcon />
+          <UserMenu />
+          {!isLargeScreen && <MobileMenu />}
+        </HStack>
       </Flex>
-    </GlassmorphicBox>
+    </MotionBox>
   );
 };
 

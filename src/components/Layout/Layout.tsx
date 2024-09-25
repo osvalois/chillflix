@@ -32,7 +32,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <Container maxW="container.xl" py={12}>
+        <Container maxW="container.xl" py={24}>
           <GlassmorphicBox borderRadius="xl" boxShadow="xl">
             {children}
           </GlassmorphicBox>

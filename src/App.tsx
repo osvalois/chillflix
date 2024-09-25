@@ -10,7 +10,7 @@ const App: React.FC = () => {
     <Layout>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/movie/:magnetUri" element={<MoviePage />} />
+        <Route path="/movie/:tmdbId" element={<MoviePage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Layout>

@@ -1,368 +1,348 @@
-import React, { useState, useEffect, lazy, Suspense } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import {
-  Box,
-  Button,
-  Heading,
-  Text,
-  VStack,
-  HStack,
-  useColorModeValue,
-  useDisclosure,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalCloseButton,
-  Tooltip,
-  Badge,
-  useBreakpointValue,
-  Skeleton,
-} from "@chakra-ui/react";
-import { useToast } from "@chakra-ui/toast";
-import { ArrowBackIcon, InfoIcon, StarIcon, DownloadIcon } from "@chakra-ui/icons";
-import { motion, AnimatePresence } from "framer-motion";
-import { useInView } from "react-intersection-observer";
-import { getMovieInfo, getStreamUrl } from "../services/movieService";
-import { formatFileSize, formatDuration } from "../utils/formatters";
-import { useSpring, animated } from "react-spring";
-import { LazyLoadImage } from "react-lazy-load-image-component";
-import "react-lazy-load-image-component/src/effects/blur.css";
-import { Player } from "@lottiefiles/react-lottie-player";
-import { useQuery } from "react-query";
-import { Blurhash } from "react-blurhash";
+import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useQueries, QueryClient, QueryClientProvider } from 'react-query';
+import { Box, Container, VStack, useToast, Button, Skeleton, Spinner } from '@chakra-ui/react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FaChevronLeft } from 'react-icons/fa';
+import { useMediaQuery } from 'react-responsive';
+import { ErrorBoundary } from 'react-error-boundary';
+import { useInView } from 'react-intersection-observer';
 
-// Lazy load Swiper components
-const Swiper = lazy(() => import('swiper/react').then(module => ({ default: module.Swiper })));
-const SwiperSlide = lazy(() => import('swiper/react').then(module => ({ default: module.SwiperSlide })));
+import { getTMDBMovieDetails, getMovieCredits, getSimilarMovies } from '../services/tmdbService';
+import movieService from '../services/movieService';
+import { CombinedContent, MovieCredits } from '../types';
 
-// Import Swiper styles
-import 'swiper/css';
-import 'swiper/css/effect-coverflow';
-import 'swiper/css/pagination';
-import 'swiper/css/navigation';
+const VideoPlayer = lazy(() => import('../components/VideoPlayer/VideoPlayer'));
+const MovieHeader = lazy(() => import('../components/Movie/MovieHeader'));
+const CastSection = lazy(() => import('../components/Movie/CastSection'));
+const SimilarMoviesSection = lazy(() => import('../components/Movie/SimilarMoviesSection'));
+const ErrorFallback = lazy(() => import('../components/UI/ErrorFallback'));
+const LoadingSkeleton = lazy(() => import('../components/LoadingSkeleton'));
+const ReviewSection = lazy(() => import('../components/ReviewSection/ReviewSection'));
 
-// Import Swiper modules
-import { EffectCoverflow, Pagination, Navigation } from 'swiper/modules';
+import { useVideoPlayerLogic } from '../hooks/useVideoPlayerLogic';
+import { useMirrorLogic } from '../hooks/useMirrorLogic';
+import { useSubtitles } from '../components/VideoPlayer/useSubtitles';
 
-const MotionBox = motion(Box as any);
-const AnimatedBox = animated(Box);
+const MotionBox = motion(Box);
 
-interface MovieInfo {
-  Name: string;
-  InfoHash: string;
-  Files: { Size: number }[];
-}
+const glassmorphismStyle = {
+  background: "rgba(255, 255, 255, 0.05)",
+  backdropFilter: "blur(10px)",
+  borderRadius: "20px",
+  border: "1px solid rgba(255, 255, 255, 0.1)",
+  boxShadow: 
+    "0 4px 30px rgba(0, 0, 0, 0.1), " +
+    "inset 0 0 20px rgba(255, 255, 255, 0.05), " +
+    "0 0 0 1px rgba(255, 255, 255, 0.1)",
+  overflow: "hidden",
+};
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 3,
+      staleTime: 1000 * 60 * 5,
+      cacheTime: 1000 * 60 * 30,
+    },
+  },
+});
 
 const MoviePage: React.FC = () => {
-  const { magnetUri } = useParams<{ magnetUri: string }>();
-  const navigate = useNavigate();
+  const { tmdbId } = useParams<{ tmdbId: string }>();
+  const [isVideoLoading, setIsVideoLoading] = useState(true);
   const toast = useToast();
-  const [isPlaying, setIsPlaying] = useState(false);
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const [ref, inView] = useInView({
-    threshold: 0.1,
-    triggerOnce: true,
-  });
-  const bgColor = useColorModeValue("gray.50", "gray.900");
-  const textColor = useColorModeValue("gray.800", "gray.100");
-  const accentColor = useColorModeValue("purple.500", "purple.300");
+  const navigate = useNavigate();
+  const isMobile = useMediaQuery({ maxWidth: 768 });
 
-  const buttonSize = useBreakpointValue({ base: "md", md: "lg" });
+  const [selectedLanguage, setSelectedLanguage] = useState('es-MX');
+  const [selectedQuality, setSelectedQuality] = useState('1080p');
 
-  const { data: movieInfo, isLoading, error } = useQuery<MovieInfo, Error>(
-    ["movieInfo", magnetUri],
-    async () => {
-      if (!magnetUri) throw new Error("No magnet URI provided");
-      const infoHash = magnetUri.split(":")[3].split("&")[0];
-      return await getMovieInfo(infoHash);
-    },
-    {
+  const {
+    currentMirrorIndex,
+    setCurrentMirrorIndex,
+    isChangingMirror,
+    handleChangeMirror,
+  } = useMirrorLogic();
+
+  const {
+    isPlaying,
+    currentQuality,
+    handleQualityChange,
+  } = useVideoPlayerLogic();
+
+  const { data: movie, isLoading: isMovieLoading, error: movieError } = useQuery<CombinedContent, Error>(
+    ['movie', tmdbId],
+    () => getTMDBMovieDetails(parseInt(tmdbId!, 10)),
+    { 
+      enabled: !!tmdbId,
       onError: (error) => {
-        console.error("Error fetching movie info:", error);
+        console.error('Error fetching movie details:', error);
         toast({
           title: "Error",
-          description: "No se pudo obtener la información de la película.",
+          description: "Failed to load movie details. Please try again.",
           status: "error",
           duration: 5000,
           isClosable: true,
         });
-      },
+      }
     }
   );
 
-  const fadeIn = useSpring({
-    opacity: inView ? 1 : 0,
-    transform: inView ? "translateY(0px)" : "translateY(50px)",
-    config: { duration: 1000 },
-  });
+  const { data: credits, isLoading: isCreditsLoading } = useQuery<MovieCredits, Error>(
+    ['credits', tmdbId],
+    () => getMovieCredits(parseInt(tmdbId!, 10)),
+    { enabled: !!tmdbId }
+  );
+
+  const { data: similarMovies, isLoading: isSimilarMoviesLoading } = useQuery<CombinedContent[], Error>(
+    ['similarMovies', tmdbId],
+    () => getSimilarMovies(parseInt(tmdbId!, 10)),
+    { enabled: !!tmdbId }
+  );
+
+  const { data: mirrors, isLoading: isMirrorsLoading } = useQuery(
+    ['mirrors', tmdbId, selectedLanguage, selectedQuality],
+    () => movieService.searchMirrors(tmdbId ?? '', selectedLanguage, selectedQuality),
+    { enabled: !!movie }
+  );
+
+  const mirrorQueries = useQueries(
+    mirrors?.map((mirror, index) => ({
+      queryKey: ['movieInfo', mirror.InfoHash],
+      queryFn: () => movieService.getMovieInfo(mirror.InfoHash),
+      enabled: !!mirrors && index === currentMirrorIndex,
+      onError: (error) => {
+        console.error(`Error fetching movie info for mirror ${index}:`, error);
+        if (mirrors && index < mirrors.length - 1) {
+          setCurrentMirrorIndex(index + 1);
+        } else {
+          toast({
+            title: 'Error',
+            description: 'Failed to load movie information from all available mirrors.',
+            status: 'error',
+            duration: 5000,
+            isClosable: true,
+          });
+        }
+      },
+    })) ?? []
+  );
+
+  const { data: movieInfo, isLoading: isMovieInfoLoading } = 
+    mirrorQueries[currentMirrorIndex] ?? { data: null, isLoading: false };
+
+  const videoFile = useMemo(() => {
+    if (movieInfo) {
+      return movieService.findVideoFile(movieInfo);
+    }
+    return null;
+  }, [movieInfo]);
+
+  const streamUrl = useMemo(() => {
+    if (movieInfo && videoFile) {
+      return movieService.getStreamUrl(videoFile.infoHash, videoFile.index);
+    }
+    return null;
+  }, [movieInfo, videoFile]);
+  const { loadSubtitles, downloadedSubtitles } = useSubtitles(tmdbId || '');
+
+  const posterUrl = useMemo(() => {
+    return movie ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : '';
+  }, [movie]);
+
+  const videoJsOptions = useMemo(() => ({
+    sources: [{ src: streamUrl ?? "", type: "video/mp4" }],
+  }), [streamUrl]);
 
   useEffect(() => {
-    if (movieInfo && !isLoading && !error) {
-      setIsPlaying(true);
-    }
-  }, [movieInfo, isLoading, error]);
+    setIsVideoLoading(isMirrorsLoading || isMovieInfoLoading);
+  }, [isMirrorsLoading, isMovieInfoLoading]);
 
-  if (isLoading) {
-    return (
-      <Box
-        textAlign="center"
-        py={20}
-        bg={bgColor}
-        minHeight="100vh"
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
-      >
-        <VStack spacing={4}>
-          <Player
-            autoplay
-            loop
-            src="https://assets9.lottiefiles.com/packages/lf20_p8bfn5to.json"
-            style={{ width: "200px", height: "200px" }}
-          />
-          <Text mt={4} fontSize="xl" color={textColor}>Cargando...</Text>
-        </VStack>
-      </Box>
-    );
+  const [headerRef, headerInView] = useInView({
+    threshold: 0.1,
+    triggerOnce: true,
+  });
+
+  const [castRef, castInView] = useInView({
+    threshold: 0.1,
+    triggerOnce: true,
+  });
+
+  const [similarRef, similarInView] = useInView({
+    threshold: 0.1,
+    triggerOnce: true,
+  });
+
+  const [reviewRef, reviewInView] = useInView({
+    threshold: 0.1,
+    triggerOnce: true,
+  });
+
+  const handleLanguageChange = (newLanguage: string) => {
+    setSelectedLanguage(newLanguage);
+  };
+
+  const handleQualityChangeWrapper = (newQuality: string) => {
+    setSelectedQuality(newQuality);
+    handleQualityChange(newQuality);
+  };
+
+  if (isMovieLoading || isCreditsLoading || isSimilarMoviesLoading) {
+    return <LoadingSkeleton />;
   }
-  
-  if (error || !movieInfo) {
-    return (
-      <Box
-        textAlign="center"
-        py={20}
-        bg={bgColor}
-        minHeight="100vh"
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
-      >
-        <VStack spacing={6}>
-          <Player
-            autoplay
-            loop
-            src="https://assets5.lottiefiles.com/packages/lf20_afwjhfb2.json"
-            style={{ width: "200px", height: "200px" }}
-          />
-          <Text fontSize="2xl" color={textColor}>Oops! No pudimos encontrar la película</Text>
-          <Button
-            onClick={() => navigate(-1)}
-            leftIcon={<ArrowBackIcon />}
-            size="lg"
-            colorScheme="purple"
-            variant="outline"
-          >
-            Volver a la búsqueda
-          </Button>
-        </VStack>
-      </Box>
-    );
+
+  if (movieError) {
+    return <ErrorFallback error={movieError} resetErrorBoundary={() => navigate('/')} />;
+  }
+
+  if (!movie) {
+    return <ErrorFallback error={new Error("Movie not found")} resetErrorBoundary={() => navigate('/')} />;
   }
 
   return (
     <Box
-      maxW="100%"
       minHeight="100vh"
-      bg={bgColor}
-      color={textColor}
-      overflow="hidden"
-      position="relative"
+      bgImage={`linear-gradient(to bottom, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.9)), url(https://image.tmdb.org/t/p/original${movie.backdrop_path})`}
+      bgSize="cover"
+      bgPosition="center"
+      bgAttachment="fixed"
+      color="white"
     >
-      <Box position="absolute" top={0} left={0} w="100%" h="100%" zIndex={-1}>
-        <Blurhash
-          hash="LGF5]+Yk^6#M@-5c,1J5@[or[Q6."
-          width="100%"
-          height="100%"
-          resolutionX={32}
-          resolutionY={32}
-          punch={1}
-        />
-      </Box>
-
       <AnimatePresence>
-        <MotionBox
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.5 }}
-          position="relative"
-          zIndex={1}
         >
-          <VStack
-            spacing={12}
-            align="stretch"
-            maxW="6xl"
-            mx="auto"
-            py={12}
-            px={4}
-          >
-            {isPlaying && (
+          <Container maxW="container.xl" py={8}>
+            <VStack spacing={8} align="stretch">
+              <Button
+                leftIcon={<FaChevronLeft />}
+                onClick={() => navigate(-1)}
+                position="fixed"
+                top={12}
+                left={4}
+                zIndex={10}
+                bg="rgba(255, 255, 255, 0.1)"
+                backdropFilter="blur(5px)"
+                _hover={{
+                  bg: "rgba(255, 255, 255, 0.2)",
+                  transform: "scale(1.05)"
+                }}
+                transition="all 0.3s ease"
+              >
+                Back
+              </Button>
+
               <MotionBox
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
+                {...glassmorphismStyle}
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.5 }}
               >
-                <Box p={4} borderRadius="xl" boxShadow="xl" bg={`${bgColor}CC`} backdropFilter="blur(10px)">
-                  <video
-                    controls
-                    width="100%"
-                    height="auto"
-                    src={getStreamUrl(movieInfo.InfoHash)}
+                {isVideoLoading ? (
+                  <Skeleton height="400px" width="100%" />
+                ) : streamUrl ? (
+                  <Suspense fallback={<Skeleton height="400px" width="100%" />}>
+                    <VideoPlayer 
+                      options={videoJsOptions} 
+                      title={movie.title}
+                      onQualityChange={handleQualityChangeWrapper}
+                      onLanguageChange={handleLanguageChange}
+                      availableQualities={['720p', '1080p', '4K']}
+                      availableLanguages={['en', 'es', 'fr']}
+                      imdbId={movie.imdb_id || ''}
+                      subtitles={downloadedSubtitles}
+                    />
+                  </Suspense>
+                ) : (
+                  <Box 
+                    height="400px" 
+                    width="100%" 
+                    bgImage={`url(${posterUrl})`}
+                    bgSize="cover"
+                    bgPosition="center"
                   />
-                </Box>
+                )}
               </MotionBox>
-            )}
-            <HStack justify="space-between" wrap="wrap">
-              <Tooltip label="Volver a la búsqueda" placement="top">
-                <Button
-                  onClick={() => navigate(-1)}
-                  leftIcon={<ArrowBackIcon />}
-                  variant="outline"
-                  color={textColor}
-                  borderColor={textColor}
-                  _hover={{ bg: `${textColor}20` }}
-                  size={buttonSize}
-                >
-                  Volver
-                </Button>
-              </Tooltip>
-              <HStack>
-                <Tooltip label="Información de la película" placement="top">
-                  <Button
-                    onClick={onOpen}
-                    leftIcon={<InfoIcon />}
-                    variant="outline"
-                    color={textColor}
-                    borderColor={textColor}
-                    _hover={{ bg: `${textColor}20` }}
-                    size={buttonSize}
-                  >
-                    Info
-                  </Button>
-                </Tooltip>
-                <Tooltip label="Descargar película" placement="top">
-                  <Button
-                    leftIcon={<DownloadIcon />}
-                    variant="outline"
-                    color={textColor}
-                    borderColor={textColor}
-                    _hover={{ bg: `${textColor}20` }}
-                    size={buttonSize}
-                  >
-                    Descargar
-                  </Button>
-                </Tooltip>
-              </HStack>
-            </HStack>
 
-            <AnimatedBox style={fadeIn} ref={ref}>
-              <Box p={8} borderRadius="2xl" boxShadow="2xl" bg={`${bgColor}CC`} backdropFilter="blur(10px)">
-                <VStack spacing={6} align="stretch">
-                  <Heading
-                    as="h1"
-                    size="3xl"
-                    bgGradient={`linear(to-r, ${accentColor}, purple.200)`}
-                    bgClip="text"
-                    letterSpacing="tight"
-                    textAlign="center"
-                  >
-                    {movieInfo.Name}
-                  </Heading>
+              <motion.div
+                ref={headerRef}
+                initial={{ opacity: 0, y: 20 }}
+                animate={headerInView ? { opacity: 1, y: 0 } : {}}
+                transition={{ duration: 0.5 }}
+              >
+                <Suspense fallback={<Skeleton height="200px" />}>
+                  <MovieHeader 
+                    movie={movie} 
+                    onTrailerPlay={() => {}} 
+                    isMobile={isMobile} 
+                    isLoading={false}
+                    onChangeMirror={handleChangeMirror}
+                    isChangingMirror={isChangingMirror}
+                    currentMirrorIndex={currentMirrorIndex}
+                    totalMirrors={mirrors?.length ?? 0}
+                    onOpenQualitySelector={() => {}}
+                    isPlaying={isPlaying}
+                    currentQuality={currentQuality}
+                  />
+                </Suspense>
+              </motion.div>
 
-                  <HStack spacing={4} justifyContent="center">
-                    <Badge colorScheme="yellow" fontSize="md" p={2} borderRadius="md">
-                      <StarIcon mr={2} />
-                      {(Math.random() * 2 + 3).toFixed(1)} / 5.0
-                    </Badge>
-                    <Badge colorScheme="purple" fontSize="md" p={2} borderRadius="md">
-                      {formatDuration(Math.floor(Math.random() * 7200 + 3600))}
-                    </Badge>
-                    <Badge colorScheme="green" fontSize="md" p={2} borderRadius="md">
-                      HD
-                    </Badge>
-                  </HStack>
+              <motion.div
+                ref={castRef}
+                initial={{ opacity: 0, y: 20 }}
+                animate={castInView ? { opacity: 1, y: 0 } : {}}
+                transition={{ duration: 0.5 }}
+              >
+                {credits && (
+                  <Suspense fallback={<Skeleton height="200px" />}>
+                    <CastSection cast={credits.cast} isLoading={false} />
+                  </Suspense>
+                )}
+              </motion.div>
 
-                  <Text fontSize="xl" fontStyle="italic" color={`${textColor}80`} textAlign="center">
-                    "{movieInfo.Name.split('.').slice(0, -1).join('.')}"
-                  </Text>
-                </VStack>
-              </Box>
-            </AnimatedBox>
+              <motion.div
+                ref={similarRef}
+                initial={{ opacity: 0, y: 20 }}
+                animate={similarInView ? { opacity: 1, y: 0 } : {}}
+                transition={{ duration: 0.5 }}
+              >
+                {similarMovies && (
+                  <Suspense fallback={<Skeleton height="200px" />}>
+                    <SimilarMoviesSection movies={similarMovies} isMobile={isMobile} isLoading={false} />
+                  </Suspense>
+                )}
+              </motion.div>
 
-            <Box>
-              <Heading as="h2" size="xl" mb={4}>Escenas Destacadas</Heading>
-              <Suspense fallback={<Skeleton height="400px" />}>
-                <Swiper
-                  effect="coverflow"
-                  grabCursor={true}
-                  centeredSlides={true}
-                  slidesPerView="auto"
-                  coverflowEffect={{
-                    rotate: 50,
-                    stretch: 0,
-                    depth: 100,
-                    modifier: 1,
-                    slideShadows: true,
-                  }}
-                  pagination={true}
-                  navigation={true}
-                  modules={[EffectCoverflow, Pagination, Navigation]}
-                  className="mySwiper"
-                >
-                  {[1, 2, 3, 4, 5].map((_, index) => (
-                    <SwiperSlide key={index}>
-                      <LazyLoadImage
-                        src={`/api/placeholder/400/225?text=Escena ${index + 1}`}
-                        alt={`Escena ${index + 1}`}
-                        effect="blur"
-                        width="100%"
-                        height="auto"
-                      />
-                    </SwiperSlide>
-                  ))}
-                </Swiper>
-              </Suspense>
-            </Box>
-          </VStack>
-        </MotionBox>
-      </AnimatePresence>
-
-      <Modal isOpen={isOpen} onClose={onClose} size="xl">
-        <ModalOverlay backdropFilter="blur(10px)" />
-        <ModalContent bg={useColorModeValue("white", "gray.800")} borderRadius="2xl">
-          <ModalHeader>Información de la Película</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody pb={6}>
-            <VStack align="stretch" spacing={4}>
-              <Text>
-                <strong>Tamaño:</strong> {formatFileSize(movieInfo.Files[0].Size)}
-              </Text>
-              <Text>
-                <strong>Hash:</strong> {movieInfo.InfoHash}
-              </Text>
-              <Text>
-                <strong>Fecha de lanzamiento:</strong> {new Date().toLocaleDateString()}
-              </Text>
-              <Text>
-                <strong>Género:</strong> Acción, Aventura
-              </Text>
-              <Text>
-                <strong>Director:</strong> John Doe
-              </Text>
-              <Text>
-                <strong>Reparto:</strong> Actor 1, Actor 2, Actor 3
-              </Text>
-              <Text>
-                <strong>Sinopsis:</strong> Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-              </Text>
+              <motion.div
+                ref={reviewRef}
+                initial={{ opacity: 0, y: 20 }}
+                animate={reviewInView ? { opacity: 1, y: 0 } : {}}
+                transition={{ duration: 0.5 }}
+              >
+                <Suspense fallback={<Spinner size="xl" color="white" />}>
+                  <ReviewSection movieId={tmdbId} />
+                </Suspense>
+              </motion.div>
             </VStack>
-          </ModalBody>
-        </ModalContent>
-      </Modal>
+          </Container>
+        </motion.div>
+      </AnimatePresence>
     </Box>
   );
 };
 
-export default MoviePage;
+const MoviePageWrapper: React.FC = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ErrorBoundary FallbackComponent={ErrorFallback}>
+        <MoviePage />
+      </ErrorBoundary>
+    </QueryClientProvider>
+  );
+};
+
+export default MoviePageWrapper;
