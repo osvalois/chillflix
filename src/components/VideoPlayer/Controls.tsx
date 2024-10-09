@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Flex, useMediaQuery, Fade, IconButton } from "@chakra-ui/react";
+import { Box, Flex, useMediaQuery, Fade } from "@chakra-ui/react";
 import { ControlsProps } from './types';
 import { PlaybackControls } from './PlaybackControls';
 import { VolumeControls } from './VolumeControls';
@@ -12,7 +12,7 @@ import { MobileMenu } from './MobileMenu';
 import { LoadingSpinner } from './LoadingSpinner';
 import { TitleDisplay } from './TitleDisplay';
 import { QualitySelector } from './QualitySelector';
-import { FaClosedCaptioning } from "react-icons/fa";
+import { SubtitleSelector } from './SubtitleSelector';
 
 const Controls: React.FC<ControlsProps> = ({
     player,
@@ -25,17 +25,17 @@ const Controls: React.FC<ControlsProps> = ({
     volume,
     audioTracks,
     selectedAudioTrack,
-    subtitles,
     selectedSubtitle,
     selectedQuality,
     selectedLanguage,
     controlsVisible,
     availableQualities,
     availableLanguages,
+    subtitles,
     title,
     onQualityChange,
     onLanguageChange,
-    onToggleSubtitlesSelector
+    onSubtitleChange,
 }) => {
     const [isLargerThan768] = useMediaQuery("(min-width: 768px)");
 
@@ -45,6 +45,15 @@ const Controls: React.FC<ControlsProps> = ({
         borderRadius: "10px",
         border: "1px solid rgba(255, 255, 255, 0.1)",
         boxShadow: "0 4px 30px rgba(0, 0, 0, 0.1)",
+    };
+
+    const handleAudioTrackChange = (track: videojs.AudioTrack) => {
+        const audioTracks = player?.audioTracks();
+        if (audioTracks) {
+            for (let i = 0; i < audioTracks.length; i++) {
+                audioTracks[i].enabled = audioTracks[i].id === track.id;
+            }
+        }
     };
 
     return (
@@ -63,7 +72,10 @@ const Controls: React.FC<ControlsProps> = ({
                         <SeekBar currentTime={currentTime} duration={duration} onSeek={(time) => player?.currentTime(time)} />
                         <Flex alignItems="center" justifyContent="space-between" flexWrap={["wrap", "nowrap"]}>
                             <Flex alignItems="center" width={["100%", "auto"]}>
-                                <PlaybackControls isPaused={isPaused} onPlayPause={() => player?.paused() ? player.play() : player.pause()} />
+                                <PlaybackControls 
+                                    isPaused={isPaused} 
+                                    onPlayPause={() => player?.paused() ? player.play() : player.pause()} 
+                                />
                                 <VolumeControls
                                     isMuted={isMuted}
                                     volume={volume}
@@ -76,27 +88,25 @@ const Controls: React.FC<ControlsProps> = ({
                             <Flex alignItems="center" mt={[2, 0]} width={["100%", "auto"]} justifyContent={["space-between", "flex-end"]}>
                                 {isLargerThan768 ? (
                                     <>
-                                        <QualitySelector selectedQuality={selectedQuality} availableQualities={availableQualities} onQualityChange={onQualityChange} />
+                                        <QualitySelector 
+                                            selectedQuality={selectedQuality} 
+                                            availableQualities={availableQualities} 
+                                            onQualityChange={onQualityChange} 
+                                        />
                                         <LanguageSelector
                                             selectedLanguage={selectedLanguage}
                                             availableLanguages={availableLanguages}
                                             onLanguageChange={onLanguageChange}
                                         />
-                                        <AudioSettingsMenu audioTracks={audioTracks} selectedAudioTrack={selectedAudioTrack} onAudioTrackChange={(track) => {
-                                            const audioTracks = player?.audioTracks();
-                                            if (audioTracks) {
-                                                for (let i = 0; i < audioTracks.length; i++) {
-                                                    audioTracks[i].enabled = audioTracks[i].id === track.id;
-                                                }
-                                            }
-                                        }} />
-                                        <IconButton
-                                            aria-label="Toggle Subtitles"
-                                            icon={<FaClosedCaptioning />}
-                                            onClick={onToggleSubtitlesSelector}
-                                            variant="ghost"
-                                            color="white"
-                                            _hover={{ bg: "whiteAlpha.300" }}
+                                        <AudioSettingsMenu 
+                                            audioTracks={audioTracks} 
+                                            selectedAudioTrack={selectedAudioTrack} 
+                                            onAudioTrackChange={handleAudioTrackChange} 
+                                        />
+                                        <SubtitleSelector
+                                            subtitles={subtitles}
+                                            selectedSubtitle={selectedSubtitle}
+                                            onSubtitleChange={onSubtitleChange}
                                         />
                                     </>
                                 ) : (
@@ -109,17 +119,10 @@ const Controls: React.FC<ControlsProps> = ({
                                         onLanguageChange={onLanguageChange}
                                         audioTracks={audioTracks}
                                         selectedAudioTrack={selectedAudioTrack}
-                                        onAudioTrackChange={(track) => {
-                                            const audioTracks = player?.audioTracks();
-                                            if (audioTracks) {
-                                                for (let i = 0; i < audioTracks.length; i++) {
-                                                    audioTracks[i].enabled = audioTracks[i].id === track.id;
-                                                }
-                                            }
-                                        }}
+                                        onAudioTrackChange={handleAudioTrackChange}
                                         subtitles={subtitles}
                                         selectedSubtitle={selectedSubtitle}
-                                        onToggleSubtitlesSelector={onToggleSubtitlesSelector}
+                                        onSubtitleChange={onSubtitleChange}
                                     />
                                 )}
                                 <FullscreenButton

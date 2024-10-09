@@ -1,59 +1,47 @@
+// SubtitlesDisplay.tsx
 import React, { useEffect, useState } from 'react';
-import { Box, Text } from "@chakra-ui/react";
+import { Box } from '@chakra-ui/react';
+import Player from 'video.js/dist/types/player';
 
 interface SubtitlesDisplayProps {
-  player: videojs.Player | null;
+  player: Player | null;
 }
 
 export const SubtitlesDisplay: React.FC<SubtitlesDisplayProps> = ({ player }) => {
-  const [currentSubtitle, setCurrentSubtitle] = useState<string>('');
-
+  const [subtitleText, setSubtitleText] = useState('');
   useEffect(() => {
-    if (!player) return;
+    if (player) {
+      const updateSubtitles = () => {
+        const activeCues = player.textTracks()[0]?.activeCues;
+        if (activeCues && activeCues.length > 0) {
+          setSubtitleText(activeCues[0].text);
+        } else {
+          setSubtitleText('');
+        }
+      };
 
-    const updateSubtitle = () => {
-      const activeTracks = player.textTracks().tracks_.filter((track: any) => track.mode === 'showing');
-      const activeTrack = activeTracks[activeTracks.length - 1];
-      if (activeTrack && activeTrack.activeCues && activeTrack.activeCues.length > 0) {
-        setCurrentSubtitle(activeTrack.activeCues[0].text);
-      } else {
-        setCurrentSubtitle('');
-      }
-    };
+      player.textTracks().addEventListener('cuechange', updateSubtitles);
 
-    player.textTracks().addEventListener('cuechange', updateSubtitle);
-
-    return () => {
-      player.textTracks().removeEventListener('cuechange', updateSubtitle);
-    };
+      return () => {
+        player.textTracks().removeEventListener('cuechange', updateSubtitles);
+      };
+    }
   }, [player]);
-
-  if (!currentSubtitle) return null;
 
   return (
     <Box
       position="absolute"
-      bottom="70px"
+      bottom="60px"
       left="0"
-      width="100%"
+      right="0"
       textAlign="center"
-      zIndex="1"
+      color="white"
+      fontSize="1.2em"
+      textShadow="0 0 3px black"
+      padding="10px"
+      zIndex={1000}
     >
-      <Text
-        color="white"
-        fontSize="xl"
-        fontWeight="bold"
-        textShadow="0 0 3px black"
-        bg="rgba(0, 0, 0, 0.5)"
-        px={2}
-        py={1}
-        borderRadius="md"
-        display="inline-block"
-        maxWidth="80%"
-        margin="0 auto"
-      >
-        {currentSubtitle}
-      </Text>
+      {subtitleText}
     </Box>
   );
 };

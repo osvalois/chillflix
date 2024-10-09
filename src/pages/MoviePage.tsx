@@ -22,7 +22,6 @@ const ReviewSection = lazy(() => import('../components/ReviewSection/ReviewSecti
 
 import { useVideoPlayerLogic } from '../hooks/useVideoPlayerLogic';
 import { useMirrorLogic } from '../hooks/useMirrorLogic';
-import { useSubtitles } from '../components/VideoPlayer/useSubtitles';
 
 const MotionBox = motion(Box);
 
@@ -145,7 +144,6 @@ const MoviePage: React.FC = () => {
     }
     return null;
   }, [movieInfo, videoFile]);
-  const { loadSubtitles, downloadedSubtitles } = useSubtitles(tmdbId || '');
 
   const posterUrl = useMemo(() => {
     return movie ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : '';
@@ -254,7 +252,6 @@ const MoviePage: React.FC = () => {
                       availableQualities={['720p', '1080p', '4K']}
                       availableLanguages={['en', 'es', 'fr']}
                       imdbId={movie.imdb_id || ''}
-                      subtitles={downloadedSubtitles}
                     />
                   </Suspense>
                 ) : (

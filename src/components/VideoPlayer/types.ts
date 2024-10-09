@@ -1,6 +1,7 @@
 
 // types.ts
 import Player from "video.js/dist/types/player";
+import { Subtitle } from "../../services/OpenSubtitlesService";
 
 export interface VideoPlayerProps {
   options: PlayerOptions;
@@ -38,4 +39,5 @@ export interface ControlsProps {
   title: string;
   onQualityChange: (quality: string) => void;
   onLanguageChange: (language: string) => void;
+  onSubtitleChange: (subtitle: Subtitle | null) => void;
 }

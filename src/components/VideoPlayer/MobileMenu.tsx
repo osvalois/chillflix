@@ -1,12 +1,23 @@
-
 // MobileMenu.tsx
 import React from 'react';
-import { Menu, MenuButton, MenuList, MenuItem, IconButton, Tooltip } from "@chakra-ui/react";
-import { FaEllipsisV } from "react-icons/fa";
+import {
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  IconButton,
+  Tooltip,
+  Divider,
+  Text,
+  Box,
+  useColorModeValue,
+} from "@chakra-ui/react";
+import { FaEllipsisV, FaCog, FaClosedCaptioning, FaGlobe, FaVideo } from "react-icons/fa";
 import { QualitySelector } from './QualitySelector';
 import { LanguageSelector } from './LanguageSelector';
 import { AudioSettingsMenu } from './AudioSettingsMenu';
-import { SubtitlesMenu } from './SubtitlesMenu';
+import { Subtitle } from '../../services/OpenSubtitlesService';
+import {SubtitleSelector} from './SubtitleSelector';
 
 interface MobileMenuProps {
   selectedQuality: string;
@@ -18,9 +29,9 @@ interface MobileMenuProps {
   audioTracks: videojs.AudioTrack[];
   selectedAudioTrack: string;
   onAudioTrackChange: (track: videojs.AudioTrack) => void;
-  subtitles: videojs.TextTrack[];
-  selectedSubtitle: string | null;
-  onSubtitleChange: (subtitle: videojs.TextTrack | null) => void;
+  subtitles: Subtitle[];
+  selectedSubtitle: Subtitle | null;
+  onSubtitleChange: (subtitle: Subtitle | null) => void;
 }
 
 export const MobileMenu: React.FC<MobileMenuProps> = ({
@@ -36,48 +47,76 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
   subtitles,
   selectedSubtitle,
   onSubtitleChange
-}) => (
-  <Menu>
-    <Tooltip label="More options" placement="top" hasArrow>
-      <MenuButton
-        as={IconButton}
-        aria-label="More options"
-        icon={<FaEllipsisV />}
-        size="sm"
-        variant="ghost"
-        color="white"
-        _hover={{ bg: "whiteAlpha.300" }}
-      />
-    </Tooltip>
-    <MenuList bg="rgba(0, 0, 0, 0.8)" borderColor="whiteAlpha.300">
-      <MenuItem>
-        <QualitySelector
-          selectedQuality={selectedQuality}
-          availableQualities={availableQualities}
-          onQualityChange={onQualityChange}
+}) => {
+  const bgColor = useColorModeValue("white", "gray.800");
+  const textColor = useColorModeValue("gray.800", "white");
+  const hoverBgColor = useColorModeValue("gray.100", "gray.700");
+
+  return (
+    <Menu closeOnSelect={false}>
+      <Tooltip label="Settings" placement="top" hasArrow>
+        <MenuButton
+          as={IconButton}
+          aria-label="Settings"
+          icon={<FaCog />}
+          size="sm"
+          variant="ghost"
+          color="white"
+          _hover={{ bg: "whiteAlpha.300" }}
         />
-      </MenuItem>
-      <MenuItem>
-        <LanguageSelector
-          selectedLanguage={selectedLanguage}
-          availableLanguages={availableLanguages}
-          onLanguageChange={onLanguageChange}
-        />
-      </MenuItem>
-      <MenuItem>
-        <AudioSettingsMenu
-          audioTracks={audioTracks}
-          selectedAudioTrack={selectedAudioTrack}
-          onAudioTrackChange={onAudioTrackChange}
-        />
-      </MenuItem>
-      <MenuItem>
-        <SubtitlesMenu
-          subtitles={subtitles}
-          selectedSubtitle={selectedSubtitle}
-          onSubtitleChange={onSubtitleChange}
-        />
-      </MenuItem>
-    </MenuList>
-  </Menu>
-);
+      </Tooltip>
+      <MenuList 
+        bg={bgColor} 
+        borderColor="whiteAlpha.300" 
+        boxShadow="xl"
+        borderRadius="md"
+        p={2}
+      >
+        <Text fontSize="sm" fontWeight="bold" mb={2} color={textColor}>Settings</Text>
+        <MenuItem closeOnSelect={false} icon={<FaVideo />} command="Q">
+          <Box flex="1">
+            <Text fontWeight="medium" mb={1}>Quality</Text>
+            <QualitySelector
+              selectedQuality={selectedQuality}
+              availableQualities={availableQualities}
+              onQualityChange={onQualityChange}
+            />
+          </Box>
+        </MenuItem>
+        <Divider my={2} />
+        <MenuItem closeOnSelect={false} icon={<FaGlobe />} command="L">
+          <Box flex="1">
+            <Text fontWeight="medium" mb={1}>Language</Text>
+            <LanguageSelector
+              selectedLanguage={selectedLanguage}
+              availableLanguages={availableLanguages}
+              onLanguageChange={onLanguageChange}
+            />
+          </Box>
+        </MenuItem>
+        <Divider my={2} />
+        <MenuItem closeOnSelect={false} icon={<FaClosedCaptioning />} command="C">
+          <Box flex="1">
+            <Text fontWeight="medium" mb={1}>Subtitles</Text>
+            <SubtitleSelector
+              subtitles={subtitles}
+              selectedSubtitle={selectedSubtitle}
+              onSubtitleChange={onSubtitleChange}
+            />
+          </Box>
+        </MenuItem>
+        <Divider my={2} />
+        <MenuItem closeOnSelect={false} icon={<FaEllipsisV />} command="A">
+          <Box flex="1">
+            <Text fontWeight="medium" mb={1}>Audio</Text>
+            <AudioSettingsMenu
+              audioTracks={audioTracks}
+              selectedAudioTrack={selectedAudioTrack}
+              onAudioTrackChange={onAudioTrackChange}
+            />
+          </Box>
+        </MenuItem>
+      </MenuList>
+    </Menu>
+  );
+};

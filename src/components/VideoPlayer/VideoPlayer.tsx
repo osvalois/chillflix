@@ -3,25 +3,20 @@ import videojs from "video.js";
 import Player from "video.js/dist/types/player";
 import {
   Box,
-  Center,
   useColorModeValue,
-  Fade,
-  useDisclosure,
   useToast,
 } from "@chakra-ui/react";
 import "video.js/dist/video-js.css";
 import { PlayerOptions, VideoPlayerProps } from "./types";
-import { Subtitle } from "../../services/OpenSubtitlesService";
 import { useVideoPlayerState } from "./useVideoPlayerState";
-import { useSubtitles } from "./useSubtitles";
 import Controls from "./Controls";
-import { SubtitlesSelector } from "./SubtitlesSelector";
-import { SubtitlesDisplay } from "./SubtitlesDisplay";
 import { LoadingOverlay } from "./LoadingOverlay";
 import { ErrorOverlay } from "./ErrorOverlay";
 import { QualityIndicator } from "./QualityIndicator";
 import { useHotkeys } from "react-hotkeys-hook";
 import { motion, AnimatePresence } from "framer-motion";
+import OpenSubtitlesService, { Subtitle } from "../../services/OpenSubtitlesService";
+import { SubtitlesDisplay } from "./SubtitlesDisplay";
 
 const initialOptions: PlayerOptions = {
   controls: false,
@@ -53,10 +48,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
     const playerRef = useRef<Player | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [retryCount, setRetryCount] = useState(0);
-    const { isOpen: subtitlesSelectorVisible, onToggle: toggleSubtitlesSelector } = useDisclosure();
     const bgColor = useColorModeValue("gray.100", "gray.900");
     const toast = useToast();
     const [lastClickTime, setLastClickTime] = useState(0);
+    const [subtitles, setSubtitles] = useState<Subtitle[]>([]);
+    const [selectedSubtitle, setSelectedSubtitle] = useState<Subtitle | null>(null);
 
     const {
       isLoading,
@@ -68,8 +64,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
       volume,
       audioTracks,
       selectedAudioTrack,
-      subtitles,
-      selectedSubtitle,
       selectedQuality,
       selectedLanguage,
       controlsVisible,
@@ -82,16 +76,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
       setVolume,
       setAudioTracks,
       setSelectedAudioTrack,
-      setSubtitles,
-      setSelectedSubtitle,
       setSelectedQuality,
       setSelectedLanguage,
       setControlsVisible,
       loadSavedState,
       saveCurrentState,
     } = useVideoPlayerState();
-
-    const { loadSubtitles, downloadedSubtitles, isLoadingSubtitles, subtitlesError } = useSubtitles(imdbId);
 
     const handlePlayerReady = useCallback(
       (player: Player) => {
@@ -109,7 +99,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
         player.on("loadedmetadata", () => {
           setDuration(player.duration());
           checkAudioTracks(player);
-          checkSubtitles(player);
         });
 
         player.on("error", () => {
@@ -157,29 +146,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
         }
       },
       [setAudioTracks, setSelectedAudioTrack]
-    );
-
-    const checkSubtitles = useCallback(
-      (player: Player) => {
-        const tracks = player.textTracks();
-        const subtitleList: videojs.TextTrack[] = [];
-
-        if (tracks && tracks.length) {
-          for (let i = 0; i < tracks.length; i++) {
-            if (tracks[i].kind === "subtitles" || tracks[i].kind === "captions") {
-              subtitleList.push(tracks[i]);
-            }
-          }
-        }
-
-        setSubtitles(subtitleList);
-
-        if (subtitleList.length > 0) {
-          const defaultSubtitle = subtitleList.find((track) => track.mode === "showing") || subtitleList[0];
-          setSelectedSubtitle(defaultSubtitle.label);
-        }
-      },
-      [setSubtitles, setSelectedSubtitle]
     );
 
     useEffect(() => {
@@ -243,58 +209,61 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
     }, [setControlsVisible]);
 
     useEffect(() => {
-      loadSubtitles();
-    }, [loadSubtitles]);
-
-    const handleSubtitleChange = useCallback(
-      (subtitle: Subtitle | null) => {
-        if (playerRef.current) {
-          const textTracks = playerRef.current.textTracks();
-          for (let i = 0; i < textTracks.length; i++) {
-            const track = textTracks[i];
-            if (subtitle && track.language === subtitle.ISO639) {
-              track.mode = "showing";
-            } else {
-              track.mode = "disabled";
-            }
+      const fetchSubtitles = async () => {
+        if (imdbId) {
+          try {
+            const fetchedSubtitles = await OpenSubtitlesService.searchSubtitles(imdbId);
+            setSubtitles(fetchedSubtitles);
+          } catch (error) {
+            console.error('Error fetching subtitles:', error);
           }
         }
-        setSelectedSubtitle(subtitle ? subtitle.LanguageName : null);
-        toggleSubtitlesSelector();
-      },
-      [setSelectedSubtitle, toggleSubtitlesSelector]
-    );
+      };
 
-    useEffect(() => {
-      if (playerRef.current && downloadedSubtitles.length > 0) {
-        playerRef.current.textTracks().tracks_.forEach((track) => {
-          if (track.kind === "subtitles" || track.kind === "captions") {
-            playerRef.current?.removeRemoteTextTrack(track);
-          }
-        });
+      fetchSubtitles();
+    }, [imdbId]);
 
-        downloadedSubtitles.forEach((subtitle) => {
-          playerRef.current?.addRemoteTextTrack(
-            {
-              kind: "subtitles",
+    const handleSubtitleChange = async (subtitle: Subtitle | null) => {
+      setSelectedSubtitle(subtitle);
+
+      if (playerRef.current) {
+        const player = playerRef.current;
+        
+        // Remove existing text tracks
+        const existingTracks = player.textTracks();
+        for (let i = existingTracks.length - 1; i >= 0; i--) {
+          player.removeRemoteTextTrack(existingTracks[i]);
+        }
+    
+        if (subtitle) {
+          try {
+            const subtitleUrl = await OpenSubtitlesService.downloadSubtitle(subtitle.SubDownloadLink);
+            console.log(subtitleUrl)
+            console.log("subtitleUrl")
+            // Create a new text track
+            const track = player.addRemoteTextTrack({
+              kind: 'subtitles',
               label: subtitle.LanguageName,
               srclang: subtitle.ISO639,
-              src: subtitle.SubtitlesLink,
-              language: subtitle.ISO639,
-            },
-            false
-          );
-        });
-
-        if (selectedSubtitle) {
-          const defaultSubtitle = downloadedSubtitles.find((sub) => sub.LanguageName === selectedSubtitle);
-          if (defaultSubtitle) {
-            handleSubtitleChange(defaultSubtitle);
+              src: subtitleUrl,
+              default: true
+            }, false);
+    
+            // Ensure the track is shown
+            track.mode = 'showing';
+          } catch (error) {
+            console.error('Error downloading subtitle:', error);
+            toast({
+              title: "Subtitle Error",
+              description: "Failed to load subtitles. Please try again.",
+              status: "error",
+              duration: 5000,
+              isClosable: true,
+            });
           }
         }
       }
-    }, [downloadedSubtitles, selectedSubtitle, handleSubtitleChange]);
-
+    };
     // Hotkeys
     useHotkeys("space", () => playerRef.current?.paused() ? playerRef.current.play() : playerRef.current?.pause(), []);
     useHotkeys("m", () => setIsMuted(!isMuted), [isMuted]);
@@ -328,30 +297,31 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
 
     return (
       <Box
-        position="relative"
-        ref={containerRef}
-        borderRadius="xl"
-        overflow="hidden"
-        boxShadow="xl"
-        bg={bgColor}
-        _before={{
-          content: '""',
-          position: "absolute",
-          top: 0,
-          right: 0,
-          bottom: 0,
-          left: 0,
-          backdropFilter: "blur(10px)",
-          zIndex: -1,
+      position="relative"
+      ref={containerRef}
+      borderRadius="xl"
+      overflow="hidden"
+      boxShadow="xl"
+      bg={bgColor}
+      _before={{
+        content: '""',
+        position: "absolute",
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 0,
+        backdropFilter: "blur(10px)",
+        zIndex: -1,
         }}
       >
-        <div data-vjs-player>
-          <video 
-            ref={videoRef} 
-            className="video-js vjs-big-play-centered" 
-            onClick={handleVideoClick}
-          />
-        </div>
+    <div data-vjs-player>
+      <video 
+        ref={videoRef} 
+        className="video-js vjs-big-play-centered" 
+        onClick={handleVideoClick}
+      />
+    </div>
+    <SubtitlesDisplay player={playerRef.current} />
         <AnimatePresence>
           {isLoading && (
             <motion.div
@@ -365,29 +335,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
           )}
         </AnimatePresence>
         <ErrorOverlay isVisible={retryCount >= MAX_RETRIES} />
-        <SubtitlesDisplay player={playerRef.current} />
         <QualityIndicator quality={selectedQuality} />
-        <AnimatePresence>
-          {subtitlesSelectorVisible && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <Center position="absolute" top="50%" left="50%" transform="translate(-50%, -50%)" zIndex="2">
-                <SubtitlesSelector
-                  subtitles={downloadedSubtitles}
-                  selectedSubtitle={selectedSubtitle}
-                  onSubtitleChange={handleSubtitleChange}
-                  isVisible={subtitlesSelectorVisible}
-                  isLoading={isLoadingSubtitles}
-                  error={subtitlesError}
-                />
-              </Center>
-            </motion.div>
-          )}
-        </AnimatePresence>
         <Controls
           player={playerRef.current}
           isLoading={isLoading}
@@ -399,7 +347,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
           volume={volume}
           audioTracks={audioTracks}
           selectedAudioTrack={selectedAudioTrack}
-          selectedSubtitle={selectedSubtitle}
           selectedQuality={selectedQuality}
           selectedLanguage={selectedLanguage}
           controlsVisible={controlsVisible}
@@ -408,8 +355,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
           title={title}
           onQualityChange={onQualityChange}
           onLanguageChange={onLanguageChange}
-          subtitles={downloadedSubtitles}
-          onToggleSubtitlesSelector={toggleSubtitlesSelector}
+          subtitles={subtitles}
+          selectedSubtitle={selectedSubtitle}
+          onSubtitleChange={handleSubtitleChange}
         />
       </Box>
     );
