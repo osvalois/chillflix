@@ -1,8 +1,7 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
-import { Console } from 'console';
 
 export interface Mirror {
-  InfoHash: any;
+  infoHash: string;
   id: string;
   title: string;
   year: number;
@@ -17,20 +16,20 @@ export interface Mirror {
 }
 
 export interface MovieFile {
-  ID: number;
+  id: number;
   Name: string;
-  Size: number;
-  Progress: number;
+  size: number;
+  progress: number;
 }
 
 export interface MovieInfo {
-  PosterUrl: any;
+  posterUrl: string | null;
   InfoHash: string;
-  Name: string;
+  name: string;
   Files: MovieFile[];
-  CreatedAt: string;
-  Quality?: string;
-  Language?: string;
+  createdAt: string;
+  quality?: string;
+  language?: string;
 }
 
 export type VideoQuality = '4K' | '1080p' | '720p' | '480p';
@@ -41,8 +40,8 @@ const TORRENT_INFO_URL = 'https://tod-p2m.fly.dev/';
 class MovieService {
   private apiInstance: AxiosInstance;
   private torrentInstance: AxiosInstance;
-  private cache: Map<string, { data: any, timestamp: number }> = new Map();
-  private CACHE_DURATION = 1000 * 60 * 5; // 5 minutes
+  private cache: Map<string, { data: unknown; timestamp: number }> = new Map();
+  private readonly CACHE_DURATION = 1000 * 60 * 5; // 5 minutes
 
   constructor() {
     this.apiInstance = axios.create({
@@ -66,29 +65,29 @@ class MovieService {
     this.setupInterceptors();
   }
 
-  private setupInterceptors() {
+  private setupInterceptors(): void {
     this.apiInstance.interceptors.request.use(this.logRequest, this.handleRequestError);
     this.apiInstance.interceptors.response.use(this.logResponse, this.handleResponseError);
     this.torrentInstance.interceptors.request.use(this.logRequest, this.handleRequestError);
     this.torrentInstance.interceptors.response.use(this.logResponse, this.handleResponseError);
   }
 
-  private logRequest = (config: any) => {
+  private logRequest = (config: any): any => {
     console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
     return config;
   };
 
-  private handleRequestError = (error: any) => {
+  private handleRequestError = (error: any): Promise<never> => {
     console.error('API Request Error:', error);
     return Promise.reject(error);
   };
 
-  private logResponse = (response: any) => {
+  private logResponse = (response: any): any => {
     console.log(`API Response: ${response.status} ${response.statusText}`);
     return response;
   };
 
-  private handleResponseError = (error: any) => {
+  private handleResponseError = (error: any): Promise<never> => {
     console.error('API Response Error:', error);
     return Promise.reject(error);
   };
@@ -120,7 +119,7 @@ class MovieService {
     this.cache.set(key, { data, timestamp: Date.now() });
   }
 
-  extractInfoHash(magnetLink: string): string {
+  public extractInfoHash(magnetLink: string): string {
     const match = magnetLink.match(/xt=urn:btih:([a-zA-Z0-9]+)/i);
     if (match && match[1]) {
       return match[1].toLowerCase();
@@ -128,25 +127,18 @@ class MovieService {
     throw new Error('Invalid magnet link: InfoHash not found');
   }
 
-  async searchMirrors(tmdbId: string, language: string = 'es-MX'): Promise<Mirror[]> {
-    const cacheKey = `mirrors_${tmdbId}_${language}`;
+  public async searchMirrors(tmdbId: string): Promise<Mirror[]> {
+    const cacheKey = `mirrors_${tmdbId}`;
     const cachedData = this.getCachedData<Mirror[]>(cacheKey);
     if (cachedData) return cachedData;
 
     try {
-      const response = await this.apiInstance.get<Mirror>(
-        `/movies/tmdb`,
-        { params: { tmdbId, language } }
-      );
-      const mirror: Mirror = response.data;
+      const response = await this.apiInstance.get<Mirror[]>(`/movies/tmdb/${tmdbId}`);
+      const mirrors = response.data.map(mirror => ({
+        ...mirror,
+        infoHash: this.extractInfoHash(mirror.magnet),
+      }));
       
-      // Extract InfoHash from magnet link
-      const InfoHash = this.extractInfoHash(mirror.magnet);
-      console.log(InfoHash)
-      // Add InfoHash to the mirror object
-      const mirrorWithInfoHash = { ...mirror, InfoHash };
-      
-      const mirrors = [mirrorWithInfoHash];
       this.setCachedData(cacheKey, mirrors);
       return mirrors;
     } catch (error) {
@@ -154,7 +146,7 @@ class MovieService {
     }
   }
 
-  async getMovieInfo(infoHash: string): Promise<MovieInfo> {
+  public async getMovieInfo(infoHash: string): Promise<MovieInfo> {
     const cacheKey = `movieInfo_${infoHash}`;
     const cachedData = this.getCachedData<MovieInfo>(cacheKey);
     if (cachedData) return cachedData;
@@ -168,24 +160,35 @@ class MovieService {
     }
   }
 
-  findVideoFile(movieInfo: MovieInfo): { index: number; fileName: string; quality: VideoQuality, infoHash: string } | null {
-    console.log(movieInfo)
-    console.log("movieInfo")
+  public findVideoFile(movieInfo: MovieInfo): { index: number; fileName: string; quality: VideoQuality; infoHash: string } | null {
     const videoFormats = new Set(['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv']);
-    const videoFiles = movieInfo.Files.filter(file => 
-      videoFormats.has(file.Name.toLowerCase().slice(-4))
-    );
-
-    if (videoFiles.length === 0) return null;
-
-    // Assuming the first (and possibly only) video file is the one we want
-    const selectedFile = videoFiles[0];
-    const quality = this.determineVideoQuality(selectedFile.Size);
-
+    
+    console.log("MovieInfo:", movieInfo);
+  
+    let selectedFile: MovieFile | null = null;
+    let selectedIndex = -1;
+  
+    for (let i = 0; i < movieInfo.Files.length; i++) {
+      const file = movieInfo.Files[i];
+      const extension = file.Name.toLowerCase().slice(-4);
+      
+      if (videoFormats.has(extension)) {
+        // If we haven't selected a file yet, or if this file is larger (assuming larger means better quality)
+        if (!selectedFile || file.size > selectedFile.size) {
+          selectedFile = file;
+          selectedIndex = i;
+        }
+      }
+    }
+  
+    if (!selectedFile) return null;
+  
+    const quality = this.determineVideoQuality(selectedFile.size);
+  
     return {
-      index: selectedFile.ID,
+      index: selectedIndex,
       fileName: selectedFile.Name,
-      quality: quality,
+      quality,
       infoHash: movieInfo.InfoHash
     };
   }
@@ -198,11 +201,11 @@ class MovieService {
     return '480p';
   }
 
-  getStreamUrl(infoHash: string, fileIndex: number): string {
+  public getStreamUrl(infoHash: string, fileIndex: number): string {
     return `${TORRENT_INFO_URL}stream/${infoHash}/${fileIndex}`;
   }
 
-  async getSubtitles(imdbId: string): Promise<string[]> {
+  public async getSubtitles(imdbId: string): Promise<string[]> {
     const cacheKey = `subtitles_${imdbId}`;
     const cachedData = this.getCachedData<string[]>(cacheKey);
     if (cachedData) return cachedData;
@@ -214,7 +217,7 @@ class MovieService {
     return subtitles;
   }
 
-  async reportPlaybackIssue(infoHash: string, issue: string): Promise<void> {
+  public async reportPlaybackIssue(infoHash: string, issue: string): Promise<void> {
     try {
       await this.apiInstance.post('/report-issue', { infoHash, issue });
     } catch (error) {
@@ -223,58 +226,18 @@ class MovieService {
     }
   }
 
-  async prefetchMovieData(tmdbId: string, language: string = 'es-MX'): Promise<void> {
+  public async prefetchMovieData(tmdbId: string): Promise<void> {
     try {
-      const mirrors = await this.searchMirrors(tmdbId, language);
+      const mirrors = await this.searchMirrors(tmdbId);
       if (mirrors.length > 0) {
-        await this.getMovieInfo(mirrors[0].InfoHash);
+        await this.getMovieInfo(mirrors[0].infoHash);
       }
     } catch (error) {
       console.error('Error prefetching movie data:', error);
       // Don't throw here, as this is just a prefetch
     }
   }
-
-  async getMovieInfoWithRetry(infoHash: string, maxRetries = 5, initialDelay = 5000): Promise<MovieInfo> {
-    let retries = 0;
-    let delay = initialDelay;
-
-    while (retries < maxRetries) {
-      try {
-        return await this.getMovieInfo(infoHash);
-      } catch (error) {
-        console.error(`Error fetching movie info (attempt ${retries + 1}):`, error);
-        retries++;
-        if (retries >= maxRetries) {
-          throw error;
-        }
-        await new Promise(resolve => setTimeout(resolve, delay));
-        delay *= 2; // Exponential backoff
-      }
-    }
-
-    throw new Error('Failed to fetch movie info after multiple attempts');
-  }
-
-  async loadMirrorSequentially(mirrors: Mirror[]): Promise<MovieInfo | null> {
-    for (const mirror of mirrors) {
-      try {
-        const movieInfo = await this.getMovieInfoWithRetry(mirror.InfoHash);
-        return movieInfo;
-      } catch (error) {
-        console.error(`Failed to load mirror ${mirror.id}:`, error);
-        // Continue to the next mirror
-      }
-    }
-    return null;
-  }
 }
 
 const movieService = new MovieService();
 export default movieService;
-
-// Exportaciones adicionales para cumplir con las importaciones proporcionadas
-export const getMovieInfo = (infoHash: string) => movieService.getMovieInfo(infoHash);
-export const getStreamUrl = (infoHash: string, fileIndex: number) => movieService.getStreamUrl(infoHash, fileIndex);
-export const extractInfoHash = (magnetLink: string) => movieService.extractInfoHash(magnetLink);
-export { MovieInfo };

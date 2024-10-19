@@ -1,17 +1,15 @@
-import React from 'react';
-import { Box, Container, VStack } from '@chakra-ui/react';
-import { motion } from 'framer-motion';
+// Home.tsx
+import React, { Suspense, lazy, useEffect } from 'react';
+import { Box, Container, VStack, Text, Spinner, Center } from '@chakra-ui/react';
 import { ParallaxProvider } from 'react-scroll-parallax';
 
 import { useContentData } from '../hooks/useContentData';
 import { useDynamicBackground } from '../hooks/useDynamicBackground';
-import FeaturedContent from '../components/Home/FeaturedContent';
 import GlassmorphicBox from '../components/UI/GlassmorphicBox';
-import GenreExplorer from '../components/Home/GenreExplorer';
-import ContentCarousel from '../components/Home/ContentCarousel';
 
-
-const MotionBox = motion(Box as any);
+const FeaturedContent = lazy(() => import('../components/Home/FeaturedContent'));
+const GenreExplorer = lazy(() => import('../components/Home/GenreExplorer'));
+const ContentCarousel = lazy(() => import('../components/Home/ContentCarousel'));
 
 export const Home: React.FC = () => {
   const { 
@@ -20,10 +18,41 @@ export const Home: React.FC = () => {
     topRated, 
     upcoming, 
     personalizedRecommendations, 
-    genres 
+    genres,
+    isLoading,
+    error,
+    refreshContent
   } = useContentData();
-
+  
   const { bgGradient, textColor } = useDynamicBackground();
+
+  useEffect(() => {
+    if (error) {
+      console.error('Error loading content:', error);
+      // Intenta cargar el contenido nuevamente después de un breve retraso
+      const retryTimer = setTimeout(() => {
+        refreshContent();
+      }, 5000);
+
+      return () => clearTimeout(retryTimer);
+    }
+  }, [error, refreshContent]);
+
+  if (isLoading) {
+    return (
+      <Center minHeight="100vh" bgGradient={bgGradient}>
+        <Spinner size="xl" color={textColor} />
+      </Center>
+    );
+  }
+
+  if (error) {
+    return (
+      <Center minHeight="100vh" bgGradient={bgGradient}>
+        <Text color={textColor}>Error: {error}. Retrying...</Text>
+      </Center>
+    );
+  }
 
   return (
     <ParallaxProvider>
@@ -33,30 +62,35 @@ export const Home: React.FC = () => {
         backgroundAttachment="fixed"
         color={textColor}
       >
-        {featuredContent && <FeaturedContent content={featuredContent} genres={genres} />}
+        <Suspense fallback={<Spinner size="xl" color={textColor} />}>
+          {featuredContent && <FeaturedContent content={featuredContent} genres={genres} />}
+        </Suspense>
         
         <Container maxW="container.xl" py={12}>
           <VStack spacing={16} align="stretch">
-
-              <GlassmorphicBox p={6} borderRadius="xl">
-                <ContentCarousel title="Trending Now" content={trendingContent} icon="FaFire" />
-              </GlassmorphicBox>
-
-              <GlassmorphicBox p={6} borderRadius="xl" mt={8}>
-                <ContentCarousel title="Top Rated" content={topRated} icon="FaStar" />
-              </GlassmorphicBox>
-
-              <GlassmorphicBox p={6} borderRadius="xl" mt={8}>
-                <ContentCarousel title="Upcoming" content={upcoming} icon="FaCalendar" />
-              </GlassmorphicBox>
-
+            <Suspense fallback={<Spinner size="xl" color={textColor} />}>
               {personalizedRecommendations.length > 0 && (
                 <GlassmorphicBox p={6} borderRadius="xl" mt={8}>
                   <ContentCarousel title="Recommended for You" content={personalizedRecommendations} icon="FaHeart" />
                 </GlassmorphicBox>
               )}
-     
-            <GenreExplorer genres={genres} />
+              {trendingContent.length > 0 && (
+                <GlassmorphicBox p={6} borderRadius="xl">
+                  <ContentCarousel title="Trending Now" content={trendingContent} icon="FaFire" />
+                </GlassmorphicBox>
+              )}
+              {topRated.length > 0 && (
+                <GlassmorphicBox p={6} borderRadius="xl" mt={8}>
+                  <ContentCarousel title="Top Rated" content={topRated} icon="FaStar" />
+                </GlassmorphicBox>
+              )}
+              {upcoming.length > 0 && (
+                <GlassmorphicBox p={6} borderRadius="xl" mt={8}>
+                  <ContentCarousel title="Upcoming" content={upcoming} icon="FaCalendar" />
+                </GlassmorphicBox>
+              )}
+              {genres.length > 0 && <GenreExplorer genres={genres} />}
+            </Suspense>
           </VStack>
         </Container>
       </Box>

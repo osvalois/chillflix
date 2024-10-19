@@ -4,20 +4,18 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, EffectCoverflow } from 'swiper/modules';
 import { motion, useAnimation } from 'framer-motion';
 import { FaFire, FaStar, FaHeart, FaCalendar, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
-
 import ContentCard from './ContentCard';
-
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/effect-coverflow';
 import { CombinedContent } from '../../types';
 
-const MotionBox = motion(Box);
+const MotionBox = motion(Box as any);
 
 interface ContentCarouselProps {
   title: string;
   content: CombinedContent[];
-  icon: string;
+  icon: 'FaFire' | 'FaStar' | 'FaHeart' | 'FaCalendar';
 }
 
 const ContentCarousel: React.FC<ContentCarouselProps> = ({ title, content, icon }) => {
@@ -44,7 +42,7 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({ title, content, icon 
     controls.start({ opacity: 1, y: 0 });
   }, [controls]);
 
-  const CustomNavButton = ({ direction }: { direction: 'prev' | 'next' }) => (
+  const CustomNavButton: React.FC<{ direction: 'prev' | 'next' }> = ({ direction }) => (
     <Button
       position="absolute"
       top="50%"
@@ -61,6 +59,11 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({ title, content, icon 
       <Icon as={direction === 'prev' ? FaChevronLeft : FaChevronRight} color="white" boxSize={6} />
     </Button>
   );
+
+  const handleContentSelect = (selectedContent: CombinedContent) => {
+    console.log('Selected content:', selectedContent);
+    // Implement your logic here for handling the selected content
+  };
 
   return (
     <MotionBox
@@ -117,7 +120,7 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({ title, content, icon 
           {content.map((item) => (
             <SwiperSlide key={item.id}>
               <Box p={4}>
-                <ContentCard content={item} />
+                <ContentCard content={item} onSelect={() => handleContentSelect(item)} />
               </Box>
             </SwiperSlide>
           ))}

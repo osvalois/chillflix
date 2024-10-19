@@ -19,6 +19,7 @@ export interface PlayerOptions extends videojs.PlayerOptions {
 }
 
 export interface ControlsProps {
+  movieId: string;
   player: Player | null;
   isLoading: boolean;
   isPaused: boolean;

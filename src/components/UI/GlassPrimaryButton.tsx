@@ -1,9 +1,33 @@
 import React from 'react';
-import { Button, Box, Text, keyframes } from '@chakra-ui/react';
-import { motion } from 'framer-motion';
-const MotionBox = motion(Box);
+import { Button, Box, Text, ButtonProps } from '@chakra-ui/react';
+import { motion, AnimatePresence, MotionProps } from 'framer-motion';
 
-export const GlassPrimaryButton = ({ children, icon, ...props }) => {
+// Definir el tipo para MotionBox
+const MotionBox = motion<Omit<ButtonProps, keyof MotionProps>>(Box as any);
+
+interface GlassPrimaryButtonProps extends Omit<ButtonProps, 'onClick'> {
+  icon?: React.ReactElement;
+  onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  isLoading?: boolean;
+  children: React.ReactNode;
+}
+
+export const GlassPrimaryButton: React.FC<GlassPrimaryButtonProps> = ({
+  children,
+  icon,
+  onClick,
+  isLoading,
+  ...props
+}) => {
+  const handleClick = React.useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      if (onClick && !isLoading) {
+        onClick(event);
+      }
+    },
+    [onClick, isLoading]
+  );
+
   return (
     <Button
       as={MotionBox}
@@ -30,22 +54,48 @@ export const GlassPrimaryButton = ({ children, icon, ...props }) => {
       position="relative"
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
+      onClick={handleClick}
+      isLoading={isLoading}
+      _disabled={{
+        opacity: 0.6,
+        cursor: "not-allowed",
+      }}
       {...props}
     >
-      <MotionBox
-        position="absolute"
-        top="50%"
-        left="50%"
-        width="120%"
-        height="120%"
+      <AnimatePresence>
+        {!isLoading && (
+          <MotionBox
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              width: '120%',
+              height: '120%',
+              background: 'linear-gradient(225deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0) 60%)',
+              transform: 'translate(-50%, -50%) rotate(25deg)',
+              pointerEvents: 'none',
+            }}
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0 }}
+            transition={{ duration: 0.5 }}
+          />
+        )}
+      </AnimatePresence>
+      <Box
+        as={motion.div}
         style={{
-          background: "linear-gradient(225deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0) 60%)",
-          transform: "translate(-50%, -50%) rotate(25deg)",
-          pointerEvents: "none",
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0) 100%)',
+          pointerEvents: 'none',
         }}
-        initial={{ opacity: 0, scale: 0 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5 }}
+        animate={{
+          x: ['-100%', '100%'],
+        }}
       />
       <Text
         as="span"

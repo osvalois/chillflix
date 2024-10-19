@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
-import { Box, Text, Flex, Icon, AspectRatio, Badge, Button, Skeleton, VStack, keyframes } from '@chakra-ui/react';
+import React from 'react';
+import { Box, Text, Flex, Icon, AspectRatio, Badge, Skeleton, VStack, keyframes } from '@chakra-ui/react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { FaStar, FaPlay, FaInfoCircle, FaCalendar, FaUsers } from 'react-icons/fa';
+import { FaStar, FaInfoCircle, FaCalendar, FaUsers } from 'react-icons/fa';
+import { FiPlay } from 'react-icons/fi';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import { useNavigate } from 'react-router-dom';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import GlassmorphicBox from '../UI/GlassmorphicBox';
 import { GlassPrimaryButton } from '../UI/GlassPrimaryButton';
 import { GlassSecondaryButton } from '../UI/GlassSecondaryButton';
-import { FiPlay } from 'react-icons/fi';
+import { ContentCardProps } from '../../types';
 
 const MotionBox = motion(Box as any);
 const MotionFlex = motion(Flex as any);
@@ -24,15 +25,20 @@ const skeletonBaseStyle = {
   animation: `${shimmer} 2s infinite linear`,
 };
 
-const ContentCard = ({ content, isLoading = false }) => {
-  const [isHovered, setIsHovered] = useState(false);
+const ContentCard: React.FC<ContentCardProps> = ({ content, isLoading = false }) => {
   const navigate = useNavigate();
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
+  let movieType = content.media_type ?? content.type;
+  const getContentLink = () => {
+    return `/${content.media_type ?? content.type}/${content.id}`;
+  };
 
-
-  const rotateX = useTransform(mouseY, [0, 300], [5, -5]);
-  const rotateY = useTransform(mouseX, [0, 300], [-5, 5]);
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Prevent card click if the click was on a button
+    if ((e.target as HTMLElement).closest('button')) return;
+    navigate(getContentLink());
+  };
 
   if (isLoading) {
     return (
@@ -66,16 +72,13 @@ const ContentCard = ({ content, isLoading = false }) => {
       overflow="hidden"
       position="relative"
       cursor="pointer"
+      onClick={handleCardClick}
       onMouseMove={(e) => {
         const rect = e.currentTarget.getBoundingClientRect();
         mouseX.set(e.clientX - rect.left);
         mouseY.set(e.clientY - rect.top);
       }}
-      onHoverStart={() => setIsHovered(true)}
-      onHoverEnd={() => setIsHovered(false)}
       whileHover={{ scale: 1.02 }}
-      style={{ rotateX, rotateY }}
-      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
     >
       <AspectRatio ratio={16 / 9} width="100%" height="60%">
         <LazyLoadImage
@@ -103,7 +106,7 @@ const ContentCard = ({ content, isLoading = false }) => {
       >
         <Flex justifyContent="space-between" alignItems="center" mb={4}>
           <Badge
-            colorScheme={content.media_type === 'movie' ? "purple" : "teal"}
+            colorScheme={ movieType.toLowerCase() === 'movie' ? "purple" : "teal"}
             variant="solid"
             fontSize="md"
             px={4}
@@ -111,7 +114,7 @@ const ContentCard = ({ content, isLoading = false }) => {
             borderRadius="full"
             boxShadow="0 4px 6px rgba(0, 0, 0, 0.1)"
           >
-            {content.media_type === 'movie' ? 'Movie' : 'TV Series'}
+            {movieType.toLowerCase() === 'movie' ? 'Movie' : 'TV Series'}
           </Badge>
           <Flex
             align="center"
@@ -167,16 +170,21 @@ const ContentCard = ({ content, isLoading = false }) => {
         </MotionBox>
 
         <Flex justifyContent="space-between">
-        <GlassPrimaryButton
-  icon={<FiPlay />}
-  lottieAnimation="public/play.json"
-  onClick={() => navigate(`/stream/${content.id}`)}
->
-  Play
-</GlassPrimaryButton>
+          <GlassPrimaryButton
+            icon={<FiPlay />}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(getContentLink());
+            }}
+          >
+            Play
+          </GlassPrimaryButton>
           <GlassSecondaryButton
             icon={<FaInfoCircle />}
-            onClick={() =>  navigate(`/movie/${content.id}`)}
+            onClick={(e: { stopPropagation: () => void; }) => {
+              e.stopPropagation();
+              navigate(getContentLink());
+            }}
             width="48%"
           >
             More Info
@@ -185,20 +193,18 @@ const ContentCard = ({ content, isLoading = false }) => {
       </MotionFlex>
 
       <AnimatePresence>
-        {isHovered && (
-          <MotionBox
-            position="absolute"
-            top={0}
-            left={0}
-            right={0}
-            bottom={0}
-            bg="linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-          />
-        )}
+        <MotionBox
+          key="hover-overlay"
+          position="absolute"
+          top={0}
+          left={0}
+          right={0}
+          bottom={0}
+          bg="linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)"
+          initial={{ opacity: 0 }}
+          whileHover={{ opacity: 1 }}
+          transition={{ duration: 0.2 }}
+        />
       </AnimatePresence>
     </GlassmorphicBox>
   );

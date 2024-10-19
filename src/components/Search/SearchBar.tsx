@@ -4,19 +4,41 @@ import { useNavigate } from 'react-router-dom';
 import { useInfiniteQuery } from 'react-query';
 import debounce from 'lodash/debounce';
 import {
-  Box,
   IconButton,
   useColorModeValue,
   useDisclosure,
   Tooltip,
   Portal,
   useToast,
+  Button,
+  Icon,
 } from '@chakra-ui/react';
 import { SearchIcon } from '@chakra-ui/icons';
 import { FaKeyboard } from 'react-icons/fa';
 import tmdbService from '../../services/tmdbService';
 import SearchModal from './SearchModal';
 import { CombinedMovie } from '../../types';
+
+const KeyboardShortcutButton: React.FC = () => {
+  const bgColor = useColorModeValue('gray.100', 'gray.700');
+  const textColor = useColorModeValue('gray.600', 'gray.200');
+
+  return (
+    <Tooltip label="Atajo de teclado: Ctrl + /" placement="bottom">
+      <Button
+        leftIcon={<Icon as={FaKeyboard} />}
+        size="sm"
+        variant="ghost"
+        display={{ base: 'none', md: 'flex' }}
+        alignItems="center"
+        color={textColor}
+        _hover={{ bg: bgColor }}
+      >
+        Ctrl + /
+      </Button>
+    </Tooltip>
+  );
+};
 
 const SearchBar: React.FC = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -166,19 +188,14 @@ const SearchBar: React.FC = () => {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
             >
-              <SearchModal {...modalProps} />
+              <SearchModal onContentSelect={function (content: any): void {
+                throw new Error('Function not implemented.');
+              } } {...modalProps} />
             </motion.div>
           </Portal>
         )}
       </AnimatePresence>
-      <Tooltip label="Atajo de teclado: Ctrl + /" placement="bottom">
-        <Box
-          as={FaKeyboard}
-          display={{ base: 'none', md: 'block' }}
-          opacity={0.5}
-          ml={2}
-        />
-      </Tooltip>
+      <KeyboardShortcutButton />
     </>
   );
 };

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Box, useColorModeValue, BoxProps, useTheme } from '@chakra-ui/react';
-import { motion, MotionProps, useMotionTemplate, useTransform, useMotionValue } from 'framer-motion';
-import { rgba } from 'polished';
+import { motion, MotionProps, useMotionTemplate, useTransform, useMotionValue, useSpring } from 'framer-motion';
+import { rgba, darken, lighten } from 'polished';
 
 interface GlassmorphicBoxProps extends BoxProps, MotionProps {
   isActive?: boolean;
@@ -9,6 +9,8 @@ interface GlassmorphicBoxProps extends BoxProps, MotionProps {
   gradientColors?: string[];
   hoverEffect?: 'lift' | 'glow' | 'tilt' | 'none';
   glareEffect?: boolean;
+  pulseEffect?: boolean;
+  borderGlow?: boolean;
 }
 
 export const GlassmorphicBox: React.FC<GlassmorphicBoxProps> = React.memo(({
@@ -17,6 +19,8 @@ export const GlassmorphicBox: React.FC<GlassmorphicBoxProps> = React.memo(({
   gradientColors,
   hoverEffect = 'lift',
   glareEffect = true,
+  pulseEffect = false,
+  borderGlow = false,
   children,
   ...props
 }) => {
@@ -80,17 +84,53 @@ export const GlassmorphicBox: React.FC<GlassmorphicBoxProps> = React.memo(({
     tilt: {
       rotateX: useTransform(mouseY, [0, 300], [5, -5]),
       rotateY: useTransform(mouseX, [0, 300], [-5, 5]),
+      z: 0,
     },
     none: {},
   };
+
+  const pulseAnimation = pulseEffect ? {
+    scale: [1, 1.02, 1],
+    transition: {
+      duration: 2,
+      repeat: Infinity,
+      ease: "easeInOut"
+    }
+  } : {};
+
+  const borderGlowColor = useColorModeValue(
+    lighten(0.1, colors[0]),
+    darken(0.1, colors[1])
+  );
+
+  const borderGlowEffect = borderGlow ? {
+    boxShadow: `0 0 10px ${rgba(borderGlowColor, 0.5)}`,
+    transition: {
+      boxShadow: {
+        duration: 1,
+        repeat: Infinity,
+        repeatType: "reverse" as const,
+      }
+    }
+  } : {};
+
+  const springConfig = { stiffness: 300, damping: 20 };
+  const rotateX = useSpring(useTransform(mouseY, [0, 300], [5, -5]), springConfig);
+  const rotateY = useSpring(useTransform(mouseX, [0, 300], [-5, 5]), springConfig);
 
   return (
     <Box
       as={motion.div}
       {...glassEffect}
       {...props}
-      whileHover={hoverVariants[hoverEffect]}
-      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+      whileHover={{
+        ...hoverVariants[hoverEffect],
+        ...borderGlowEffect,
+      }}
+      animate={pulseAnimation}
+      style={{
+        ...(hoverEffect === 'tilt' ? { rotateX, rotateY, z: 0 } : {}),
+      }}
       onMouseMove={(e) => {
         const rect = e.currentTarget.getBoundingClientRect();
         mouseX.set(e.clientX - rect.left);

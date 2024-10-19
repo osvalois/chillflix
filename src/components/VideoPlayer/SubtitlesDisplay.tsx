@@ -1,32 +1,39 @@
-// SubtitlesDisplay.tsx
 import React, { useEffect, useState } from 'react';
 import { Box } from '@chakra-ui/react';
 import Player from 'video.js/dist/types/player';
 
 interface SubtitlesDisplayProps {
   player: Player | null;
+  parsedCues: any[] | null;
 }
 
-export const SubtitlesDisplay: React.FC<SubtitlesDisplayProps> = ({ player }) => {
+export const SubtitlesDisplay: React.FC<SubtitlesDisplayProps> = ({ player, parsedCues }) => {
   const [subtitleText, setSubtitleText] = useState('');
+
   useEffect(() => {
-    if (player) {
+    if (player && parsedCues) {
       const updateSubtitles = () => {
-        const activeCues = player.textTracks()[0]?.activeCues;
-        if (activeCues && activeCues.length > 0) {
-          setSubtitleText(activeCues[0].text);
+        const currentTime = player.currentTime();
+        const activeCues = parsedCues.filter(
+          cue => currentTime >= cue.start && currentTime <= cue.end
+        );
+
+        if (activeCues.length > 0) {
+          const combinedText = activeCues.map(cue => cue.text).join('\n');
+          setSubtitleText(combinedText);
         } else {
           setSubtitleText('');
         }
       };
 
-      player.textTracks().addEventListener('cuechange', updateSubtitles);
+      // Update subtitles on timeupdate event
+      player.on('timeupdate', updateSubtitles);
 
       return () => {
-        player.textTracks().removeEventListener('cuechange', updateSubtitles);
+        player.off('timeupdate', updateSubtitles);
       };
     }
-  }, [player]);
+  }, [player, parsedCues]);
 
   return (
     <Box
@@ -40,6 +47,10 @@ export const SubtitlesDisplay: React.FC<SubtitlesDisplayProps> = ({ player }) =>
       textShadow="0 0 3px black"
       padding="10px"
       zIndex={1000}
+      maxWidth="80%"
+      margin="0 auto"
+      whiteSpace="pre-wrap"
+      wordBreak="break-word"
     >
       {subtitleText}
     </Box>

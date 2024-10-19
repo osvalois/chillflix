@@ -1,12 +1,12 @@
 import React, { useState, useCallback } from 'react';
-import { Box, Text, SimpleGrid, useColorModeValue, Button, VStack, Heading } from '@chakra-ui/react';
+import { Box, Text, SimpleGrid, useColorModeValue, Button, VStack, Heading, useBreakpointValue } from '@chakra-ui/react';
 import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import { useSpring, animated } from 'react-spring';
 import MovieCard from './MovieCard';
 import OptimizedImage from '../UI/OptimizedImage';
 
-const MotionBox = motion(Box as any);
+const MotionBox = motion(Box);
 const AnimatedBox = animated(MotionBox);
 
 interface Movie {
@@ -22,23 +22,22 @@ interface Movie {
 
 interface SimilarMoviesSectionProps {
   movies: Movie[];
-  isMobile: boolean;
   isLoading: boolean;
 }
 
 const glassmorphismStyle = {
-  background: "rgba(255, 255, 255, 0.05)",
-  backdropFilter: "blur(10px)",
-  borderRadius: "20px",
-  border: "1px solid rgba(255, 255, 255, 0.1)",
+  background: "rgba(255, 255, 255, 0.1)",
+  backdropFilter: "blur(20px)",
+  borderRadius: "30px",
+  border: "1px solid rgba(255, 255, 255, 0.2)",
   boxShadow: 
-    "0 4px 30px rgba(0, 0, 0, 0.1), " +
-    "inset 0 0 20px rgba(255, 255, 255, 0.05), " +
-    "0 0 0 1px rgba(255, 255, 255, 0.1)",
+    "0 8px 32px 0 rgba(31, 38, 135, 0.37), " +
+    "inset 0 0 30px rgba(255, 255, 255, 0.1), " +
+    "0 0 0 2px rgba(255, 255, 255, 0.1)",
   overflow: "hidden",
 };
 
-const SimilarMoviesSection: React.FC<SimilarMoviesSectionProps> = ({ movies, isMobile, isLoading }) => {
+const SimilarMoviesSection: React.FC<SimilarMoviesSectionProps> = ({ movies, isLoading }) => {
   const [similarRef, inView] = useInView({ threshold: 0.1, triggerOnce: true });
   const fadeIn = useSpring({
     opacity: inView ? 1 : 0,
@@ -49,9 +48,11 @@ const SimilarMoviesSection: React.FC<SimilarMoviesSectionProps> = ({ movies, isM
   const [showAll, setShowAll] = useState(false);
   const displayedMovies = showAll ? movies : movies.slice(0, 6);
 
-  const buttonBgColor = useColorModeValue('green.500', 'green.200');
+  const buttonBgColor = useColorModeValue('rgba(72, 187, 120, 0.7)', 'rgba(154, 230, 180, 0.7)');
   const buttonTextColor = useColorModeValue('white', 'gray.800');
   const headingColor = useColorModeValue('gray.800', 'white');
+
+  const columns = useBreakpointValue({ base: 1, sm: 2, md: 3, lg: 4, xl: 5 });
 
   const handleSelectMovie = useCallback((movie: Movie) => {
     console.log('Selected movie:', movie);
@@ -62,17 +63,26 @@ const SimilarMoviesSection: React.FC<SimilarMoviesSectionProps> = ({ movies, isM
   }, []);
 
   return (
-    <AnimatedBox ref={similarRef} style={fadeIn} {...glassmorphismStyle} mt={8} maxWidth="1200px" width="100%" p={6}>
-      <Heading as="h2" size="xl" mb={6} color={headingColor} textAlign="center">
+    <AnimatedBox 
+      ref={similarRef} 
+      style={fadeIn} 
+      sx={glassmorphismStyle} 
+      mt={8} 
+      maxWidth="1400px" 
+      width="95%" 
+      mx="auto"
+      p={{ base: 4, md: 6, lg: 8 }}
+    >
+      <Heading as="h2" size="2xl" mb={8} color={headingColor} textAlign="center" fontWeight="bold">
         Similar Movies
       </Heading>
-      <SimpleGrid columns={{ base: 2, md: 3, lg: 4 }} spacing={6}>
+      <SimpleGrid columns={columns} spacing={{ base: 4, md: 6, lg: 8 }}>
         {isLoading ? (
           [...Array(6)].map((_, index) => (
             <MotionBox
               key={index}
-              height="400px"
-              {...glassmorphismStyle}
+              height={{ base: "300px", md: "400px" }}
+              sx={glassmorphismStyle}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
@@ -104,16 +114,22 @@ const SimilarMoviesSection: React.FC<SimilarMoviesSectionProps> = ({ movies, isM
         )}
       </SimpleGrid>
       {movies.length > 6 && (
-        <Box textAlign="center" mt={8}>
+        <Box textAlign="center" mt={10}>
           <Button
             onClick={() => setShowAll(!showAll)}
             bg={buttonBgColor}
             color={buttonTextColor}
-            _hover={{ opacity: 0.8 }}
+            _hover={{ opacity: 0.9 }}
+            _active={{ transform: 'scale(0.98)' }}
             transition="all 0.3s"
             size="lg"
             fontWeight="bold"
-            boxShadow="md"
+            borderRadius="full"
+            px={8}
+            py={6}
+            fontSize="xl"
+            boxShadow="lg"
+            backdropFilter="blur(10px)"
           >
             {showAll ? 'Show Less' : 'Show More'}
           </Button>

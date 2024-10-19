@@ -1,5 +1,4 @@
 // Base types from TMDB service
-
 import { TMDBMovie, TMDBTVSeries } from "./services/tmdbService";
 
 export interface Movie {
@@ -29,6 +28,7 @@ export interface MovieInfo {
   InfoHash: string;
   Files: { ID: number; Name: string; Size: number; Progress: number }[];
 }
+
 export interface TMDBMovie {
   id: number;
   title: string;
@@ -38,6 +38,8 @@ export interface TMDBMovie {
   release_date: string;
   vote_average: number;
   vote_count: number;
+  original_language: string;
+  popularity: number;
   genres: { id: number; name: string }[];
   media_type: 'movie';
   imdb_id?: string;
@@ -71,6 +73,7 @@ export interface TMDBTVSeries {
     }[];
   };
 }
+
 export interface ReviewAuthorDetails {
   name: string;
   username: string;
@@ -97,6 +100,7 @@ export interface MovieReviewsResponse {
   total_pages: number;
   total_results: number;
 }
+
 // Enums
 export enum ContentType {
   Movie = 'movie',
@@ -121,51 +125,35 @@ export interface Genre {
   name: string;
 }
 
-// Base content type
-export interface BaseContent {
+// Combined content type
+export interface CombinedContent {
   id: number;
   title: string;
+  name?: string; // For TV series
   overview: string;
   poster_path: string | null;
   backdrop_path: string | null;
   vote_average: number;
   vote_count: number;
   popularity: number;
-  original_language: string;
-  genre_ids: number[];
-}
-
-// Search result type
-export interface SearchResult extends BaseContent {
-  name?: string; // For TV series
   release_date?: string;
   first_air_date?: string; // For TV series
-  original_title?: string; // For movies
-  original_name?: string; // For TV series
+  original_language: string;
+  genre_ids: number[];
+  genres: { id: number; name: string }[];
   type: ContentType;
   media_type: 'movie' | 'tv';
-  adult?: boolean; // For movies
-  video?: boolean; // For movies
-  origin_country?: string[]; // For TV series
-}
-
-// Additional content data
-export interface AdditionalContentData {
   year: number;
-  genres: Genre[];
-  primary_color?: string;
+  imdb_id?: string;
+  homepage?: string;
+  videos?: {
+    results: {
+      key: string;
+      site: string;
+      type: string;
+    }[];
+  };
 }
-
-// Combined content types
-export type CombinedMovie = TMDBMovie & AdditionalContentData & {
-  type: ContentType.Movie;
-};
-
-export type CombinedTVSeries = TMDBTVSeries & AdditionalContentData & {
-  type: ContentType.TVSeries;
-};
-
-export type CombinedContent = CombinedMovie | CombinedTVSeries;
 
 // Component Props
 export interface SearchModalProps {
@@ -177,18 +165,18 @@ export interface SearchModalProps {
 }
 
 export interface SearchResultsProps {
-  content: SearchResult[];
+  content: CombinedContent[];
   isLoading: boolean;
   isError: boolean;
   hasNextPage: boolean;
   isFetchingNextPage: boolean;
-  onContentSelect: (content: SearchResult) => void;
+  onContentSelect: (content: CombinedContent) => void;
   onFetchNextPage: () => void;
 }
 
 export interface ContentCardProps {
-  content: SearchResult;
-  onSelect: (content: SearchResult) => void;
+  content: CombinedContent;
+  onSelect: (content: CombinedContent) => void;
 }
 
 export interface SearchInputProps {
@@ -208,20 +196,25 @@ export interface SearchHistoryProps {
 }
 
 // TMDB Service types
-export type SearchTMDBFunction = (query: string, page?: number) => Promise<SearchResult[]>;
+export type SearchTMDBFunction = (query: string, page?: number) => Promise<CombinedContent[]>;
 
 export interface TMDBService {
   searchTMDBMovies: SearchTMDBFunction;
   searchTMDBTVSeries: SearchTMDBFunction;
-  searchTMDBContent: (query: string, page?: number, contentType?: ContentType | 'both') => Promise<SearchResult[]>;
+  searchTMDBContent: (query: string, page?: number, contentType?: ContentType | 'both') => Promise<CombinedContent[]>;
   getTMDBMovieDetails: (tmdbId: number) => Promise<CombinedContent>;
   getTMDBTVSeriesDetails: (tmdbId: number) => Promise<CombinedContent>;
+  getTrendingContent: () => Promise<CombinedContent[]>;
+  getTopRated: () => Promise<CombinedContent[]>;
+  getUpcoming: () => Promise<CombinedContent[]>;
+  getGenres: () => Promise<Genre[]>;
+  getMoviesByGenre: (genreId: number) => Promise<CombinedContent[]>;
 }
 
 // Search state and actions
 export interface SearchState {
   searchTerm: string;
-  searchResults: SearchResult[];
+  searchResults: CombinedContent[];
   isLoading: boolean;
   isError: boolean;
   page: number;
@@ -233,7 +226,7 @@ export interface SearchState {
 
 export type SearchAction =
   | { type: 'SET_SEARCH_TERM'; payload: string }
-  | { type: 'SET_SEARCH_RESULTS'; payload: SearchResult[] }
+  | { type: 'SET_SEARCH_RESULTS'; payload: CombinedContent[] }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: boolean }
   | { type: 'SET_PAGE'; payload: number }
