@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Box, Heading, Text, Button, Flex, Icon, Tag, Container, VStack, HStack, keyframes } from '@chakra-ui/react';
+import { Box, Heading, Text, Button, Flex, Icon, Tag, Container, VStack, HStack, useBreakpointValue, keyframes } from '@chakra-ui/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaPlay, FaStar, FaCalendarAlt, FaClock } from 'react-icons/fa';
 import { Parallax } from 'react-scroll-parallax';
@@ -34,6 +34,18 @@ const FeaturedContent: React.FC<FeaturedContentProps> = ({ content, genres }) =>
     triggerOnce: true,
   });
 
+  // Responsive values using Chakra UI's useBreakpointValue
+  const containerHeight = useBreakpointValue({ base: "80vh", md: "90vh" });
+  const padding = useBreakpointValue({ base: 4, sm: 6, md: 8 });
+  const contentPadding = useBreakpointValue({ base: 4, sm: 6, md: 8 });
+  const headingSize = useBreakpointValue({ base: "xl", sm: "2xl", md: "3xl", lg: "4xl" });
+  const overviewFontSize = useBreakpointValue({ base: "sm", md: "md", lg: "xl" });
+  const tagSize = useBreakpointValue({ base: "sm", md: "md" });
+  const buttonSize = useBreakpointValue({ base: "md", md: "lg" });
+  const maxGenres = useBreakpointValue({ base: 2, sm: 3, md: 4 });
+  const overviewMaxWidth = useBreakpointValue({ base: "100%", md: "600px" });
+  const overviewMaxLength = useBreakpointValue({ base: 100, sm: 200, md: 500 });
+
   const getContentLink = useMemo(() => {
     const contentType = 'title' in content ? 'movie' : 'tv';
     return `/${contentType}/${content.id}`;
@@ -47,10 +59,17 @@ const FeaturedContent: React.FC<FeaturedContentProps> = ({ content, genres }) =>
 
   const contentGenres = useMemo(() => {
     return content.genre_ids
-      .slice(0, 3)
+      .slice(0, maxGenres)
       .map(genreId => genres.find(g => g.id === genreId))
       .filter(Boolean) as Genre[];
-  }, [content.genre_ids, genres]);
+  }, [content.genre_ids, genres, maxGenres]);
+
+  // Truncate overview text based on screen size
+  const truncatedOverview = useMemo(() => {
+    if (!content.overview) return '';
+    if (overviewMaxLength && content.overview.length <= overviewMaxLength) return content.overview;
+    return `${content.overview.slice(0, overviewMaxLength ?? 100)}...`;
+  }, [content.overview, overviewMaxLength]);
 
   if (!content) {
     console.warn('No content provided to FeaturedContent');
@@ -58,7 +77,7 @@ const FeaturedContent: React.FC<FeaturedContentProps> = ({ content, genres }) =>
   }
 
   return (
-    <Box position="relative" height="90vh" overflow="hidden" ref={ref}>
+    <Box position="relative" height={containerHeight} overflow="hidden" ref={ref}>
       <Parallax translateY={[-20, 20]} style={{ height: '100%', width: '100%' }}>
         <Box
           position="absolute"
@@ -93,14 +112,16 @@ const FeaturedContent: React.FC<FeaturedContentProps> = ({ content, genres }) =>
           />
         )}
       </Parallax>
+
       <Box
         position="absolute"
         top={0}
         left={0}
         right={0}
         bottom={0}
-        bgGradient={`linear(to-t, ${content.primary_color || 'rgba(0,0,0,0.8)'}, transparent)`}
+        bgGradient={`linear(to-t, ${content.primary_color || 'rgba(0,0,0,0.9)'}, rgba(0,0,0,0.5), transparent)`}
       />
+
       <Container maxW="container.xl" height="100%">
         <AnimatePresence>
           <MotionBox
@@ -110,14 +131,14 @@ const FeaturedContent: React.FC<FeaturedContentProps> = ({ content, genres }) =>
             bottom={0}
             left={0}
             right={0}
-            p={8}
+            p={padding}
             color="white"
           >
             <Box
               bg="rgba(255, 255, 255, 0.1)"
               backdropFilter="blur(10px)"
-              borderRadius="2xl"
-              p={8}
+              borderRadius={{ base: "xl", md: "2xl" }}
+              p={contentPadding}
               boxShadow="0 8px 32px 0 rgba(31, 38, 135, 0.37)"
               border="1px solid rgba(255, 255, 255, 0.18)"
               position="relative"
@@ -139,21 +160,31 @@ const FeaturedContent: React.FC<FeaturedContentProps> = ({ content, genres }) =>
                 }
               }}
             >
-              <VStack align="flex-start" spacing={4} position="relative" zIndex={1}>
+              <VStack 
+                align="flex-start" 
+                spacing={{ base: 2, md: 4 }} 
+                position="relative" 
+                zIndex={1}
+              >
                 <Heading
-                  size="2xl"
-                  mb={2}
+                  size={headingSize}
+                  mb={{ base: 1, md: 2 }}
                   bgGradient="linear(to-r, #ff8a00, #e52e71)"
                   bgClip="text"
                   animation={`${gradientAnimation} 3s ease infinite`}
+                  lineHeight={{ base: "shorter", md: "short" }}
                 >
                   {content.title || content.name}
                 </Heading>
-                <HStack spacing={4} mb={2}>
+
+                <HStack 
+                  spacing={{ base: 2, md: 4 }} 
+                  mb={{ base: 1, md: 2 }}
+                  flexWrap="wrap"
+                >
                   <Tag 
                     borderRadius="full"
-                    px={3}
-                    py={1}
+                    size={tagSize}
                     bg="rgba(255, 255, 255, 0.2)"
                     color="white"
                     boxShadow="0 4px 6px rgba(0, 0, 0, 0.1)"
@@ -163,8 +194,7 @@ const FeaturedContent: React.FC<FeaturedContentProps> = ({ content, genres }) =>
                   </Tag>
                   <Tag
                     borderRadius="full"
-                    px={3}
-                    py={1}
+                    size={tagSize}
                     bg="rgba(255, 255, 255, 0.2)"
                     color="white"
                     boxShadow="0 4px 6px rgba(0, 0, 0, 0.1)"
@@ -175,8 +205,7 @@ const FeaturedContent: React.FC<FeaturedContentProps> = ({ content, genres }) =>
                   {content.runtime && (
                     <Tag
                       borderRadius="full"
-                      px={3}
-                      py={1}
+                      size={tagSize}
                       bg="rgba(255, 255, 255, 0.2)"
                       color="white"
                       boxShadow="0 4px 6px rgba(0, 0, 0, 0.1)"
@@ -186,33 +215,34 @@ const FeaturedContent: React.FC<FeaturedContentProps> = ({ content, genres }) =>
                     </Tag>
                   )}
                 </HStack>
-                <Flex mb={4} flexWrap="wrap">
+
+                <Flex mb={{ base: 2, md: 4 }} flexWrap="wrap" gap={2}>
                   {contentGenres.map((genre) => (
                     <Tag 
-                      key={genre.id} 
-                      mr={2} 
-                      mb={2}
+                      key={genre.id}
+                      size={tagSize}
                       bg="rgba(255, 255, 255, 0.2)"
                       color="white"
                       borderRadius="full"
-                      px={3}
-                      py={1}
                       boxShadow="0 4px 6px rgba(0, 0, 0, 0.1)"
                     >
                       {genre.name}
                     </Tag>
                   ))}
                 </Flex>
+
                 <Text
-                  fontSize="xl"
-                  mb={6}
-                  maxWidth="600px"
+                  fontSize={overviewFontSize}
+                  mb={{ base: 4, md: 6 }}
+                  maxWidth={overviewMaxWidth}
                   textShadow="1px 1px 2px rgba(0,0,0,0.3)"
                   bgGradient="linear(to-r, white, #e0e0e0)"
                   bgClip="text"
+                  lineHeight="tall"
                 >
-                  {content.overview}
+                  {truncatedOverview}
                 </Text>
+
                 <Flex>
                   <Button 
                     as={RouterLink}
@@ -220,7 +250,7 @@ const FeaturedContent: React.FC<FeaturedContentProps> = ({ content, genres }) =>
                     leftIcon={<FaPlay />} 
                     bg="rgba(255, 255, 255, 0.2)"
                     color="white" 
-                    size="lg" 
+                    size={buttonSize}
                     mr={4}
                     _hover={{ 
                       bg: "rgba(255, 255, 255, 0.3)",
