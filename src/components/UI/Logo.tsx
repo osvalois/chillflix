@@ -5,8 +5,9 @@ import { animated, useSpring, config } from 'react-spring';
 import { useInView } from 'react-intersection-observer';
 import { rgba, darken, lighten, mix, transparentize } from 'polished';
 
-const MotionBox = motion(Box as any);
-const MotionFlex = motion(Flex as any);
+// Actualización de los componentes motion usando motion.create()
+const MotionBox = motion.create(Box as any);
+const MotionFlex = motion.create(Flex as any);
 const AnimatedText = animated(Text);
 
 interface LogoProps {
@@ -96,7 +97,7 @@ const Logo: React.FC<LogoProps> = ({ className }) => {
     boxShadow: `0 4px 16px ${glowColor}, inset 0 0 16px ${rgba(glowColor, 0.3)}`,
     border: '1px solid',
     borderColor: borderColor,
-    position: 'relative',
+    position: 'relative' as const,
     overflow: 'hidden',
     transition: 'all 0.3s ease-in-out',
     '&::before': {
@@ -188,8 +189,8 @@ const Logo: React.FC<LogoProps> = ({ className }) => {
       onMouseMove={handleMouseMove}
       onMouseLeave={() => { x.set(0); y.set(0); }}
     >
-      <AnimatePresence>
-        <animated.div style={logoSpring as any}>
+      <AnimatePresence mode="wait">
+        <animated.div key="logo-container" style={logoSpring as any}>
           <MotionBox
             ref={logoRef}
             position="relative"
@@ -246,7 +247,7 @@ const Logo: React.FC<LogoProps> = ({ className }) => {
             >
               {Array.from({ length: 20 }).map((_, i) => (
                 <Box
-                  key={i}
+                  key={`particle-${i}`}
                   position="absolute"
                   top={`${Math.random() * 100}%`}
                   left={`${Math.random() * 100}%`}
@@ -278,9 +279,9 @@ const Logo: React.FC<LogoProps> = ({ className }) => {
             color={textColor}
             textShadow={`0 1px 5px ${rgba(baseColor, 0.2)}`}
           >
-            {''.split('').map((letter, index) => (
+            {'ChillFlix'.split('').map((letter, index) => (
               <motion.span
-                key={index}
+                key={`letter-${index}`}
                 variants={letterAnimation}
                 initial="hidden"
                 animate="visible"

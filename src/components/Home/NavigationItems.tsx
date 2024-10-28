@@ -29,32 +29,6 @@ export const useNavigationItems = (): NavItem[] => {
       pulseColor: '#FF0080',
     },
     {
-      icon: Tv2,
-      label: 'TV Shows',
-      path: '/tv-shows',
-      gradient: 'linear-gradient(135deg, #7928CA 0%, #FF0080 100%)',
-      glassEffect: {
-        background: 'rgba(255, 255, 255, 0.1)',
-        backdropFilter: 'blur(10px)',
-        border: '1px solid rgba(255, 255, 255, 0.18)'
-      },
-      pulseColor: '#7928CA',
-      
-    },
-    {
-      icon: Music,
-      label: 'Soundtracks',
-      path: '/soundtracks',
-      gradient: 'linear-gradient(135deg, #FF4D4D 0%, #F9CB28 100%)',
-      glassEffect: {
-        background: 'rgba(255, 255, 255, 0.1)',
-        backdropFilter: 'blur(10px)',
-        border: '1px solid rgba(255, 255, 255, 0.18)'
-      },
-      pulseColor: '#FF4D4D',
-      
-    },
-    {
       icon: User,
       label: 'Profile',
       path: '/profile',

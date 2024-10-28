@@ -113,7 +113,7 @@ export const Home: React.FC = () => {
         color={textColor}
       >
         <Suspense fallback={<FeaturedContentSkeleton />}>
-          {featuredContent && <FeaturedContent content={featuredContent} genres={genres} />}
+          {featuredContent && <FeaturedContent content={{ ...featuredContent, backdrop_path: featuredContent.backdrop_path ?? '' }} genres={genres} />}
         </Suspense>
         
         <Container maxW="container.xl" py={12}>

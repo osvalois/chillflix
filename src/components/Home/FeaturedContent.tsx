@@ -1,293 +1,324 @@
-import React, { useMemo } from 'react';
-import { Box, Heading, Text, Button, Flex, Icon, Tag, Container, VStack, HStack, useBreakpointValue, keyframes } from '@chakra-ui/react';
+import React, { useState, useMemo, memo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Box, Container, VStack, HStack, Heading, Text, Button, Icon, Tag } from '@chakra-ui/react';
 import { FaPlay, FaStar, FaCalendarAlt, FaClock } from 'react-icons/fa';
-import { Parallax } from 'react-scroll-parallax';
-import { CombinedContent, Genre } from '../../types';
 import { Link as RouterLink } from 'react-router-dom';
-import { useSpring, animated, config } from 'react-spring';
 import { useInView } from 'react-intersection-observer';
 import { Blurhash } from "react-blurhash";
+import useWindowSize from '../../hooks/useWindowSize'; // Asumiendo que existe este hook
 
-const MotionBox = motion(Box as any);
+// Types
+interface Genre {
+  id: number;
+  name: string;
+}
 
-const gradientAnimation = keyframes`
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-`;
-
-const pulseAnimation = keyframes`
-  0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4); }
-  70% { box-shadow: 0 0 0 10px rgba(255, 255, 255, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
-`;
+interface CombinedContent {
+  id: number;
+  title?: string;
+  name?: string;
+  backdrop_path: string;
+  backdrop_blurhash?: string;
+  overview: string;
+  vote_average: number;
+  release_date?: string;
+  first_air_date?: string;
+  runtime?: number;
+  genre_ids: number[];
+  primary_color?: string;
+}
 
 interface FeaturedContentProps {
   content: CombinedContent;
   genres: Genre[];
 }
 
-const FeaturedContent: React.FC<FeaturedContentProps> = ({ content, genres }) => {
+// Memoized Components
+const BackdropImage = memo(({ 
+  backdropPath, 
+  blurhash 
+}: { 
+  backdropPath: string; 
+  blurhash: string; 
+}) => (
+  <Box position="relative" width="100%" height="100%">
+    <Blurhash
+      hash={blurhash || "L6PZfSi_.AyE_3t7t7R**0o#DgR4"}
+      width="100%"
+      height="100%"
+      resolutionX={32}
+      resolutionY={32}
+      punch={1}
+    />
+    <Box
+      position="absolute"
+      inset="0"
+      backgroundImage={`url(https://image.tmdb.org/t/p/original${backdropPath})`}
+      backgroundSize="cover"
+      backgroundPosition="center"
+      filter="blur(5px)"
+      transform="scale(1.1)"
+      transition="opacity 0.3s ease"
+    />
+  </Box>
+));
+
+const MetaTag = memo(({ 
+  icon, 
+  value, 
+  color = "yellow.400" 
+}: { 
+  icon: React.ComponentType; 
+  value: string | number; 
+  color?: string;
+}) => (
+  <Tag
+    borderRadius="full"
+    size={{ base: "sm", md: "md" }}
+    bg="rgba(255, 255, 255, 0.2)"
+    color="white"
+    boxShadow="0 4px 6px rgba(0, 0, 0, 0.1)"
+  >
+    <Icon as={icon} mr={1} color={color} />
+    {value}
+  </Tag>
+));
+
+const GenreTag = memo(({ name }: { name: string }) => (
+  <Tag
+    borderRadius="full"
+    size={{ base: "sm", md: "md" }}
+    bg="rgba(255, 255, 255, 0.2)"
+    color="white"
+    boxShadow="0 4px 6px rgba(0, 0, 0, 0.1)"
+  >
+    {name}
+  </Tag>
+));
+
+// Main Component
+const FeaturedContent: React.FC<FeaturedContentProps> = memo(({ content, genres }) => {
+  const { width } = useWindowSize();
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [ref, inView] = useInView({
     threshold: 0.1,
     triggerOnce: true,
   });
 
-  // Responsive values using Chakra UI's useBreakpointValue
-  const containerHeight = useBreakpointValue({ base: "80vh", md: "90vh" });
-  const padding = useBreakpointValue({ base: 4, sm: 6, md: 8 });
-  const contentPadding = useBreakpointValue({ base: 4, sm: 6, md: 8 });
-  const headingSize = useBreakpointValue({ base: "xl", sm: "2xl", md: "3xl", lg: "4xl" });
-  const overviewFontSize = useBreakpointValue({ base: "sm", md: "md", lg: "xl" });
-  const tagSize = useBreakpointValue({ base: "sm", md: "md" });
-  const buttonSize = useBreakpointValue({ base: "md", md: "lg" });
-  const maxGenres = useBreakpointValue({ base: 2, sm: 3, md: 4 });
-  const overviewMaxWidth = useBreakpointValue({ base: "100%", md: "600px" });
-  const overviewMaxLength = useBreakpointValue({ base: 100, sm: 200, md: 500 });
+  // Responsive calculations based on window width
+  const isMobile = width < 768;
+  const isTablet = width >= 768 && width < 1024;
 
-  const getContentLink = useMemo(() => {
-    const contentType = 'title' in content ? 'movie' : 'tv';
-    return `/${contentType}/${content.id}`;
-  }, [content]);
+  // Memoized values
+  const contentType = useMemo(() => 
+    'title' in content ? 'movie' : 'tv'
+  , [content]);
 
-  const springProps = useSpring({
-    opacity: inView ? 1 : 0,
-    transform: inView ? 'translateY(0px)' : 'translateY(50px)',
-    config: config.molasses,
-  });
+  const releaseYear = useMemo(() => 
+    content.release_date?.slice(0, 4) || content.first_air_date?.slice(0, 4)
+  , [content.release_date, content.first_air_date]);
 
   const contentGenres = useMemo(() => {
+    const maxGenres = isMobile ? 2 : isTablet ? 3 : 4;
     return content.genre_ids
       .slice(0, maxGenres)
-      .map(genreId => genres.find(g => g.id === genreId))
+      .map(id => genres.find(g => g.id === id))
       .filter(Boolean) as Genre[];
-  }, [content.genre_ids, genres, maxGenres]);
+  }, [content.genre_ids, genres, isMobile, isTablet]);
 
-  // Truncate overview text based on screen size
   const truncatedOverview = useMemo(() => {
+    const maxLength = isMobile ? 100 : isTablet ? 200 : 500;
     if (!content.overview) return '';
-    if (overviewMaxLength && content.overview.length <= overviewMaxLength) return content.overview;
-    return `${content.overview.slice(0, overviewMaxLength ?? 100)}...`;
-  }, [content.overview, overviewMaxLength]);
+    return content.overview.length > maxLength
+      ? `${content.overview.slice(0, maxLength)}...`
+      : content.overview;
+  }, [content.overview, isMobile, isTablet]);
 
-  if (!content) {
-    console.warn('No content provided to FeaturedContent');
-    return null;
-  }
+  // Image preloading
+  useEffect(() => {
+    if (content.backdrop_path) {
+      const img = new Image();
+      img.src = `https://image.tmdb.org/t/p/original${content.backdrop_path}`;
+      img.onload = () => setIsImageLoaded(true);
+    }
+  }, [content.backdrop_path]);
+
+  // Animation variants
+  const contentVariants = {
+    hidden: { opacity: 0, y: 50 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: { 
+        duration: 0.6,
+        ease: [0.25, 0.1, 0.25, 1]
+      }
+    }
+  };
+
+  if (!content) return null;
 
   return (
-    <Box position="relative" height={containerHeight} overflow="hidden" ref={ref}>
-      <Parallax translateY={[-20, 20]} style={{ height: '100%', width: '100%' }}>
-        <Box
-          position="absolute"
-          top="0"
-          left="0"
-          right="0"
-          bottom="0"
-        >
-          <Blurhash
-            hash={content.backdrop_blurhash || "L6PZfSi_.AyE_3t7t7R**0o#DgR4"}
-            width="100%"
-            height="100%"
-            resolutionX={32}
-            resolutionY={32}
-            punch={1}
-          />
-        </Box>
+    <Box 
+      ref={ref}
+      position="relative" 
+      height={{ base: "80vh", md: "90vh" }}
+      overflow="hidden"
+    >
+      {/* Backdrop */}
+      <AnimatePresence>
         {content.backdrop_path && (
-          <Box
-            backgroundImage={`url(https://image.tmdb.org/t/p/original${content.backdrop_path})`}
-            backgroundSize="cover"
-            backgroundPosition="center"
-            width="100%"
-            height="100%"
-            position="absolute"
-            top="0"
-            left="0"
-            right="0"
-            bottom="0"
-            filter="blur(5px)"
-            transform="scale(1.1)"
-          />
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: isImageLoaded ? 1 : 0 }}
+            style={{ position: 'absolute', inset: 0 }}
+          >
+            <BackdropImage
+              backdropPath={content.backdrop_path}
+              blurhash={content.backdrop_blurhash || ""}
+            />
+          </motion.div>
         )}
-      </Parallax>
+      </AnimatePresence>
 
+      {/* Gradient Overlay */}
       <Box
         position="absolute"
-        top={0}
-        left={0}
-        right={0}
-        bottom={0}
-        bgGradient={`linear(to-t, ${content.primary_color || 'rgba(0,0,0,0.9)'}, rgba(0,0,0,0.5), transparent)`}
+        inset={0}
+        bgGradient={`linear(to-t, ${
+          content.primary_color || 'rgba(0,0,0,0.9)'
+        }, rgba(0,0,0,0.5), transparent)`}
       />
 
+      {/* Content */}
       <Container maxW="container.xl" height="100%">
-        <AnimatePresence>
-          <MotionBox
-            as={animated.div}
-            style={springProps}
-            position="absolute"
-            bottom={0}
-            left={0}
-            right={0}
-            p={padding}
-            color="white"
+        <motion.div
+          initial="hidden"
+          animate={inView ? "visible" : "hidden"}
+          variants={contentVariants}
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            padding: isMobile ? '1rem' : '2rem',
+          }}
+        >
+          <Box
+            bg="rgba(255, 255, 255, 0.1)"
+            backdropFilter="blur(10px)"
+            borderRadius={{ base: "xl", md: "2xl" }}
+            p={{ base: 4, md: 8 }}
+            boxShadow="0 8px 32px 0 rgba(31, 38, 135, 0.37)"
+            border="1px solid rgba(255, 255, 255, 0.18)"
+            position="relative"
+            overflow="hidden"
+            _before={{
+              content: '""',
+              position: 'absolute',
+              inset: '-50%',
+              background: 'linear-gradient(to right, transparent, rgba(255, 255, 255, 0.1), transparent)',
+              transform: 'rotate(45deg)',
+              transition: 'transform 0.5s ease',
+            }}
+            _hover={{
+              _before: {
+                transform: 'rotate(45deg) translate(100%, 100%)',
+              }
+            }}
           >
-            <Box
-              bg="rgba(255, 255, 255, 0.1)"
-              backdropFilter="blur(10px)"
-              borderRadius={{ base: "xl", md: "2xl" }}
-              p={contentPadding}
-              boxShadow="0 8px 32px 0 rgba(31, 38, 135, 0.37)"
-              border="1px solid rgba(255, 255, 255, 0.18)"
+            <VStack
+              align="flex-start"
+              spacing={{ base: 2, md: 4 }}
               position="relative"
-              overflow="hidden"
-              _before={{
-                content: '""',
-                position: 'absolute',
-                top: '-50%',
-                left: '-50%',
-                right: '-50%',
-                bottom: '-50%',
-                background: 'linear-gradient(to right, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0) 100%)',
-                transform: 'rotate(45deg)',
-                transition: 'all 0.5s',
-              }}
-              _hover={{
-                _before: {
-                  transform: 'rotate(45deg) translate(100%, 100%)',
-                }
-              }}
+              zIndex={1}
             >
-              <VStack 
-                align="flex-start" 
-                spacing={{ base: 2, md: 4 }} 
-                position="relative" 
-                zIndex={1}
+              {/* Title */}
+              <Heading
+                size={{ base: "xl", sm: "2xl", md: "3xl", lg: "4xl" }}
+                bgGradient="linear(to-r, #ff8a00, #e52e71)"
+                bgClip="text"
+                lineHeight={{ base: "shorter", md: "short" }}
               >
-                <Heading
-                  size={headingSize}
-                  mb={{ base: 1, md: 2 }}
-                  bgGradient="linear(to-r, #ff8a00, #e52e71)"
-                  bgClip="text"
-                  animation={`${gradientAnimation} 3s ease infinite`}
-                  lineHeight={{ base: "shorter", md: "short" }}
-                >
-                  {content.title || content.name}
-                </Heading>
+                {content.title || content.name}
+              </Heading>
 
-                <HStack 
-                  spacing={{ base: 2, md: 4 }} 
-                  mb={{ base: 1, md: 2 }}
-                  flexWrap="wrap"
-                >
-                  <Tag 
-                    borderRadius="full"
-                    size={tagSize}
-                    bg="rgba(255, 255, 255, 0.2)"
-                    color="white"
-                    boxShadow="0 4px 6px rgba(0, 0, 0, 0.1)"
-                  >
-                    <Icon as={FaStar} mr={1} color="yellow.400" />
-                    {content.vote_average.toFixed(1)}
-                  </Tag>
-                  <Tag
-                    borderRadius="full"
-                    size={tagSize}
-                    bg="rgba(255, 255, 255, 0.2)"
-                    color="white"
-                    boxShadow="0 4px 6px rgba(0, 0, 0, 0.1)"
-                  >
-                    <Icon as={FaCalendarAlt} mr={1} color="blue.400" />
-                    {content.release_date?.slice(0, 4) || content.first_air_date?.slice(0, 4)}
-                  </Tag>
-                  {content.runtime && (
-                    <Tag
-                      borderRadius="full"
-                      size={tagSize}
-                      bg="rgba(255, 255, 255, 0.2)"
-                      color="white"
-                      boxShadow="0 4px 6px rgba(0, 0, 0, 0.1)"
-                    >
-                      <Icon as={FaClock} mr={1} color="green.400" />
-                      {`${content.runtime} min`}
-                    </Tag>
-                  )}
-                </HStack>
+              {/* Meta Tags */}
+              <HStack spacing={4} flexWrap="wrap">
+                <MetaTag
+                  icon={FaStar}
+                  value={content.vote_average.toFixed(1)}
+                  color="yellow.400"
+                />
+                <MetaTag
+                  icon={FaCalendarAlt}
+                  value={content.release_date?.split('-')[0] ?? ''}
+                  color="blue.400"
+                />
+                {content.runtime && (
+                  <MetaTag
+                    icon={FaClock}
+                    value={`${content.runtime} min`}
+                    color="green.400"
+                  />
+                )}
+              </HStack>
 
-                <Flex mb={{ base: 2, md: 4 }} flexWrap="wrap" gap={2}>
-                  {contentGenres.map((genre) => (
-                    <Tag 
-                      key={genre.id}
-                      size={tagSize}
-                      bg="rgba(255, 255, 255, 0.2)"
-                      color="white"
-                      borderRadius="full"
-                      boxShadow="0 4px 6px rgba(0, 0, 0, 0.1)"
-                    >
-                      {genre.name}
-                    </Tag>
-                  ))}
-                </Flex>
+              {/* Genres */}
+              <HStack spacing={2} flexWrap="wrap">
+                {contentGenres.map(genre => (
+                  <GenreTag key={genre.id} name={genre.name} />
+                ))}
+              </HStack>
 
-                <Text
-                  fontSize={overviewFontSize}
-                  mb={{ base: 4, md: 6 }}
-                  maxWidth={overviewMaxWidth}
-                  textShadow="1px 1px 2px rgba(0,0,0,0.3)"
-                  bgGradient="linear(to-r, white, #e0e0e0)"
-                  bgClip="text"
-                  lineHeight="tall"
-                >
-                  {truncatedOverview}
-                </Text>
+              {/* Overview */}
+              <Text
+                fontSize={{ base: "sm", md: "md", lg: "lg" }}
+                maxWidth={{ base: "100%", md: "600px" }}
+                color="whiteAlpha.900"
+                textShadow="1px 1px 2px rgba(0,0,0,0.3)"
+                lineHeight="tall"
+              >
+                {truncatedOverview}
+              </Text>
 
-                <Flex>
-                  <Button 
-                    as={RouterLink}
-                    to={getContentLink}
-                    leftIcon={<FaPlay />} 
-                    bg="rgba(255, 255, 255, 0.2)"
-                    color="white" 
-                    size={buttonSize}
-                    mr={4}
-                    _hover={{ 
-                      bg: "rgba(255, 255, 255, 0.3)",
-                      transform: "translateY(-2px)"
-                    }}
-                    _active={{
-                      bg: "rgba(255, 255, 255, 0.4)",
-                      transform: "translateY(0)"
-                    }}
-                    borderRadius="full"
-                    boxShadow="0 4px 6px rgba(0, 0, 0, 0.1)"
-                    transition="all 0.3s ease"
-                    position="relative"
-                    overflow="hidden"
-                    _after={{
-                      content: '""',
-                      position: 'absolute',
-                      top: '-50%',
-                      left: '-50%',
-                      right: '-50%',
-                      bottom: '-50%',
-                      background: 'linear-gradient(to right, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.3) 50%, rgba(255, 255, 255, 0) 100%)',
-                      transform: 'rotate(45deg) translateX(-100%)',
-                      transition: 'all 0.3s ease',
-                    }}
-                    animation={`${pulseAnimation} 2s infinite`}
-                  >
-                    Play
-                  </Button>
-                </Flex>
-              </VStack>
-            </Box>
-          </MotionBox>
-        </AnimatePresence>
+              {/* Action Button */}
+              <Button
+                as={RouterLink}
+                to={`/${contentType}/${content.id}`}
+                leftIcon={<FaPlay />}
+                bg="rgba(255, 255, 255, 0.2)"
+                color="white"
+                size={{ base: "md", md: "lg" }}
+                _hover={{
+                  bg: "rgba(255, 255, 255, 0.3)",
+                  transform: "translateY(-2px)"
+                }}
+                _active={{
+                  bg: "rgba(255, 255, 255, 0.4)",
+                  transform: "translateY(0)"
+                }}
+                borderRadius="full"
+                transition="all 0.3s ease"
+                sx={{
+                  "@keyframes pulse": {
+                    "0%": { boxShadow: "0 0 0 0 rgba(255, 255, 255, 0.4)" },
+                    "70%": { boxShadow: "0 0 0 10px rgba(255, 255, 255, 0)" },
+                    "100%": { boxShadow: "0 0 0 0 rgba(255, 255, 255, 0)" }
+                  },
+                  animation: "pulse 2s infinite"
+                }}
+              >
+                Play
+              </Button>
+            </VStack>
+          </Box>
+        </motion.div>
       </Container>
     </Box>
   );
-};
+});
+
+FeaturedContent.displayName = 'FeaturedContent';
 
 export default FeaturedContent;
