@@ -1,5 +1,5 @@
 // components/Header/NavigationItems.tsx
-import { Home, Film, Tv2, Music, User } from 'lucide-react';
+import { Home, Film, User } from 'lucide-react';
 import { NavItem } from '../../header.types';
 
 export const useNavigationItems = (): NavItem[] => {
