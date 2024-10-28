@@ -1,6 +1,16 @@
 // Home.tsx
 import React, { Suspense, lazy, useEffect } from 'react';
-import { Box, Container, VStack, Text, Spinner, Center } from '@chakra-ui/react';
+import { 
+  Box, 
+  Container, 
+  VStack, 
+  Text, 
+  Center,
+  Skeleton,
+  SkeletonText,
+  Stack,
+  Grid
+} from '@chakra-ui/react';
 import { ParallaxProvider } from 'react-scroll-parallax';
 
 import { useContentData } from '../hooks/useContentData';
@@ -11,13 +21,46 @@ const FeaturedContent = lazy(() => import('../components/Home/FeaturedContent'))
 const GenreExplorer = lazy(() => import('../components/Home/GenreExplorer'));
 const ContentCarousel = lazy(() => import('../components/Home/ContentCarousel'));
 
+// Componentes Skeleton
+const FeaturedContentSkeleton: React.FC = () => (
+  <Box width="100%" height="60vh" position="relative">
+    <Skeleton height="100%" width="100%" />
+    <Box position="absolute" bottom="10%" left="5%" width="40%">
+      <SkeletonText noOfLines={3} spacing="4" />
+      <Stack direction="row" spacing={4} mt={4}>
+        <Skeleton height="40px" width="120px" />
+        <Skeleton height="40px" width="120px" />
+      </Stack>
+    </Box>
+  </Box>
+);
+
+const ContentCarouselSkeleton: React.FC = () => (
+  <Box p={6}>
+    <SkeletonText noOfLines={1} width="200px" mb={6} />
+    <Grid templateColumns="repeat(auto-fill, minmax(200px, 1fr))" gap={6}>
+      {[...Array(6)].map((_, i) => (
+        <Box key={i}>
+          <Skeleton height="250px" mb={3} />
+          <SkeletonText noOfLines={2} spacing="2" />
+        </Box>
+      ))}
+    </Grid>
+  </Box>
+);
+
+const GenreExplorerSkeleton: React.FC = () => (
+  <Grid templateColumns="repeat(auto-fill, minmax(150px, 1fr))" gap={6} p={6}>
+    {[...Array(8)].map((_, i) => (
+      <Skeleton key={i} height="100px" borderRadius="md" />
+    ))}
+  </Grid>
+);
+
 export const Home: React.FC = () => {
   const { 
     featuredContent, 
     trendingContent, 
-    topRated, 
-    upcoming, 
-    personalizedRecommendations, 
     genres,
     isLoading,
     error,
@@ -29,7 +72,6 @@ export const Home: React.FC = () => {
   useEffect(() => {
     if (error) {
       console.error('Error loading content:', error);
-      // Intenta cargar el contenido nuevamente después de un breve retraso
       const retryTimer = setTimeout(() => {
         refreshContent();
       }, 5000);
@@ -40,9 +82,17 @@ export const Home: React.FC = () => {
 
   if (isLoading) {
     return (
-      <Center minHeight="100vh" bgGradient={bgGradient}>
-        <Spinner size="xl" color={textColor} />
-      </Center>
+      <Box minHeight="100vh" bgGradient={bgGradient}>
+        <FeaturedContentSkeleton />
+        <Container maxW="container.xl" py={12}>
+          <VStack spacing={16} align="stretch">
+            <GlassmorphicBox>
+              <ContentCarouselSkeleton />
+            </GlassmorphicBox>
+            <GenreExplorerSkeleton />
+          </VStack>
+        </Container>
+      </Box>
     );
   }
 
@@ -62,31 +112,25 @@ export const Home: React.FC = () => {
         backgroundAttachment="fixed"
         color={textColor}
       >
-        <Suspense fallback={<Spinner size="xl" color={textColor} />}>
+        <Suspense fallback={<FeaturedContentSkeleton />}>
           {featuredContent && <FeaturedContent content={featuredContent} genres={genres} />}
         </Suspense>
         
         <Container maxW="container.xl" py={12}>
           <VStack spacing={16} align="stretch">
-            <Suspense fallback={<Spinner size="xl" color={textColor} />}>
-              {personalizedRecommendations.length > 0 && (
-                <GlassmorphicBox p={6} borderRadius="xl" mt={8}>
-                  <ContentCarousel title="Recommended for You" content={personalizedRecommendations} icon="FaHeart" />
-                </GlassmorphicBox>
-              )}
+            <Suspense 
+              fallback={
+                <VStack spacing={16} align="stretch">
+                  <GlassmorphicBox>
+                    <ContentCarouselSkeleton />
+                  </GlassmorphicBox>
+                  <GenreExplorerSkeleton />
+                </VStack>
+              }
+            >
               {trendingContent.length > 0 && (
-                <GlassmorphicBox p={6} borderRadius="xl">
+                <GlassmorphicBox>
                   <ContentCarousel title="Trending Now" content={trendingContent} icon="FaFire" />
-                </GlassmorphicBox>
-              )}
-              {topRated.length > 0 && (
-                <GlassmorphicBox p={6} borderRadius="xl" mt={8}>
-                  <ContentCarousel title="Top Rated" content={topRated} icon="FaStar" />
-                </GlassmorphicBox>
-              )}
-              {upcoming.length > 0 && (
-                <GlassmorphicBox p={6} borderRadius="xl" mt={8}>
-                  <ContentCarousel title="Upcoming" content={upcoming} icon="FaCalendar" />
                 </GlassmorphicBox>
               )}
               {genres.length > 0 && <GenreExplorer genres={genres} />}

@@ -1,17 +1,25 @@
 import React from 'react';
-import { Box, Flex, Text, Button, VStack, HStack, Icon, Tag, Tooltip, Skeleton } from '@chakra-ui/react';
+import { Box, Flex, Text, VStack, HStack, Icon, Tag, Tooltip, Skeleton } from '@chakra-ui/react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaStar, FaPlay, FaLink, FaCalendar, FaClock, FaDollarSign } from 'react-icons/fa';
+import { FaStar, FaCalendar, FaClock, FaDollarSign } from 'react-icons/fa';
 import { useInView } from 'react-intersection-observer';
 import { useSpring, animated, config } from 'react-spring';
 import { CombinedContent } from '../../types';
 import OptimizedImage from '../UI/OptimizedImage';
+import { VideoQuality } from '../../services/movieService';
 
 interface MovieHeaderProps {
   movie: CombinedContent | undefined;
   onTrailerPlay: () => void;
   isMobile: boolean;
   isLoading: boolean;
+  onChangeMirror: (totalMirrors: number) => void; // Add this line
+  isChangingMirror: boolean;
+  currentMirrorIndex: number;
+  totalMirrors: number;
+  onOpenQualitySelector: () => void;
+  isPlaying: boolean;
+  currentQuality: VideoQuality;
 }
 
 const GlassmorphicBox: React.FC<{ children: React.ReactNode; [key: string]: any }> = ({ children, ...props }) => {
@@ -43,28 +51,7 @@ const GlassmorphicBox: React.FC<{ children: React.ReactNode; [key: string]: any 
   );
 };
 
-const GlassmorphicButton: React.FC<{ children: React.ReactNode; [key: string]: any }> = ({ children, ...props }) => (
-  <Button
-    bg="rgba(255, 255, 255, 0.1)"
-    color="white"
-    backdropFilter="blur(5px)"
-    border="1px solid rgba(255, 255, 255, 0.18)"
-    _hover={{
-      bg: "rgba(255, 255, 255, 0.2)",
-      transform: "translateY(-2px)",
-      boxShadow: "0 5px 15px rgba(0, 0, 0, 0.3)"
-    }}
-    _active={{
-      bg: "rgba(255, 255, 255, 0.3)"
-    }}
-    transition="all 0.3s ease"
-    {...props}
-  >
-    {children}
-  </Button>
-);
-
-const MovieHeader: React.FC<MovieHeaderProps> = ({ movie, onTrailerPlay, isMobile, isLoading }) => {
+const MovieHeader: React.FC<MovieHeaderProps> = ({ movie, isMobile, isLoading }) => {
   const [headerRef, inView] = useInView({ threshold: 0.1, triggerOnce: true });
 
   const fadeIn = useSpring({
@@ -172,13 +159,11 @@ const MovieHeader: React.FC<MovieHeaderProps> = ({ movie, onTrailerPlay, isMobil
                     <HStack spacing={6} flexWrap="wrap">
                       <MovieInfoItem icon={FaCalendar} label="Release Date" value={new Date(movie?.release_date || '').toLocaleDateString()} />
                       <MovieInfoItem icon={FaClock} label="Runtime" value={`${Math.floor((movie?.runtime || 0) / 60)}h ${(movie?.runtime || 0) % 60}m`} />
-                      {(movie?.budget || 0) > 0 && (
-                        <MovieInfoItem
+                      <MovieInfoItem
                           icon={FaDollarSign}
                           label="Budget"
                           value={(movie?.budget || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
                         />
-                      )}
                     </HStack>
                   </VStack>
                 </motion.div>

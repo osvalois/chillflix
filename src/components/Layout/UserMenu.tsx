@@ -23,6 +23,7 @@ const MotionMenuItem = motion(MenuItem as any);
 
 const UserMenu: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
+  console.log(isOpen)
   const theme = useTheme();
 
   const bgColor = useColorModeValue("gray.100", "gray.800");

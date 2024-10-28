@@ -1,6 +1,7 @@
 // useVideoPlayerState.ts
 import { useState, useCallback, useEffect, useRef } from 'react';
 import Player from "video.js/dist/types/player";
+import { AudioTrack } from '../components/VideoPlayer/types';
 
 interface VideoState {
   time: number;
@@ -21,9 +22,9 @@ export const useVideoPlayerState = (movieId: string) => {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
-  const [audioTracks, setAudioTracks] = useState<videojs.AudioTrack[]>([]);
+  const [audioTracks, setAudioTracks] = useState<AudioTrack[]>([]);
   const [selectedAudioTrack, setSelectedAudioTrack] = useState("");
-  const [subtitles, setSubtitles] = useState<videojs.TextTrack[]>([]);
+  const [subtitles, setSubtitles] = useState<TextTrack[]>([]);
   const [selectedSubtitle, setSelectedSubtitle] = useState("");
   const [selectedQuality, setSelectedQuality] = useState("");
   const [selectedLanguage, setSelectedLanguage] = useState("");
@@ -53,31 +54,31 @@ export const useVideoPlayerState = (movieId: string) => {
 
   const saveCurrentState = useCallback((player: Player) => {
     const state: VideoState = {
-      time: player.currentTime(),
-      volume: player.volume(),
-      muted: player.muted(),
+      time: player.currentTime() ?? 0,
+      volume: player.volume() ?? 0,
+      muted: player.muted() ?? false,
       quality: selectedQuality,
       language: selectedLanguage,
       audioTrack: selectedAudioTrack,
       subtitle: selectedSubtitle,
-      playbackRate: player.playbackRate()
+      playbackRate: player.playbackRate() ?? 0
     };
     localStorage.setItem(`videoState_${movieId}`, JSON.stringify(state));
   }, [movieId, selectedQuality, selectedLanguage, selectedAudioTrack, selectedSubtitle]);
 
   const handleTimeUpdate = useCallback((player: Player) => {
-    setCurrentTime(player.currentTime());
+    setCurrentTime(player.currentTime() ?? 0);
     saveCurrentState(player);
   }, [saveCurrentState]);
 
   const handleVolumeChange = useCallback((player: Player) => {
-    setVolume(player.volume());
-    setIsMuted(player.muted());
+    setVolume(player.volume() ?? 0);
+    setIsMuted(player.muted() ?? false);
     saveCurrentState(player);
   }, [saveCurrentState]);
 
   const handlePlaybackRateChange = useCallback((player: Player) => {
-    setPlaybackRate(player.playbackRate());
+    setPlaybackRate(player.playbackRate() ?? 0);
     saveCurrentState(player);
   }, [saveCurrentState]);
 

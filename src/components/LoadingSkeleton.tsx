@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Container, Skeleton, SkeletonText, VStack, Flex, keyframes } from '@chakra-ui/react';
+import { Box, Container, VStack, Flex, keyframes } from '@chakra-ui/react';
 import { motion } from 'framer-motion';
 
 const MotionBox = motion(Box as any);

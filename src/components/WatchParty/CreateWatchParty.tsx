@@ -28,6 +28,7 @@ export const CreateWatchParty: React.FC<CreateWatchPartyProps> = ({ movieId, onW
       // Toast notification logic would go here
     },
     onError: (error) => {
+      console.log(error)
       // Error handling logic would go here
     }
   });

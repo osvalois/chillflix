@@ -2,21 +2,9 @@ import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from 'react-query';
 import axios from 'axios';
-import {
-  Box,
-  Container,
-  VStack,
-  useToast,
-  Button,
-  Skeleton,
-  HStack,
-  Text,
-  Fade,
-  useColorModeValue,
-  keyframes,
-} from '@chakra-ui/react';
+import { Box, Container, VStack, useToast, Button, Skeleton, HStack, Text } from '@chakra-ui/react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaChevronLeft, FaPlay } from 'react-icons/fa';
+import { FaChevronLeft } from 'react-icons/fa';
 import { useMediaQuery } from 'react-responsive';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useInView } from 'react-intersection-observer';
@@ -42,13 +30,7 @@ import { JoinWatchParty } from '../components/WatchParty/JoinWatchParty';
 import { ChatRoom } from '../components/WatchParty/ChatRoom';
 import LoadingMessage from '../components/common/LoadingMessage';
 
-const MotionBox = motion(Box);
-
-const pulse = keyframes`
-  0% { opacity: 0.6; }
-  50% { opacity: 1; }
-  100% { opacity: 0.6; }
-`;
+const MotionBox = motion(Box as any);
 
 const glassmorphismStyle = {
   background: "rgba(255, 255, 255, 0.05)",
@@ -60,20 +42,17 @@ const glassmorphismStyle = {
     "inset 0 0 20px rgba(255, 255, 255, 0.05), " +
     "0 0 0 1px rgba(255, 255, 255, 0.1)",
   overflow: "hidden",
-  transition: "all 0.3s ease-in-out",
-  _hover: {
-    boxShadow: 
-      "0 8px 40px rgba(0, 0, 0, 0.2), " +
-      "inset 0 0 30px rgba(255, 255, 255, 0.1), " +
-      "0 0 0 1px rgba(255, 255, 255, 0.2)",
-  }
 };
 
+interface GroupedMirrors {
+  [key: string]: {
+    [key: string]: Mirror[];
+  };
+}
 
 const MoviePage: React.FC = () => {
   const { tmdbId } = useParams<{ tmdbId: string }>();
   const [isVideoLoading, setIsVideoLoading] = useState(true);
-  const [showLoadingMessage, setShowLoadingMessage] = useState(false);
   const [watchPartyId, setWatchPartyId] = useState<string | null>(null);
   const [hasJoined, setHasJoined] = useState(false);
   const toast = useToast();
@@ -85,7 +64,6 @@ const MoviePage: React.FC = () => {
 
   const {
     currentMirrorIndex,
-    setCurrentMirrorIndex,
     isChangingMirror,
     handleChangeMirror,
   } = useMirrorLogic();
@@ -96,7 +74,8 @@ const MoviePage: React.FC = () => {
     handleQualityChange,
   } = useVideoPlayerLogic();
 
-  const { data: userId } = useQuery('userId', () => movieService.getCurrentUserId());
+  // Fetch current user ID (you'll need to implement this based on your auth system)
+  const { data: userId } = useQuery('userId', () => "movieService.getCurrentUserId()");
 
   const fetchMovieDetails = async (id: string): Promise<CombinedContent> => {
     try {
@@ -133,13 +112,23 @@ const MoviePage: React.FC = () => {
   const { data: credits, isLoading: isCreditsLoading } = useQuery<MovieCredits, Error>(
     ['credits', tmdbId],
     () => getMovieCredits(parseInt(tmdbId!, 10)),
-    { enabled: !!tmdbId }
+    { 
+      enabled: !!tmdbId,
+      onError: (error) => {
+        console.error('Error fetching movie credits:', error);
+      }
+    }
   );
 
   const { data: similarMovies, isLoading: isSimilarMoviesLoading } = useQuery<CombinedContent[], Error>(
     ['similarMovies', tmdbId],
     () => getSimilarMovies(parseInt(tmdbId!, 10)),
-    { enabled: !!tmdbId }
+    { 
+      enabled: !!tmdbId,
+      onError: (error) => {
+        console.error('Error fetching similar movies:', error);
+      }
+    }
   );
 
   const { data: mirrors, isLoading: isMirrorsLoading } = useQuery<Mirror[], Error>(
@@ -160,7 +149,7 @@ const MoviePage: React.FC = () => {
     }
   );
 
-  const groupedMirrors = useMemo(() => {
+  const groupedMirrors = useMemo<GroupedMirrors>(() => {
     if (!mirrors) return {};
     return mirrors.reduce((acc, mirror) => {
       if (!acc[mirror.language]) {
@@ -171,14 +160,19 @@ const MoviePage: React.FC = () => {
       }
       acc[mirror.language][mirror.quality].push(mirror);
       return acc;
-    }, {} as { [key: string]: { [key: string]: Mirror[] } });
+    }, {} as GroupedMirrors);
   }, [mirrors]);
 
-  const languages = useMemo(() => Object.keys(groupedMirrors), [groupedMirrors]);
-  const qualities = useMemo(() => 
-    selectedLanguage ? Object.keys(groupedMirrors[selectedLanguage] || {}) : [],
-    [groupedMirrors, selectedLanguage]
-  );
+  const languages = useMemo(() => {
+    return Object.keys(groupedMirrors);
+  }, [groupedMirrors]);
+
+  const qualities = useMemo(() => {
+    if (selectedLanguage) {
+      return Object.keys(groupedMirrors[selectedLanguage] || {});
+    }
+    return [];
+  }, [groupedMirrors, selectedLanguage]);
 
   const selectedMirror = useMemo(() => {
     if (!selectedLanguage || !selectedQuality) return null;
@@ -191,6 +185,9 @@ const MoviePage: React.FC = () => {
     { 
       enabled: !!selectedMirror,
       retry: false,
+      onError: (error) => {
+        console.error('Error fetching movie info:', error);
+      }
     }
   );
 
@@ -213,16 +210,26 @@ const MoviePage: React.FC = () => {
     }
   );
 
-  const finalMovieInfo = useMemo(() => backupMovieInfo || movieInfo, [backupMovieInfo, movieInfo]);
+  const finalMovieInfo = useMemo(() => {
+    return backupMovieInfo || movieInfo;
+  }, [backupMovieInfo, movieInfo]);
 
-  const videoFile = useMemo(() => finalMovieInfo ? movieService.findVideoFile(finalMovieInfo) : null, [finalMovieInfo]);
+  const videoFile = useMemo(() => {
+    if (finalMovieInfo) {
+      return movieService.findVideoFile(finalMovieInfo);
+    }
+    return null;
+  }, [finalMovieInfo]);
 
-  const streamUrl = useMemo(() => 
-    finalMovieInfo && videoFile ? movieService.getStreamUrl(videoFile.infoHash, videoFile.index) : null, 
-    [finalMovieInfo, videoFile]
-  );
-
-  const posterUrl = useMemo(() => movie ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : '', [movie]);
+  const streamUrl = useMemo(() => {
+    if (finalMovieInfo && videoFile) {
+      return movieService.getStreamUrl(videoFile.infoHash, videoFile.index);
+    }
+    return null;
+  }, [finalMovieInfo, videoFile]);
+  const posterUrl = useMemo(() => {
+    return movie ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : '';
+  }, [movie]);
 
   const videoJsOptions = useMemo(() => ({
     sources: [{ src: streamUrl ?? "", type: "video/mp4" }],
@@ -244,29 +251,32 @@ const MoviePage: React.FC = () => {
     }
   }, [qualities, selectedQuality]);
 
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (isVideoLoading) {
-      timer = setTimeout(() => {
-        setShowLoadingMessage(true);
-      }, 3000);
-    } else {
-      setShowLoadingMessage(false);
-    }
-    return () => clearTimeout(timer);
-  }, [isVideoLoading]);
+  const [headerRef, headerInView] = useInView({
+    threshold: 0.1,
+    triggerOnce: true,
+  });
 
-  const [headerRef, headerInView] = useInView({ threshold: 0.1, triggerOnce: true });
-  const [castRef, castInView] = useInView({ threshold: 0.1, triggerOnce: true });
-  const [similarRef, similarInView] = useInView({ threshold: 0.1, triggerOnce: true });
-  const [reviewRef, reviewInView] = useInView({ threshold: 0.1, triggerOnce: true });
+  const [castRef, castInView] = useInView({
+    threshold: 0.1,
+    triggerOnce: true,
+  });
+
+  const [similarRef, similarInView] = useInView({
+    threshold: 0.1,
+    triggerOnce: true,
+  });
+
+  const [reviewRef, reviewInView] = useInView({
+    threshold: 0.1,
+    triggerOnce: true,
+  });
 
   const handleLanguageChange = (newLanguage: string) => {
     setSelectedLanguage(newLanguage);
     setSelectedQuality('');
   };
 
-  const handleQualityChangeWrapper = (newQuality: string) => {
+  const handleQualityChangeWrapper = (newQuality: any) => {
     setSelectedQuality(newQuality);
     handleQualityChange(newQuality);
   };
@@ -328,7 +338,7 @@ const MoviePage: React.FC = () => {
                 leftIcon={<FaChevronLeft />}
                 onClick={() => navigate(-1)}
                 position="fixed"
-                top={4}
+                top={12}
                 left={4}
                 zIndex={10}
                 bg="rgba(255, 255, 255, 0.1)"
@@ -348,36 +358,21 @@ const MoviePage: React.FC = () => {
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.5 }}
-                position="relative"
-                overflow="hidden"
               >
                 {isVideoLoading ? (
-                  <>
-                    <Skeleton 
-                      height="400px" 
-                      width="100%" 
-                      startColor="gray.700" 
-                      endColor="gray.900"
-                      position="relative"
-                      zIndex={1}
-                    >
-                      <Box height="400px" width="100%" />
-                    </Skeleton>
-                    <Fade in={showLoadingMessage} delay={0.2}>
-                      <LoadingMessage />
-                    </Fade>
-                  </>
+                  <Box height="400px" width="100%" display="flex" justifyContent="center" alignItems="center">
+                    <LoadingMessage />
+                  </Box>
                 ) : streamUrl ? (
-                  <Suspense fallback={<Skeleton height="400px" width="100%" startColor="gray.700" endColor="gray.900" />}>
+                  <Suspense fallback={<Skeleton height="400px" width="100%" />}>
                     <VideoPlayer 
-                      options={videoJsOptions}
-                      title={movie.title}
-                      onQualityChange={handleQualityChangeWrapper}
-                      onLanguageChange={handleLanguageChange}
-                      availableQualities={qualities}
-                      availableLanguages={languages}
-                      imdbId={movie.imdb_id || ''} 
-                    />
+                        options={videoJsOptions}
+                        title={movie.title}
+                        onQualityChange={handleQualityChangeWrapper}
+                        onLanguageChange={handleLanguageChange}
+                        availableQualities={qualities}
+                        availableLanguages={languages}
+                        imdbId={movie.imdb_id || ''} posterUrl={''}                    />
                   </Suspense>
                 ) : (
                   <Box 
@@ -390,14 +385,7 @@ const MoviePage: React.FC = () => {
                     justifyContent="center"
                     alignItems="center"
                   >
-                    <Text 
-                      fontSize="xl" 
-                      fontWeight="bold" 
-                      bg="rgba(0,0,0,0.7)" 
-                      p={4} 
-                      borderRadius="md"
-                      backdropFilter="blur(5px)"
-                    >
+                    <Text fontSize="xl" fontWeight="bold" bg="rgba(0,0,0,0.7)" p={4} borderRadius="md">
                       No playback options available
                     </Text>
                   </Box>
@@ -409,12 +397,12 @@ const MoviePage: React.FC = () => {
                 {...glassmorphismStyle}
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-                p={6}
+                transition={{ duration: 0.5 }}
+                p={4}
               >
-                <Text fontSize="2xl" fontWeight="bold" mb={4}>Watch Party</Text>
+                <Text fontSize="xl" fontWeight="bold" mb={4}>Watch Party</Text>
                 {!watchPartyId && !hasJoined && (
-                  <HStack spacing={4} justifyContent="space-between" flexWrap="wrap">
+                  <HStack spacing={4} justifyContent="space-between">
                     <CreateWatchParty 
                       movieId={tmdbId!} 
                       onWatchPartyCreated={handleCreateWatchParty} 
@@ -424,12 +412,12 @@ const MoviePage: React.FC = () => {
                 )}
                 {watchPartyId && (
                   <VStack spacing={4} align="stretch">
-                    <Text fontSize="lg">Watch Party ID: <strong>{watchPartyId}</strong></Text>
+                    <Text>Watch Party ID: {watchPartyId}</Text>
                     <InviteFriends partyId={watchPartyId} />
                   </VStack>
                 )}
                 {hasJoined && userId && (
-                  <Box mt={6}>
+                  <Box mt={4}>
                     <ChatRoom partyId={watchPartyId || ''} userId={userId} />
                   </Box>
                 )}
@@ -442,7 +430,7 @@ const MoviePage: React.FC = () => {
                 animate={headerInView ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.5 }}
               >
-                <Suspense fallback={<Skeleton height="200px" startColor="gray.700" endColor="gray.900" />}>
+                <Suspense fallback={<Skeleton height="200px" />}>
                   <MovieHeader 
                     movie={movie} 
                     onTrailerPlay={() => {}} 
@@ -467,10 +455,8 @@ const MoviePage: React.FC = () => {
                 transition={{ duration: 0.5 }}
               >
                 {credits && (
-                  <Suspense fallback={<Skeleton height="200px" startColor="gray.700" endColor="gray.900" />}>
-                    <MotionBox {...glassmorphismStyle} p={6}>
-                      <CastSection cast={credits.cast} isLoading={isCreditsLoading} />
-                    </MotionBox>
+                  <Suspense fallback={<Skeleton height="200px" />}>
+                    <CastSection cast={credits.cast} isLoading={isCreditsLoading} />
                   </Suspense>
                 )}
               </motion.div>
@@ -483,10 +469,8 @@ const MoviePage: React.FC = () => {
                 transition={{ duration: 0.5 }}
               >
                 {similarMovies && (
-                  <Suspense fallback={<Skeleton height="200px" startColor="gray.700" endColor="gray.900" />}>
-                    <MotionBox {...glassmorphismStyle} p={6}>
-                      <SimilarMoviesSection movies={similarMovies} isMobile={isMobile} isLoading={isSimilarMoviesLoading} />
-                    </MotionBox>
+                  <Suspense fallback={<Skeleton height="200px" />}>
+                    <SimilarMoviesSection movies={similarMovies} isLoading={isSimilarMoviesLoading} />
                   </Suspense>
                 )}
               </motion.div>
@@ -498,10 +482,8 @@ const MoviePage: React.FC = () => {
                 animate={reviewInView ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.5 }}
               >
-                <Suspense fallback={<Skeleton height="200px" startColor="gray.700" endColor="gray.900" />}>
-                  <MotionBox {...glassmorphismStyle} p={6}>
-                    <ReviewSection movieId={tmdbId ?? ''} />
-                  </MotionBox>
+                <Suspense fallback={<Skeleton height="200px" />}>
+                  <ReviewSection movieId={tmdbId ?? ''} />
                 </Suspense>
               </motion.div>
             </VStack>

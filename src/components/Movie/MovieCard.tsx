@@ -1,13 +1,25 @@
-import React, { useState, useCallback } from 'react';
-import { Box, Text, Badge, Icon, VStack, HStack, Tooltip, Button, useColorModeValue, Flex } from '@chakra-ui/react';
+import React, { useState, useCallback, useMemo } from 'react';
+import {
+  Box,
+  Text,
+  Badge,
+  Icon,
+  VStack,
+  HStack,
+  Tooltip,
+  Button,
+  useColorModeValue,
+  Flex,
+  Image,
+  Skeleton
+} from '@chakra-ui/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSpring, animated } from 'react-spring';
-import { FaPlay, FaHeart, FaInfoCircle } from 'react-icons/fa';
+import { FaHeart} from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
+import { Play } from 'lucide-react';
 
-const MotionBox = motion(Box as any);
-const AnimatedBox = animated(MotionBox);
-
+// Definición mejorada de tipos
 interface Movie {
   id: number;
   title: string;
@@ -16,47 +28,114 @@ interface Movie {
   release_date?: string;
   overview: string;
   media_type: 'movie' | 'tv';
+  genres?: { id: number; name: string }[];
+  runtime?: number;
+  status?: string;
 }
 
 interface MovieCardProps {
   movie: Movie;
   onSelect: (movie: Movie) => void;
   onAddToFavorites: (movie: Movie) => void;
+  isFavorite?: boolean;
+  isLoading?: boolean;
 }
 
-const MovieCard: React.FC<MovieCardProps> = React.memo(({ movie, onSelect, onAddToFavorites }) => {
-  const [isHovered, setIsHovered] = useState(false);
-  const textColor = useColorModeValue('gray.800', 'white');
-  const placeholderColor = useColorModeValue('gray.600', 'gray.300');
-  const glassBg = useColorModeValue('rgba(255, 255, 255, 0.7)', 'rgba(26, 32, 44, 0.7)');
-  const glassBoxShadow = useColorModeValue(
-    '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
-    '0 8px 32px 0 rgba(0, 0, 0, 0.37)'
-  );
-  const glassFilter = 'blur(10px) saturate(180%)';
+const MotionBox = motion(Box as any);
+const AnimatedBox = animated(MotionBox);
 
+const MovieCard: React.FC<MovieCardProps> = React.memo(({
+  movie,
+  onSelect,
+  onAddToFavorites,
+  isFavorite = false,
+  isLoading = false
+}) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
   const navigate = useNavigate();
 
+  // Color mode values
+  const colors = useMemo(() => ({
+    text: useColorModeValue('gray.800', 'white'),
+    placeholder: useColorModeValue('gray.600', 'gray.300'),
+    glassBg: useColorModeValue('rgba(255, 255, 255, 0.7)', 'rgba(26, 32, 44, 0.7)'),
+    glassBoxShadow: useColorModeValue(
+      '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
+      '0 8px 32px 0 rgba(0, 0, 0, 0.37)'
+    ),
+    cardBg: useColorModeValue('white', 'gray.800'),
+    hoverBg: useColorModeValue('gray.50', 'gray.700')
+  }), []);
+
+  // Animation springs
   const cardSpring = useSpring({
     scale: isHovered ? 1.05 : 1,
-    boxShadow: isHovered 
-      ? '0 10px 30px rgba(0,0,0,0.2), inset 0 0 0 1px rgba(255,255,255,0.2)'
+    boxShadow: isHovered
+      ? '0 20px 40px rgba(0,0,0,0.25), inset 0 0 0 1px rgba(255,255,255,0.2)'
       : '0 4px 6px rgba(0,0,0,0.1), inset 0 0 0 1px rgba(255,255,255,0.1)',
-    config: { mass: 1, tension: 300, friction: 20 },
+    config: { mass: 1, tension: 300, friction: 20 }
   });
 
+  // Event handlers
   const handleMouseEnter = useCallback(() => setIsHovered(true), []);
   const handleMouseLeave = useCallback(() => setIsHovered(false), []);
-  const handleClick = useCallback(() => onSelect(movie), [movie, onSelect]);
+
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!isLoading) {
+      onSelect(movie);
+    }
+  }, [movie, onSelect, isLoading]);
+
   const handleAddToFavorites = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    onAddToFavorites(movie);
-  }, [movie, onAddToFavorites]);
+    e.preventDefault();
+    if (!isLoading) {
+      onAddToFavorites(movie);
+    }
+  }, [movie, onAddToFavorites, isLoading]);
 
-  const handleDetailClick = useCallback(() => {
-    const route = movie.media_type === 'movie' ? `/movie/${movie.id}` : `/serie/${movie.id}`;
-    navigate(route);
-  }, [navigate, movie.id, movie.media_type]);
+  const handleDetailClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!isLoading) {
+      const route = movie.media_type === 'movie' ? `/movie/${movie.id}` : `/serie/${movie.id}`;
+      navigate(route);
+    }
+  }, [navigate, movie.id, movie.media_type, isLoading]);
+
+  const handleImageLoad = useCallback(() => {
+    setImageLoaded(true);
+  }, []);
+
+  // Memoized values
+  const posterUrl = useMemo(() => {
+    return movie.poster_path
+      ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
+      : '/default-movie-poster.jpg'; // Asegúrate de tener una imagen por defecto
+  }, [movie.poster_path]);
+
+  const ratingColor = useMemo(() => {
+    if (movie.vote_average >= 7) return 'green';
+    if (movie.vote_average >= 5) return 'yellow';
+    return 'red';
+  }, [movie.vote_average]);
+
+  const year = useMemo(() => {
+    return movie.release_date?.split('-')[0] || 'N/A';
+  }, [movie.release_date]);
+
+  if (isLoading) {
+    return (
+      <Skeleton
+        height="400px"
+        borderRadius="16px"
+        startColor={colors.cardBg}
+        endColor={colors.hoverBg}
+      />
+    );
+  }
 
   return (
     <AnimatedBox
@@ -64,8 +143,8 @@ const MovieCard: React.FC<MovieCardProps> = React.memo(({ movie, onSelect, onAdd
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}
-      bg={glassBg}
-      backdropFilter={glassFilter}
+      bg={colors.glassBg}
+      backdropFilter="blur(10px) saturate(180%)"
       border="1px solid rgba(255, 255, 255, 0.18)"
       borderRadius="16px"
       overflow="hidden"
@@ -74,31 +153,38 @@ const MovieCard: React.FC<MovieCardProps> = React.memo(({ movie, onSelect, onAdd
       role="group"
       tabIndex={0}
       _focus={{ outline: 'none', boxShadow: 'outline' }}
-      boxShadow={glassBoxShadow}
+      boxShadow={colors.glassBoxShadow}
       transition="all 0.3s ease"
+      cursor="pointer"
     >
       <VStack spacing={0} align="stretch" height="100%">
         <Box position="relative" width="100%" paddingBottom="150%" overflow="hidden">
-          <Box
-            as="img"
-            src={`https://image.tmdb.org/t/p/w500${movie?.poster_path}`}
-            alt={movie.title}
-            objectFit="cover"
-            position="absolute"
-            top={0}
-            left={0}
-            width="100%"
-            height="100%"
-            transition="transform 0.3s ease"
-            _groupHover={{ transform: 'scale(1.05)' }}
-          />
+          <Skeleton isLoaded={imageLoaded} height="100%" width="100%">
+            <Image
+              src={posterUrl}
+              alt={movie.title}
+              objectFit="cover"
+              position="absolute"
+              top={0}
+              left={0}
+              width="100%"
+              height="100%"
+              transition="transform 0.3s ease"
+              onLoad={handleImageLoad}
+              onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                e.currentTarget.src = '/default-movie-poster.jpg';
+              }}
+              _groupHover={{ transform: 'scale(1.05)' }}
+            />
+          </Skeleton>
+
           <AnimatePresence>
             {isHovered && (
               <MotionBox
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
+                transition={{ duration: 0.2 }}
                 position="absolute"
                 top={0}
                 left={0}
@@ -111,65 +197,118 @@ const MovieCard: React.FC<MovieCardProps> = React.memo(({ movie, onSelect, onAdd
                 p={4}
               >
                 <HStack spacing={2} justify="center">
-                  <Button 
-                    leftIcon={<FaInfoCircle />} 
-                    onClick={handleDetailClick} 
+                  <Button
+                    leftIcon={<Play />}
+                    onClick={handleDetailClick}
                     size="sm"
-                    bg="rgba(255, 255, 255, 0.2)"
-                    color="white"
-                    _hover={{ bg: 'rgba(255, 255, 255, 0.3)' }}
-                    backdropFilter="blur(5px)"
+                    bg="rgba(255, 255, 255, 0.15)"  // Transparent background
+                    backdropFilter="blur(10px)"      // Blur effect
+                    border="1px solid rgba(255, 255, 255, 0.18)" // Subtle border
+                    color="white"                    // White text
+                    _hover={{
+                      bg: "rgba(255, 255, 255, 0.25)",
+                      transform: 'translateY(-2px)',
+                      boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.37)"
+                    }}
+                    _active={{
+                      bg: "rgba(255, 255, 255, 0.2)"
+                    }}
+                    transition="all 0.3s ease"
                   >
-                    Details
+                    watch
                   </Button>
                 </HStack>
               </MotionBox>
             )}
           </AnimatePresence>
         </Box>
-        <VStack spacing={2} align="start" p={4} flexGrow={1} bg={glassBg} backdropFilter={glassFilter}>
-          <Text fontWeight="bold" fontSize="lg" color={textColor} noOfLines={1}>
+
+        <VStack
+          spacing={2}
+          align="start"
+          p={4}
+          flexGrow={1}
+          bg={colors.glassBg}
+          backdropFilter="blur(10px)"
+        >
+          <Text
+            fontWeight="bold"
+            fontSize="lg"
+            color={colors.text}
+            noOfLines={1}
+            _groupHover={{ color: 'blue.500' }}
+          >
             {movie.title}
           </Text>
+
           <Flex justify="space-between" width="100%" align="center">
-            <Badge 
-              colorScheme={movie.vote_average >= 7 ? 'green' : movie.vote_average >= 5 ? 'yellow' : 'red'}
-              bg={`${movie.vote_average >= 7 ? 'green' : movie.vote_average >= 5 ? 'yellow' : 'red'}.200`}
-              color={`${movie.vote_average >= 7 ? 'green' : movie.vote_average >= 5 ? 'yellow' : 'red'}.800`}
+            <Badge
+              colorScheme={ratingColor}
               px={2}
               py={1}
               borderRadius="full"
+              variant="subtle"
             >
-              {movie.vote_average.toFixed(1)}
+              ★ {movie.vote_average.toFixed(1)}
             </Badge>
-            <Text fontSize="sm" color={placeholderColor}>
-              {movie.release_date?.split('-')[0] || 'N/A'}
+            <Text fontSize="sm" color={colors.placeholder}>
+              {year}
             </Text>
           </Flex>
-          <Text fontSize="sm" color={textColor} noOfLines={2}>
-            {movie.overview}
+
+          <Text
+            fontSize="sm"
+            color={colors.text}
+            noOfLines={2}
+            opacity={0.8}
+          >
+            {movie.overview || 'No description available.'}
           </Text>
+
+          {movie.genres && (
+            <Flex gap={2} flexWrap="wrap">
+              {movie.genres.slice(0, 2).map(genre => (
+                <Badge
+                  key={genre.id}
+                  colorScheme="gray"
+                  variant="subtle"
+                  fontSize="xs"
+                >
+                  {genre.name}
+                </Badge>
+              ))}
+            </Flex>
+          )}
         </VStack>
-        <Tooltip label="Add to favorites" placement="top">
+
+        <Tooltip
+          label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+          placement="top"
+        >
           <Box
             as="button"
             position="absolute"
             top={2}
             right={2}
             onClick={handleAddToFavorites}
-            bg="rgba(255, 255, 255, 0.2)"
+            bg="rgba(0, 0, 0, 0.5)"
             p={2}
             borderRadius="full"
-            _hover={{ bg: 'rgba(255, 255, 255, 0.3)' }}
-            backdropFilter="blur(5px)"
-            transition="all 0.3s ease"
+            _hover={{
+              bg: 'rgba(0, 0, 0, 0.7)',
+              transform: 'scale(1.1)'
+            }}
+            transition="all 0.2s"
           >
             <Icon
               as={FaHeart}
-              color="red.500"
-              opacity={isHovered ? 1 : 0.7}
+              color={isFavorite ? "red.500" : "white"}
+              opacity={isHovered || isFavorite ? 1 : 0.7}
               transition="all 0.3s"
-              _groupHover={{ opacity: 1, transform: 'scale(1.1)' }}
+              _groupHover={{
+                opacity: 1,
+                transform: 'scale(1.1)'
+              }}
             />
           </Box>
         </Tooltip>

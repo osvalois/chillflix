@@ -41,13 +41,6 @@ export const SuggestionsList: React.FC<SuggestionsListProps> = ({
             >
               <GlassmorphicBox
                 isActive={highlightedIndex === index}
-                p={2}
-                borderRadius="md"
-                cursor="pointer"
-                _hover={{ transform: 'translateY(-2px)', transition: 'transform 0.2s' }}
-                as={motion.div}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
               >
                 <HStack>
                   {item.media_type === ContentType.Movie ? <FaFilm /> : <FaTv />}

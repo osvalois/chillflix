@@ -1,26 +1,38 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Box, Flex, useMediaQuery, Fade } from "@chakra-ui/react";
-import { ControlsProps } from './types';
+import { AudioTrack } from './types';
 import { PlaybackControls } from './PlaybackControls';
 import { VolumeControls } from './VolumeControls';
 import { TimeDisplay } from './TimeDisplay';
 import { SeekBar } from './SeekBar';
 import { LanguageSelector } from './LanguageSelector';
-import { AudioSettingsMenu } from './AudioSettingsMenu';
+import { AudioSettingsMenu, AudioTrackCustom } from './AudioSettingsMenu';
 import { FullscreenButton } from './FullscreenButton';
 import { MobileMenu } from './MobileMenu';
 import { LoadingSpinner } from './LoadingSpinner';
 import { TitleDisplay } from './TitleDisplay';
 import { QualitySelector } from './QualitySelector';
 import { SubtitleSelector } from './SubtitleSelector';
+import { ControlsProps, Subtitle } from '../../types';
+
+interface ParsedSubtitleCue {
+    start: number;
+    end: number;
+    text: string;
+}
 
 interface SavedConfig {
     currentTime: number;
     volume: number;
     selectedQuality: string;
     selectedLanguage: string;
-    selectedSubtitle: string;
+    selectedSubtitle: string | null;
     selectedAudioTrack: string;
+}
+
+interface SubtitleState {
+    subtitle: Subtitle | null;
+    cues: ParsedSubtitleCue[] | null;
 }
 
 const Controls: React.FC<ControlsProps> = ({
@@ -51,7 +63,10 @@ const Controls: React.FC<ControlsProps> = ({
     const [localControlsVisible, setLocalControlsVisible] = useState(controlsVisible);
     const [localQuality, setLocalQuality] = useState(selectedQuality);
     const [localLanguage, setLocalLanguage] = useState(selectedLanguage);
-    const [localSubtitle, setLocalSubtitle] = useState(selectedSubtitle);
+    const [localSubtitle, setLocalSubtitle] = useState<SubtitleState>({
+        subtitle: selectedSubtitle as Subtitle | null,
+        cues: null
+    });
     const [localAudioTrack, setLocalAudioTrack] = useState(selectedAudioTrack);
     const [isConfigChanged, setIsConfigChanged] = useState(false);
     
@@ -71,7 +86,7 @@ const Controls: React.FC<ControlsProps> = ({
             volume,
             selectedQuality: localQuality,
             selectedLanguage: localLanguage,
-            selectedSubtitle: localSubtitle ?? "",
+            selectedSubtitle: localSubtitle.subtitle?.ISO639 ?? null,
             selectedAudioTrack: localAudioTrack,
         };
 
@@ -138,8 +153,8 @@ const Controls: React.FC<ControlsProps> = ({
         setIsConfigChanged(true);
     }, []);
 
-    const handleSubtitleChange = useCallback((subtitle: string) => {
-        setLocalSubtitle(subtitle);
+    const handleSubtitleChange = useCallback((subtitle: Subtitle | null, parsedCues: ParsedSubtitleCue[] | null) => {
+        setLocalSubtitle({ subtitle, cues: parsedCues });
         setIsConfigChanged(true);
     }, []);
 
@@ -150,16 +165,24 @@ const Controls: React.FC<ControlsProps> = ({
             player.volume(savedConfig.volume);
             setLocalQuality(savedConfig.selectedQuality);
             setLocalLanguage(savedConfig.selectedLanguage);
-            setLocalSubtitle(savedConfig.selectedSubtitle);
+            
+            // Find the matching subtitle from saved ISO639
+            if (savedConfig.selectedSubtitle && Array.isArray(subtitles)) {
+                const savedSubtitle = (subtitles as unknown as Subtitle[]).find(
+                    sub => sub.ISO639 === savedConfig.selectedSubtitle
+                );
+                if (savedSubtitle) {
+                    setLocalSubtitle({ subtitle: savedSubtitle, cues: null });
+                }
+            }
+            
             setLocalAudioTrack(savedConfig.selectedAudioTrack);
         }
-    }, [player, loadSavedConfig]);
+    }, [player, loadSavedConfig, subtitles]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            console.log("saveConfig();")
             saveConfig();
-
         }, 1000);
 
         return () => clearTimeout(timer);
@@ -184,16 +207,16 @@ const Controls: React.FC<ControlsProps> = ({
     useEffect(() => {
         if (localQuality !== selectedQuality) onQualityChange(localQuality);
         if (localLanguage !== selectedLanguage) onLanguageChange(localLanguage);
-        if (localSubtitle !== selectedSubtitle) onSubtitleChange(localSubtitle);
+        if (localSubtitle.subtitle !== selectedSubtitle) onSubtitleChange(localSubtitle.subtitle);
         if (localAudioTrack !== selectedAudioTrack) {
-            const audioTracks = player?.audioTracks();
+            const audioTracks = (player as any).audioTracks();
             if (audioTracks) {
                 for (let i = 0; i < audioTracks.length; i++) {
                     audioTracks[i].enabled = audioTracks[i].id === localAudioTrack;
                 }
             }
         }
-    }, [localQuality, localLanguage, localSubtitle, localAudioTrack, player, onQualityChange, onLanguageChange, onSubtitleChange]);
+    }, [localQuality, localLanguage, localSubtitle.subtitle, localAudioTrack, player, onQualityChange, onLanguageChange, onSubtitleChange, selectedQuality, selectedLanguage, selectedSubtitle, selectedAudioTrack]);
 
     return (
         <>
@@ -241,29 +264,31 @@ const Controls: React.FC<ControlsProps> = ({
                                         <AudioSettingsMenu 
                                             audioTracks={audioTracks} 
                                             selectedAudioTrack={localAudioTrack} 
-                                            onAudioTrackChange={handleAudioTrackChange} 
+                                            onAudioTrackChange={(track: AudioTrackCustom) => handleAudioTrackChange(track.id)} 
                                         />
                                         <SubtitleSelector
-                                            subtitles={subtitles}
-                                            selectedSubtitle={localSubtitle}
+                                            subtitles={subtitles as unknown as Subtitle[]}
+                                            selectedSubtitle={localSubtitle.subtitle}
                                             onSubtitleChange={handleSubtitleChange}
                                         />
                                     </>
                                 ) : (
                                     <MobileMenu
-                                        selectedQuality={localQuality}
-                                        availableQualities={availableQualities}
-                                        onQualityChange={handleQualityChange}
-                                        selectedLanguage={localLanguage}
-                                        availableLanguages={availableLanguages}
-                                        onLanguageChange={handleLanguageChange}
-                                        audioTracks={audioTracks}
-                                        selectedAudioTrack={localAudioTrack}
-                                        onAudioTrackChange={handleAudioTrackChange}
-                                        subtitles={subtitles}
-                                        selectedSubtitle={localSubtitle}
-                                        onSubtitleChange={handleSubtitleChange}
-                                    />
+                                            selectedQuality={localQuality}
+                                            availableQualities={availableQualities}
+                                            onQualityChange={handleQualityChange}
+                                            selectedLanguage={localLanguage}
+                                            availableLanguages={availableLanguages}
+                                            onLanguageChange={handleLanguageChange}
+                                            audioTracks={audioTracks}
+                                            selectedAudioTrack={localAudioTrack}
+                                            onAudioTrackChange={(track: AudioTrack) => handleAudioTrackChange(track.id)}
+                                            subtitles={subtitles as unknown as Subtitle[]}
+                                            selectedSubtitle={localSubtitle.subtitle} 
+                                            onSubtitleChange={function (subtitle: Subtitle | null): void {
+                                                console.log(subtitle)
+                                                throw new Error('Function not implemented.');
+                                            } }                                    />
                                 )}
                                 <FullscreenButton
                                     isFullscreen={isFullscreen}

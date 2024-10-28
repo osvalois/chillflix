@@ -1,93 +1,81 @@
-import React, { useMemo } from 'react';
-import { Box, useColorModeValue, BoxProps, useTheme } from '@chakra-ui/react';
-import { motion, MotionProps, useMotionTemplate, useTransform, useMotionValue, useSpring } from 'framer-motion';
-import { rgba, darken, lighten } from 'polished';
+import { useState, useEffect, useRef, ReactNode } from 'react';
+import { motion, MotionStyle } from 'framer-motion';
 
-interface GlassmorphicBoxProps extends BoxProps, MotionProps {
+interface GlassmorphicBoxProps {
+  children: ReactNode;
   isActive?: boolean;
-  intensity?: number;
-  gradientColors?: string[];
   hoverEffect?: 'lift' | 'glow' | 'tilt' | 'none';
   glareEffect?: boolean;
   pulseEffect?: boolean;
-  borderGlow?: boolean;
+  className?: string;
+  gradientFrom?: string;
+  gradientTo?: string;
 }
 
-export const GlassmorphicBox: React.FC<GlassmorphicBoxProps> = React.memo(({
+interface Dimensions {
+  width: number;
+  height: number;
+}
+
+interface MousePosition {
+  x: number;
+  y: number;
+}
+
+const GlassmorphicBox: React.FC<GlassmorphicBoxProps> = ({
+  children,
   isActive = false,
-  intensity = 0.5,
-  gradientColors,
   hoverEffect = 'lift',
   glareEffect = true,
   pulseEffect = false,
-  borderGlow = false,
-  children,
-  ...props
+  className = '',
+  gradientFrom = 'from-blue-400/30',
+  gradientTo = 'to-purple-400/30',
 }) => {
-  const theme = useTheme();
-  const mouseX = useMotionValue(0);
-  const mouseY = useMotionValue(0);
+  const [mousePosition, setMousePosition] = useState<MousePosition>({ x: 0, y: 0 });
+  const [dimensions, setDimensions] = useState<Dimensions>({ width: 0, height: 0 });
+  const boxRef = useRef<HTMLDivElement>(null);
 
-  const defaultLightColors = [theme.colors.blue[300], theme.colors.purple[300]];
-  const defaultDarkColors = [theme.colors.blue[700], theme.colors.purple[700]];
+  useEffect(() => {
+    if (boxRef.current) {
+      const rect = boxRef.current.getBoundingClientRect();
+      setDimensions({ width: rect.width, height: rect.height });
+    }
+  }, []);
 
-  const colors = useColorModeValue(
-    gradientColors || defaultLightColors,
-    gradientColors || defaultDarkColors
-  );
-
-  const baseColor = useColorModeValue('255, 255, 255', '26, 32, 44');
-
-  const glassEffect = useMemo(() => {
-    const activeIntensity = isActive ? intensity + 0.1 : intensity;
-    
-    return {
-      background: `linear-gradient(135deg, ${rgba(colors[0], activeIntensity)} 0%, ${rgba(colors[1], activeIntensity)} 100%)`,
-      boxShadow: isActive 
-        ? `0 8px 32px 0 rgba(${baseColor}, 0.37), inset 0 0 0 1px rgba(${baseColor}, 0.1)`
-        : `0 4px 16px 0 rgba(${baseColor}, 0.2), inset 0 0 0 1px rgba(${baseColor}, 0.05)`,
-      backdropFilter: 'blur(20px)',
-      border: isActive 
-        ? `1px solid rgba(${baseColor}, 0.2)`
-        : `1px solid rgba(${baseColor}, 0.1)`,
-      borderRadius: 'xl',
-      transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
-    };
-  }, [colors, isActive, intensity, baseColor]);
-
-  const glareAngle = useTransform(
-    [mouseX, mouseY],
-    ([x, y]) => `${Math.round((Math.atan2(y, x) * 180) / Math.PI)}deg`
-  );
-
-  const glareOpacity = useTransform(
-    [mouseX, mouseY],
-    ([x, y]) => Math.min(Math.sqrt(x * x + y * y) / 500, 0.5)
-  );
-
-  const glareBackground = useMotionTemplate`
-    radial-gradient(
-      circle at ${mouseX}px ${mouseY}px,
-      rgba(255, 255, 255, 0.15) 0%,
-      rgba(255, 255, 255, 0) 80%
-    )
-  `;
-
-  const hoverVariants = {
-    lift: {
-      y: -5,
-      boxShadow: `0 20px 40px rgba(${baseColor}, 0.15)`,
-    },
-    glow: {
-      boxShadow: `0 0 25px ${rgba(colors[0], 0.6)}`,
-    },
-    tilt: {
-      rotateX: useTransform(mouseY, [0, 300], [5, -5]),
-      rotateY: useTransform(mouseX, [0, 300], [-5, 5]),
-      z: 0,
-    },
-    none: {},
+  const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>): void => {
+    if (boxRef.current) {
+      const rect = boxRef.current.getBoundingClientRect();
+      setMousePosition({
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      });
+    }
   };
+
+  const getHoverAnimation = (): Record<string, any> => {
+    switch (hoverEffect) {
+      case 'lift':
+        return { y: -8, transition: { duration: 0.2 } };
+      case 'glow':
+        return { 
+          boxShadow: '0 0 25px rgba(147, 197, 253, 0.6)',
+          transition: { duration: 0.2 }
+        };
+      case 'tilt':
+        return {
+          rotateX: mousePosition.y / dimensions.height * 20 - 10,
+          rotateY: mousePosition.x / dimensions.width * 20 - 10,
+          transition: { duration: 0.1 }
+        };
+      default:
+        return {};
+    }
+  };
+
+  const glareStyle: MotionStyle = glareEffect ? {
+    background: `radial-gradient(circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 80%)`,
+  } : {};
 
   const pulseAnimation = pulseEffect ? {
     scale: [1, 1.02, 1],
@@ -98,69 +86,56 @@ export const GlassmorphicBox: React.FC<GlassmorphicBoxProps> = React.memo(({
     }
   } : {};
 
-  const borderGlowColor = useColorModeValue(
-    lighten(0.1, colors[0]),
-    darken(0.1, colors[1])
-  );
-
-  const borderGlowEffect = borderGlow ? {
-    boxShadow: `0 0 10px ${rgba(borderGlowColor, 0.5)}`,
-    transition: {
-      boxShadow: {
-        duration: 1,
-        repeat: Infinity,
-        repeatType: "reverse" as const,
-      }
-    }
-  } : {};
-
-  const springConfig = { stiffness: 300, damping: 20 };
-  const rotateX = useSpring(useTransform(mouseY, [0, 300], [5, -5]), springConfig);
-  const rotateY = useSpring(useTransform(mouseX, [0, 300], [-5, 5]), springConfig);
-
   return (
-    <Box
-      as={motion.div}
-      {...glassEffect}
-      {...props}
-      whileHover={{
-        ...hoverVariants[hoverEffect],
-        ...borderGlowEffect,
-      }}
-      animate={pulseAnimation}
+    <motion.div
+      ref={boxRef}
+      onMouseMove={handleMouseMove}
+      whileHover={getHoverAnimation()}
+      animate={pulseEffect ? pulseAnimation : {}}
+      className={`
+        relative overflow-hidden rounded-xl
+        bg-gradient-to-br ${gradientFrom} ${gradientTo}
+        backdrop-blur-xl backdrop-saturate-150
+        border border-white/10
+        ${isActive ? 'shadow-lg shadow-blue-500/20' : 'shadow-md'}
+        ${className}
+      `}
       style={{
-        ...(hoverEffect === 'tilt' ? { rotateX, rotateY, z: 0 } : {}),
+        perspective: '1000px',
+        transformStyle: 'preserve-3d',
       }}
-      onMouseMove={(e) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        mouseX.set(e.clientX - rect.left);
-        mouseY.set(e.clientY - rect.top);
-      }}
-      position="relative"
-      overflow="hidden"
     >
-      {children}
+      {/* Main content */}
+      <div className="relative z-10 p-6">
+        {children}
+      </div>
+
+      {/* Glare effect */}
       {glareEffect && (
-        <Box
-          as={motion.div}
-          position="absolute"
-          top={0}
-          left={0}
-          right={0}
-          bottom={0}
-          borderRadius="inherit"
-          style={{
-            background: glareBackground,
-            opacity: glareOpacity,
-            transform: `rotate(${glareAngle})`,
-          }}
-          pointerEvents="none"
+        <motion.div
+          className="absolute inset-0 pointer-events-none"
+          style={glareStyle}
         />
       )}
-    </Box>
-  );
-});
 
-GlassmorphicBox.displayName = 'GlassmorphicBox';
+      {/* Decorative elements */}
+      <div className="absolute -top-24 -right-24 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl" />
+      <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl" />
+      
+      {/* Border highlights */}
+      <div className="absolute inset-px rounded-xl bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
+      
+      {/* Dot pattern overlay */}
+      <div className="absolute inset-0 opacity-5">
+        <div className="absolute inset-0" 
+          style={{
+            backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)',
+            backgroundSize: '24px 24px'
+          }}
+        />
+      </div>
+    </motion.div>
+  );
+};
 
 export default GlassmorphicBox;

@@ -1,5 +1,4 @@
 import React from 'react';
-import { ChevronDownIcon } from 'lucide-react';
 
 interface QualitySelectorProps {
   selectedQuality: string;

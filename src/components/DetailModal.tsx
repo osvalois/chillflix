@@ -59,6 +59,20 @@ const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, content }) =
     (video) => video.type === 'Trailer' && video.site === 'YouTube'
   )?.key;
 
+  // Función auxiliar para formatear la fecha
+  const formatReleaseYear = (dateString: string | undefined): string => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return isNaN(date.getTime()) ? 'N/A' : date.getFullYear().toString();
+  };
+
+  // Función auxiliar para obtener la URL de la imagen con fallback
+  const getImageUrl = (path: string | undefined, size: string = 'w500'): string => {
+    return path 
+      ? `https://image.tmdb.org/t/p/${size}${path}`
+      : 'https://via.placeholder.com/500x750';
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="xl" scrollBehavior="inside">
       <ModalOverlay />
@@ -69,22 +83,27 @@ const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, content }) =
           <Flex direction={{ base: 'column', md: 'row' }} gap={4}>
             <Box flexShrink={0}>
               <Image
-                src={`https://image.tmdb.org/t/p/w500${content.poster_path}`}
+                src={getImageUrl(content.poster_path ?? '')}
                 alt={content.title || content.name}
                 borderRadius="lg"
                 maxW="200px"
+                fallbackSrc="https://via.placeholder.com/200x300"
               />
             </Box>
             <VStack align="start" spacing={3}>
               <HStack>
-                <Badge colorScheme="teal">{content.type === 'movie' ? 'Movie' : 'TV Series'}</Badge>
-                <Text fontSize="sm">{new Date(content.release_date || content.first_air_date).getFullYear()}</Text>
+                <Badge colorScheme="teal">
+                  {content.type === 'movie' ? 'Movie' : 'TV Series'}
+                </Badge>
+                <Text fontSize="sm">
+                  {formatReleaseYear(content.release_date || content.first_air_date)}
+                </Text>
               </HStack>
               <HStack>
                 <FaStar color="gold" />
-                <Text>{content.vote_average.toFixed(1)}/10</Text>
+                <Text>{content.vote_average?.toFixed(1) || 'N/A'}/10</Text>
               </HStack>
-              <Text fontSize="sm">{content.overview}</Text>
+              <Text fontSize="sm">{content.overview || 'No description available.'}</Text>
             </VStack>
           </Flex>
 
@@ -101,14 +120,14 @@ const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, content }) =
             </Box>
           )}
 
-          {credits && (
+          {credits && credits.cast && credits.cast.length > 0 && (
             <Box mt={6}>
               <Heading size="md" mb={2}>Cast</Heading>
               <Flex overflowX="auto" py={2}>
                 {credits.cast.slice(0, 10).map((actor) => (
                   <Box key={actor.id} minW="100px" mr={4}>
                     <Image
-                      src={`https://image.tmdb.org/t/p/w200${actor.profile_path}`}
+                      src={getImageUrl(actor.profile_path ?? '', 'w200')}
                       alt={actor.name}
                       borderRadius="md"
                       fallbackSrc="https://via.placeholder.com/100x150"

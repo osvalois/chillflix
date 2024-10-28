@@ -65,7 +65,7 @@ const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({ suggestions, onSu
               {suggestion.title}
             </Text>
             <Text fontSize="xs" color={textColor} opacity={0.8}>
-              {new Date(suggestion.release_date).getFullYear()} • {suggestion.vote_average.toFixed(1)}⭐
+              { suggestion.release_date } • {suggestion.vote_average.toFixed(1)}⭐
             </Text>
           </VStack>
         </HStack>

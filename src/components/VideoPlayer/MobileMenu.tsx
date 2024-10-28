@@ -16,8 +16,9 @@ import { FaEllipsisV, FaCog, FaClosedCaptioning, FaGlobe, FaVideo } from "react-
 import { QualitySelector } from './QualitySelector';
 import { LanguageSelector } from './LanguageSelector';
 import { AudioSettingsMenu } from './AudioSettingsMenu';
-import { Subtitle } from '../../services/OpenSubtitlesService';
-import {SubtitleSelector} from './SubtitleSelector';
+import { SubtitleSelector } from './SubtitleSelector';
+import { AudioTrack } from './types';
+import { Subtitle } from '../../types';
 
 interface MobileMenuProps {
   selectedQuality: string;
@@ -26,9 +27,9 @@ interface MobileMenuProps {
   selectedLanguage: string;
   availableLanguages: string[];
   onLanguageChange: (language: string) => void;
-  audioTracks: videojs.AudioTrack[];
+  audioTracks: AudioTrack[];
   selectedAudioTrack: string;
-  onAudioTrackChange: (track: videojs.AudioTrack) => void;
+  onAudioTrackChange: (track: AudioTrack) => void;
   subtitles: Subtitle[];
   selectedSubtitle: Subtitle | null;
   onSubtitleChange: (subtitle: Subtitle | null) => void;
@@ -50,7 +51,6 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
 }) => {
   const bgColor = useColorModeValue("white", "gray.800");
   const textColor = useColorModeValue("gray.800", "white");
-  const hoverBgColor = useColorModeValue("gray.100", "gray.700");
 
   return (
     <Menu closeOnSelect={false}>

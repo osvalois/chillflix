@@ -4,7 +4,7 @@ import { Link as RouterLink, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from 'framer-motion';
 import { Player } from "@lottiefiles/react-lottie-player";
 import { useSpring, animated } from 'react-spring';
-import { rgba, lighten, darken } from 'polished';
+import { rgba } from 'polished';
 import { useInView } from 'react-intersection-observer';
 import { debounce } from 'lodash';
 

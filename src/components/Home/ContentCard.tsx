@@ -1,213 +1,425 @@
-import React from 'react';
-import { Box, Text, Flex, Icon, AspectRatio, Badge, Skeleton, VStack, keyframes } from '@chakra-ui/react';
-import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { FaStar, FaInfoCircle, FaCalendar, FaUsers } from 'react-icons/fa';
-import { FiPlay } from 'react-icons/fi';
-import { LazyLoadImage } from 'react-lazy-load-image-component';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
+import {
+  Box,
+  Flex,
+  Text,
+  IconButton,
+  Portal,
+  Tooltip,
+  keyframes
+} from '@chakra-ui/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import 'react-lazy-load-image-component/src/effects/blur.css';
-import GlassmorphicBox from '../UI/GlassmorphicBox';
-import { GlassPrimaryButton } from '../UI/GlassPrimaryButton';
-import { GlassSecondaryButton } from '../UI/GlassSecondaryButton';
-import { ContentCardProps } from '../../types';
+import {
+  FaStar,
+  FaCalendar,
+  FaUsers,
+  FaPlay,
+  FaHeart,
+  FaShare
+} from 'react-icons/fa';
+import { useParallax } from 'react-scroll-parallax';
+import { rgba } from 'polished';
 
-const MotionBox = motion(Box as any);
-const MotionFlex = motion(Flex as any);
-
-const shimmer = keyframes`
-  0% { background-position: -1000px 0; }
-  100% { background-position: 1000px 0; }
+const pulse = keyframes`
+  0% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.8; }
 `;
 
-const skeletonBaseStyle = {
-  background: "linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%)",
-  backgroundSize: "1000px 100%",
-  animation: `${shimmer} 2s infinite linear`,
-};
+interface Genre {
+  id: number;
+  name: string;
+}
 
-const ContentCard: React.FC<ContentCardProps> = ({ content, isLoading = false }) => {
+interface ContentBase {
+  id: number;
+  title?: string;
+  name?: string;
+  backdrop_path: string | null;  // Actualizado para aceptar null
+  poster_path: string | null;    // Actualizado para aceptar null
+  vote_average?: number;
+  release_date?: string;
+  first_air_date?: string;
+  popularity?: number;
+  overview?: string;
+  media_type?: 'movie' | 'tv';   // Especificado los tipos literales
+  type?: string;
+  genres?: Genre[];
+  runtime?: number;
+  vote_count?: number;
+}
+
+interface ContentCardProps {
+  content: ContentBase;
+  isFavorited?: boolean;
+}
+
+const ContentCard: React.FC<ContentCardProps> = ({
+  content,
+  isFavorited = false
+}) => {
+  // Hooks and state
   const navigate = useNavigate();
-  const mouseX = useMotionValue(0);
-  const mouseY = useMotionValue(0);
-  let movieType = content.media_type ?? content.type;
-  const getContentLink = () => {
-    return `/${content.media_type ?? content.type}/${content.id}`;
-  };
+  const [isHovered, setIsHovered] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
 
-  const handleCardClick = (e: React.MouseEvent) => {
-    // Prevent card click if the click was on a button
-    if ((e.target as HTMLElement).closest('button')) return;
-    navigate(getContentLink());
-  };
+  // Parallax configuration
+  const { ref: parallaxRef } = useParallax<HTMLDivElement>({
+    speed: -10,
+    translateY: [-20, 20],
+    rotateZ: [-2, 2],
+    scale: [0.98, 1.02],
+  });
 
-  if (isLoading) {
-    return (
-      <GlassmorphicBox
-        height="700px"
-        width="100%"
-        borderRadius="30px"
-        overflow="hidden"
-        position="relative"
-      >
-        <VStack spacing={4} align="stretch" p={8}>
-          <Skeleton height="400px" {...skeletonBaseStyle} borderRadius="20px" />
-          <Skeleton height="40px" width="60%" {...skeletonBaseStyle} borderRadius="full" />
-          <Skeleton height="20px" width="40%" {...skeletonBaseStyle} borderRadius="full" />
-          <Skeleton height="100px" {...skeletonBaseStyle} borderRadius="10px" />
-          <Flex justify="space-between">
-            <Skeleton height="50px" width="48%" {...skeletonBaseStyle} borderRadius="full" />
-            <Skeleton height="50px" width="48%" {...skeletonBaseStyle} borderRadius="full" />
-          </Flex>
-        </VStack>
-      </GlassmorphicBox>
-    );
-  }
+  // Glassmorphic styles
+  const glassStyle = useMemo(() => ({
+    background: isHovered 
+      ? `linear-gradient(135deg, 
+          ${rgba(255, 255, 255, 0.15)} 0%, 
+          ${rgba(255, 255, 255, 0.08)} 50%,
+          ${rgba(255, 255, 255, 0.15)} 100%)`
+      : `linear-gradient(135deg, 
+          ${rgba(255, 255, 255, 0.1)} 0%, 
+          ${rgba(255, 255, 255, 0.05)} 100%)`,
+    backdropFilter: `blur(${isHovered ? '12px' : '8px'})`,
+    borderRadius: '30px',
+    border: `1px solid ${rgba(255, 255, 255, isHovered ? 0.2 : 0.1)}`,
+    boxShadow: `
+      0 4px 6px ${rgba(0, 0, 0, 0.1)},
+      0 1px 3px ${rgba(0, 0, 0, 0.08)},
+      inset 0 0 0 1px ${rgba(255, 255, 255, 0.1)},
+      ${isHovered ? `
+        0 10px 30px ${rgba(0, 0, 0, 0.25)},
+        inset 0 0 20px ${rgba(255, 255, 255, 0.05)}
+      ` : ''}
+    `,
+    transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+  }), [isHovered]);
+
+  // Event handlers
+  const handleFavorite = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Implement favorite functionality
+    console.log('Favorite clicked');
+  }, []);
+
+  const handleShare = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Implement share functionality
+    console.log('Share clicked');
+  }, []);
+
+  const handlePlay = useCallback(() => {
+    const mediaType = content.media_type || content.type || 'movie';
+    navigate(`/${mediaType}/${content.id}`);
+  }, [content.id, content.media_type, content.type, navigate]);
+
+  // Función auxiliar para manejar las imágenes
+  const getImageUrl = (path: string | null) => {
+    if (!path) return '/placeholder-image.jpg'; // Asegúrate de tener una imagen por defecto
+    return `https://image.tmdb.org/t/p/original${path}`;
+  };
 
   return (
-    <GlassmorphicBox
-      as={motion.div}
-      height="700px"
-      width="100%"
-      borderRadius="30px"
-      overflow="hidden"
-      position="relative"
-      cursor="pointer"
-      onClick={handleCardClick}
-      onMouseMove={(e) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        mouseX.set(e.clientX - rect.left);
-        mouseY.set(e.clientY - rect.top);
+    <motion.div
+      ref={cardRef}
+      style={glassStyle}
+      onHoverStart={() => setIsHovered(true)}
+      onHoverEnd={() => setIsHovered(false)}
+      initial={false}
+      animate={{
+        scale: isHovered ? 1.03 : 1,
+        transition: { duration: 0.3 }
       }}
-      whileHover={{ scale: 1.02 }}
     >
-      <AspectRatio ratio={16 / 9} width="100%" height="60%">
-        <LazyLoadImage
-          src={`https://image.tmdb.org/t/p/original${content.backdrop_path || content.poster_path}`}
-          alt={content.title || content.name}
-          effect="blur"
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-          }}
-        />
-      </AspectRatio>
-
-      <MotionFlex
-        position="absolute"
-        top={0}
-        left={0}
-        right={0}
-        bottom={0}
-        flexDirection="column"
-        justify="flex-end"
-        p={8}
-        bgGradient="linear(to-t, rgba(0,0,0,0.9), rgba(0,0,0,0.3))"
+      <Box
+        height="700px"
+        position="relative"
+        overflow="hidden"
+        borderRadius="30px"
       >
-        <Flex justifyContent="space-between" alignItems="center" mb={4}>
-          <Badge
-            colorScheme={ movieType.toLowerCase() === 'movie' ? "purple" : "teal"}
-            variant="solid"
-            fontSize="md"
-            px={4}
-            py={2}
-            borderRadius="full"
-            boxShadow="0 4px 6px rgba(0, 0, 0, 0.1)"
-          >
-            {movieType.toLowerCase() === 'movie' ? 'Movie' : 'TV Series'}
-          </Badge>
-          <Flex
-            align="center"
-            bg="rgba(255, 255, 255, 0.2)"
-            borderRadius="full"
-            px={4}
-            py={2}
-            boxShadow="0 4px 6px rgba(0, 0, 0, 0.1)"
-          >
-            <Icon as={FaStar} color="yellow.400" mr={2} />
-            <Text fontSize="xl" color="white" fontWeight="bold">
-              {content.vote_average ? content.vote_average.toFixed(1) : 'N/A'}
-            </Text>
-          </Flex>
-        </Flex>
-
-        <MotionBox
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.1, duration: 0.3 }}
-        >
-          <Text
-            fontSize="4xl"
-            fontWeight="bold"
-            color="white"
-            mb={2}
-            textShadow="2px 2px 4px rgba(0,0,0,0.3)"
-          >
-            {content.title || content.name}
-          </Text>
-        </MotionBox>
-
-        <Flex alignItems="center" mb={4}>
-          <Icon as={FaCalendar} color="gray.300" mr={2} />
-          <Text fontSize="lg" color="gray.300">
-            {new Date(content.release_date || content.first_air_date).getFullYear()}
-          </Text>
-          <Box mx={4} borderLeft="1px solid" borderColor="gray.500" height="20px" />
-          <Icon as={FaUsers} color="gray.300" mr={2} />
-          <Text fontSize="lg" color="gray.300">
-            {content.popularity ? Math.round(content.popularity).toLocaleString() : 'N/A'} views
-          </Text>
-        </Flex>
-
-        <MotionBox
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.2, duration: 0.3 }}
-        >
-          <Text color="gray.100" fontSize="lg" mb={6} lineHeight="1.6" noOfLines={3}>
-            {content.overview}
-          </Text>
-        </MotionBox>
-
-        <Flex justifyContent="space-between">
-          <GlassPrimaryButton
-            icon={<FiPlay />}
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(getContentLink());
+        {/* Background with parallax effect */}
+        <Box ref={parallaxRef} position="absolute" inset={0}>
+          <Box
+            position="absolute"
+            inset={0}
+            bg={`linear-gradient(135deg, 
+              ${rgba(0, 0, 0, 0.8)} 0%,
+              ${rgba(0, 0, 0, 0.4)} 50%,
+              ${rgba(0, 0, 0, 0.8)} 100%)`}
+            opacity={0.7}
+            style={{ mixBlendMode: 'overlay' }}
+          />
+          
+          {/* Main image */}
+          <img
+            src={getImageUrl(content.backdrop_path || content.poster_path)}
+            alt={content.title || content.name || 'Content'}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              transition: 'all 0.7s cubic-bezier(0.4, 0, 0.2, 1)',
+              transform: isHovered ? 'scale(1.1)' : 'scale(1.05)',
+              filter: `brightness(${isHovered ? 1.1 : 0.9})
+                      contrast(${isHovered ? 1.1 : 1})
+                      saturate(${isHovered ? 1.2 : 1})`,
             }}
-          >
-            Play
-          </GlassPrimaryButton>
-          <GlassSecondaryButton
-            icon={<FaInfoCircle />}
-            onClick={(e: { stopPropagation: () => void; }) => {
-              e.stopPropagation();
-              navigate(getContentLink());
-            }}
-            width="48%"
-          >
-            More Info
-          </GlassSecondaryButton>
-        </Flex>
-      </MotionFlex>
+          />
 
-      <AnimatePresence>
-        <MotionBox
-          key="hover-overlay"
+          {/* Overlay with lighting effects */}
+          <Box
+            position="absolute"
+            inset={0}
+            bg={`linear-gradient(
+              to bottom,
+              transparent 0%,
+              ${rgba(0, 0, 0, 0.4)} 50%,
+              ${rgba(0, 0, 0, 0.8)} 100%
+            )`}
+            style={{
+              opacity: isHovered ? 0.9 : 0.7,
+              transition: 'opacity 0.5s ease-in-out',
+            }}
+          />
+        </Box>
+
+        {/* Main content */}
+        <Flex
           position="absolute"
-          top={0}
-          left={0}
-          right={0}
-          bottom={0}
-          bg="linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)"
-          initial={{ opacity: 0 }}
-          whileHover={{ opacity: 1 }}
-          transition={{ duration: 0.2 }}
-        />
-      </AnimatePresence>
-    </GlassmorphicBox>
+          direction="column"
+          justify="flex-end"
+          p={8}
+          inset={0}
+          style={{
+            transform: isHovered ? 'translateY(-10px)' : 'translateY(0)',
+            transition: 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
+        >
+          {/* Badges and metadata */}
+          <Flex justify="space-between" align="center" mb={4}>
+            <Flex gap={2}>
+              {content.media_type && (
+                <Box
+                  px={3}
+                  py={2}
+                  borderRadius="full"
+                  bg={rgba(content.media_type === 'movie' ? '#9F7AEA' : '#4FD1C5', 0.9)}
+                  color="white"
+                  fontSize="sm"
+                  fontWeight="bold"
+                  style={{
+                    backdropFilter: 'blur(4px)',
+                    transform: isHovered ? 'scale(1.05)' : 'scale(1)',
+                    transition: 'all 0.3s ease-in-out',
+                  }}
+                >
+                  {content.media_type === 'movie' ? 'Movie' : 'TV Series'}
+                </Box>
+              )}
+
+              {content.vote_average && (
+                <Flex
+                  align="center"
+                  px={3}
+                  py={2}
+                  borderRadius="full"
+                  bg={rgba(255, 255, 255, 0.1)}
+                  style={{
+                    backdropFilter: 'blur(4px)',
+                  }}
+                >
+                  <FaStar color="#FFD700" style={{ marginRight: '0.5rem' }} />
+                  <Text color="white" fontWeight="bold">
+                    {content.vote_average.toFixed(1)}
+                  </Text>
+                </Flex>
+              )}
+            </Flex>
+
+            {/* Action buttons */}
+            <Flex gap={2}>
+              <IconButton
+                aria-label="Favorite"
+                icon={<FaHeart />}
+                variant="ghost"
+                colorScheme={isFavorited ? 'red' : 'gray'}
+                onClick={handleFavorite}
+                style={{
+                  background: rgba(255, 255, 255, 0.1),
+                  backdropFilter: 'blur(4px)',
+                  animation: isFavorited ? `${pulse} 2s infinite` : 'none',
+                }}
+              />
+              <IconButton
+                aria-label="Share"
+                icon={<FaShare />}
+                variant="ghost"
+                onClick={handleShare}
+                style={{
+                  background: rgba(255, 255, 255, 0.1),
+                  backdropFilter: 'blur(4px)',
+                }}
+              />
+            </Flex>
+          </Flex>
+
+          {/* Title and description */}
+          <Box mb={6}>
+            <Text
+              fontSize="3xl"
+              fontWeight="bold"
+              color="white"
+              mb={2}
+              style={{
+                textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
+              }}
+            >
+              {content.title || content.name}
+            </Text>
+            <Text
+              color="gray.200"
+              noOfLines={3}
+              style={{
+                opacity: isHovered ? 1 : 0.8,
+                transition: 'all 0.5s ease-in-out',
+              }}
+            >
+              {content.overview}
+            </Text>
+          </Box>
+
+          {/* Play button */}
+          <Flex justify="center">
+            <motion.button
+              onClick={handlePlay}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              style={{
+                background: `linear-gradient(135deg, 
+                  ${rgba(255, 255, 255, 0.2)} 0%, 
+                  ${rgba(255, 255, 255, 0.1)} 100%)`,
+                backdropFilter: 'blur(4px)',
+                border: `1px solid ${rgba(255, 255, 255, 0.2)}`,
+                borderRadius: '9999px',
+                padding: '1rem 2rem',
+                color: 'white',
+                fontSize: '1.1rem',
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                cursor: 'pointer',
+              }}
+            >
+              <FaPlay />
+              Watch Now
+            </motion.button>
+          </Flex>
+
+          {/* Additional details on hover */}
+          <AnimatePresence>
+            {isHovered && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Flex 
+                  mt={6} 
+                  gap={4} 
+                  justify="center"
+                  style={{
+                    background: rgba(0, 0, 0, 0.3),
+                    backdropFilter: 'blur(4px)',
+                    borderRadius: '15px',
+                    padding: '1rem',
+                  }}
+                >
+                  {/* Date */}
+                  {(content.release_date || content.first_air_date) && (
+                    <Flex 
+                      align="center" 
+                      gap={2}
+                      style={{
+                        background: rgba(255, 255, 255, 0.1),
+                        padding: '0.5rem 1rem',
+                        borderRadius: '9999px',
+                      }}
+                    >
+                      <FaCalendar color="white" />
+                      <Text color="white">
+                        {new Date(content.release_date || content.first_air_date || '').getFullYear()}
+                      </Text>
+                    </Flex>
+                  )}
+
+                  {/* Popularity */}
+                  {content.popularity && (
+                    <Flex 
+                      align="center" 
+                      gap={2}
+                      style={{
+                        background: rgba(255, 255, 255, 0.1),
+                        padding: '0.5rem 1rem',
+                        borderRadius: '9999px',
+                      }}
+                    >
+                      <FaUsers color="white" />
+                      <Text color="white">
+                        {Math.round(content.popularity).toLocaleString()} views
+                      </Text>
+                    </Flex>
+                  )}
+
+                  {/* Genres */}
+                  {content.genres && content.genres.length > 0 && (
+                    <Flex gap={2} flexWrap="wrap">
+                      {content.genres.slice(0, 2).map((genre) => (
+                        <Text
+                          key={genre.id}
+                          color="white"
+                          style={{
+                            background: rgba(255, 255, 255, 0.15),
+                            padding: '0.5rem 1rem',
+                            borderRadius: '9999px',
+                            fontSize: '0.9rem',
+                          }}
+                        >
+                          {genre.name}
+                        </Text>
+                      ))}
+                    </Flex>
+                  )}
+                </Flex>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </Flex>
+
+        {/* Tooltip */}
+        {isHovered && (
+          <Portal>
+            <Tooltip
+              label={`${content.title || content.name} ${content.vote_average ? `(${content.vote_average.toFixed(1)} ⭐)` : ''}`}
+              placement="top"
+              bg={rgba(0, 0, 0, 0.8)}
+              color="white"
+              px={4}
+              py={2}
+              borderRadius="md"
+              fontSize="sm"
+              hasArrow
+            >
+              <Box position="absolute" top={-10} left="50%" transform="translateX(-50%)" />
+            </Tooltip>
+          </Portal>
+        )}
+      </Box>
+    </motion.div>
   );
 };
 
-export default ContentCard;
+export default React.memo(ContentCard);

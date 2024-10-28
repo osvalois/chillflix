@@ -1,24 +1,34 @@
 import React, { useState } from 'react';
-import { Box, Image, Text, Flex, Badge, IconButton, Tooltip, useDisclosure } from '@chakra-ui/react';
+import { Box, Text, Flex, Badge, IconButton, Tooltip, useDisclosure } from '@chakra-ui/react';
 import { motion } from 'framer-motion';
-import { FaStar, FaPlayCircle, FaInfoCircle } from 'react-icons/fa';
+import { FaStar, FaPlayCircle } from 'react-icons/fa';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import { CombinedContent } from '../types';
-import tmdbService from '../services/tmdbService';
-import DetailModal from './DetailModal'; // Asume que has creado este componente
+import DetailModal from './DetailModal';
 
 interface RecommendationCardProps {
   movie: CombinedContent;
   onPlay?: (movie: CombinedContent) => void;
 }
 
+// Helper function to safely get year from date string
+const getYearFromDate = (dateString: string | undefined): string => {
+  if (!dateString) return 'N/A';
+  
+  try {
+    return new Date(dateString).getFullYear().toString();
+  } catch (error) {
+    return 'N/A';
+  }
+};
+
 const MotionBox = motion(Box as any);
 
 const RecommendationCard: React.FC<RecommendationCardProps> = ({ movie, onPlay }) => {
   const [isHovered, setIsHovered] = useState(false);
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const [detailContent, setDetailContent] = useState<CombinedContent | null>(null);
+  const { isOpen, onClose } = useDisclosure();
+  const [detailContent] = useState<CombinedContent | null>(null);
 
   const handlePlayClick = () => {
     if (onPlay) {
@@ -26,21 +36,9 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({ movie, onPlay }
     }
   };
 
-  const handleInfoClick = async () => {
-    try {
-      let detailedContent;
-      if (movie.type === 'movie') {
-        detailedContent = await tmdbService.getTMDBMovieDetails(movie.id);
-      } else {
-        detailedContent = await tmdbService.getTMDBTVSeriesDetails(movie.id);
-      }
-      setDetailContent(detailedContent);
-      onOpen();
-    } catch (error) {
-      console.error('Error fetching details:', error);
-    }
-  };
-
+  // Get the year safely
+  const releaseYear = getYearFromDate(movie.release_date || movie.first_air_date);
+  
   return (
     <>
       <MotionBox
@@ -73,7 +71,7 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({ movie, onPlay }
               fontWeight="bold"
               color="gray.500"
             >
-              {new Date(movie.release_date || movie.first_air_date).getFullYear()}
+              {releaseYear}
             </Text>
           </Flex>
           <Text mt="1" fontWeight="semibold" as="h4" lineHeight="tight" noOfLines={1}>
@@ -106,16 +104,6 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({ movie, onPlay }
                 colorScheme="white"
                 onClick={handlePlayClick}
                 mr={4}
-              />
-            </Tooltip>
-            <Tooltip label="More Info">
-              <IconButton
-                aria-label="More Info"
-                icon={<FaInfoCircle />}
-                size="lg"
-                variant="ghost"
-                colorScheme="white"
-                onClick={handleInfoClick}
               />
             </Tooltip>
           </Flex>

@@ -13,7 +13,7 @@ interface GenreExplorerProps {
 
 const GenreExplorer: React.FC<GenreExplorerProps> = ({ genres }) => {
   return (
-    <GlassmorphicBox p={6} borderRadius="xl">
+    <GlassmorphicBox>
       <Heading size="lg" mb={4}>
         Explore by Genre
       </Heading>

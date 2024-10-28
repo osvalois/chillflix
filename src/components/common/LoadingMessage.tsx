@@ -1,29 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Box, 
   Text, 
   VStack,
   HStack,
-  useColorModeValue,
-  keyframes,
-  Spinner
+  useColorModeValue
 } from '@chakra-ui/react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Player } from '@lottiefiles/react-lottie-player';
 import { useMediaQuery } from 'react-responsive';
 import { FaFilm, FaMusic, FaTv } from 'react-icons/fa';
 import { rgba } from 'polished';
 
 const MotionBox = motion(Box as any);
 
-const pulse = keyframes`
-  0% { transform: scale(0.95); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(0.95); }
-`;
 
 const LoadingMessage = () => {
-  const [progress, setProgress] = useState(0);
+  const [progress, setProgress] = useState(0)
+  console.log(progress)
   const [currentCategory, setCurrentCategory] = useState(0);
   const isMobile = useMediaQuery({ maxWidth: 768 });
 

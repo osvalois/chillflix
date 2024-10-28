@@ -10,7 +10,6 @@ import {
   Box,
   Flex,
   Text,
-  useBreakpointValue,
   useTheme,
   chakra,
   SimpleGrid,
@@ -18,22 +17,20 @@ import {
   useDisclosure,
   Fade,
 } from '@chakra-ui/react';
-import { useSpring, animated, config } from 'react-spring';
+import { animated } from 'react-spring';
 import { useInView } from 'react-intersection-observer';
-import { Swiper, SwiperSlide } from 'swiper/react';
-import { Pagination, Navigation, Autoplay, EffectCoverflow } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/pagination';
 import 'swiper/css/navigation';
 import 'swiper/css/effect-coverflow';
-import { Film, Tv, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Film, Tv } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import SearchInput from './SearchInput';
 import tmdbService from '../../services/tmdbService';
 import { CombinedContent, SearchModalProps } from '../../types';
 
-const AnimatedBox = chakra(animated(Box));
-const MotionBox = motion(Box);
+const AnimatedBox = chakra(animated(Box as any));
+const MotionBox = motion(Box as any);
 
 const SearchModal: React.FC<SearchModalProps> = ({
   isOpen,
@@ -48,7 +45,7 @@ const SearchModal: React.FC<SearchModalProps> = ({
   const [page, setPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(false);
   const [trendingContent, setTrendingContent] = useState<CombinedContent[]>([]);
-
+  console.log(trendingContent);
   const navigate = useNavigate();
 
   const theme = useTheme();
@@ -56,9 +53,6 @@ const SearchModal: React.FC<SearchModalProps> = ({
   const textColor = useColorModeValue('gray.800', 'white');
   const cardBgColor = useColorModeValue('rgba(255, 255, 255, 0.7)', 'rgba(26, 32, 44, 0.7)');
   const accentColor = theme.colors.blue[500];
-
-  const isMobile = useBreakpointValue({ base: true, md: false });
-
   const glassEffect = useMemo(() => ({
     backdropFilter: 'blur(16px)',
     boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1)',
@@ -66,12 +60,6 @@ const SearchModal: React.FC<SearchModalProps> = ({
     borderRadius: 'xl',
     background: `linear-gradient(135deg, ${bgColor}, rgba(255, 255, 255, 0.05))`,
   }), [bgColor]);
-
-  const modalAnimation = useSpring({
-    opacity: isOpen ? 1 : 0,
-    transform: isOpen ? 'scale(1)' : 'scale(0.9)',
-    config: config.gentle,
-  });
 
   const [ref, inView] = useInView({
     threshold: 0.1,
@@ -144,7 +132,6 @@ const SearchModal: React.FC<SearchModalProps> = ({
       handleFetchNextPage();
     }
   }, [inView, handleFetchNextPage]);
-
   const handleContentSelect = useCallback((content: CombinedContent) => {
     if (content.media_type === 'movie') {
       navigate(`/movie/${content.id}`);
@@ -161,13 +148,11 @@ const SearchModal: React.FC<SearchModalProps> = ({
       layout
     >
       <Box
-        borderRadius="lg"
         overflow="hidden"
         cursor="pointer"
         onClick={() => handleContentSelect(content)}
         bg={cardBgColor}
         transition="all 0.3s"
-        boxShadow="lg"
         position="relative"
         {...glassEffect}
       >
@@ -192,10 +177,10 @@ const SearchModal: React.FC<SearchModalProps> = ({
         </Box>
         <Box p={3}>
           <Text fontSize="sm" fontWeight="bold" isTruncated>
-            {content.title || content.name}
+            {content.title || content.name || "Sin título"}
           </Text>
           <Text fontSize="xs" color={textColor} opacity={0.8}>
-            {new Date(content.release_date || content.first_air_date).getFullYear()} • {content.vote_average.toFixed(1)}⭐
+            {content.release_date || content.first_air_date} • {content.vote_average.toFixed(1)}⭐
           </Text>
         </Box>
       </Box>
@@ -209,7 +194,6 @@ const SearchModal: React.FC<SearchModalProps> = ({
           <ModalOverlay bg="rgba(0, 0, 0, 0.8)" backdropFilter="blur(10px)" />
           <ModalContent
             as={AnimatedBox}
-            style={modalAnimation}
             {...glassEffect}
             maxWidth="100%"
             height="100vh"
@@ -223,8 +207,11 @@ const SearchModal: React.FC<SearchModalProps> = ({
                     onClose={onClose}
                     recentSearches={searchHistory}
                     onRecentSearchSelect={handleSearchChange}
-                    isLoading={isLoading}
-                  />
+                    isLoading={isLoading} onHistoryDelete={function (): void {
+                      throw new Error('Function not implemented.');
+                    } } onHistoryClear={function (): void {
+                      throw new Error('Function not implemented.');
+                    } }                  />
                 </Box>
                 
                 <Box flex={1} overflowY="auto" p={4}>

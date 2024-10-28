@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Box, VStack, Text, Flex, Avatar, Button, Select, useColorModeValue, Spinner, Tooltip, Icon } from '@chakra-ui/react';
-import { FaThumbsUp, FaThumbsDown, FaStar, FaSort } from 'react-icons/fa';
+import { FaThumbsUp, FaStar, FaSort } from 'react-icons/fa';
 import { useInView } from 'react-intersection-observer';
 import { useSpring, animated } from 'react-spring';
 import { useQuery } from 'react-query';
@@ -21,7 +21,7 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ movieId }) => {
 
   const { data, isLoading, isError, error } = useQuery<{ results: Review[], total_pages: number }, Error>(
     ['reviews', movieId, page, sortBy, sortOrder],
-    () => getMovieReviews(movieId, page, sortBy, sortOrder),
+    () => getMovieReviews(movieId, page),
     {
       keepPreviousData: true,
       staleTime: 5 * 60 * 1000, // 5 minutes
@@ -52,6 +52,18 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ movieId }) => {
   const handleVote = (reviewId: string, voteType: 'up' | 'down') => {
     // Implement voting logic here
     console.log(`Voted ${voteType} for review ${reviewId}`);
+  };
+
+  // Helper function to get avatar src
+  const getAvatarSrc = (avatarPath: string | null): string | undefined => {
+    if (!avatarPath) return undefined;
+    // If the path is a full URL (starts with http)
+    if (avatarPath.startsWith('http')) return avatarPath;
+    // If it's a relative path from TMDB (starts with /)
+    if (avatarPath.startsWith('/')) {
+      return `https://image.tmdb.org/t/p/original${avatarPath}`;
+    }
+    return undefined;
   };
 
   if (isError) {
@@ -88,7 +100,11 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ movieId }) => {
               <Box key={review.id} p={4} borderRadius="md" bg={bgColor} boxShadow="md">
                 <Flex justifyContent="space-between" alignItems="flex-start">
                   <Flex alignItems="center">
-                    <Avatar src={review.author_details.avatar_path} name={review.author} mr={2} />
+                    <Avatar 
+                      src={getAvatarSrc(review.author_details.avatar_path)}
+                      name={review.author}
+                      mr={2}
+                    />
                     <VStack align="start" spacing={0}>
                       <Text fontWeight="bold">{review.author}</Text>
                       <Text fontSize="sm" color="gray.500">
@@ -113,15 +129,6 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ movieId }) => {
                         mr={2}
                       >
                         {review.upvotes || 0}
-                      </Button>
-                    </Tooltip>
-                    <Tooltip label="Not Helpful">
-                      <Button
-                        size="sm"
-                        leftIcon={<FaThumbsDown />}
-                        onClick={() => handleVote(review.id, 'down')}
-                      >
-                        {review.downvotes || 0}
                       </Button>
                     </Tooltip>
                   </Flex>

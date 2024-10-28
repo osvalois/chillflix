@@ -7,23 +7,22 @@ import {
   useToast,
 } from "@chakra-ui/react";
 import "video.js/dist/video-js.css";
-import { PlayerOptions, VideoPlayerProps } from "./types";
-import { useVideoPlayerState } from "../../hooks/useVideoPlayerState";
+import { AudioTrack, VideoPlayerProps } from "./types";
 import Controls from "./Controls";
-import { LoadingOverlay } from "./LoadingOverlay";
 import { ErrorOverlay } from "./ErrorOverlay";
 import { QualityIndicator } from "./QualityIndicator";
 import { useHotkeys } from "react-hotkeys-hook";
 import { motion, AnimatePresence } from "framer-motion";
-import OpenSubtitlesService, { Subtitle } from "../../services/OpenSubtitlesService";
 import { SubtitlesDisplay } from "./SubtitlesDisplay";
 import { NetworkInfoOverlay } from "./NetworkInfoOverlay";
-import { BufferingOverlay } from "./BufferingOverlay";
 import { useAnalytics } from "../../hooks/useAnalytics";
 import { useNetworkQuality } from "../../hooks/useNetworkQuality";
+import { PlayerOptions, Subtitle } from "../../types";
+import OpenSubtitlesService from "../../services/openSubtitlesService";
+import { useVideoPlayerState } from "../../hooks/useVideoPlayerState";
+import { AudioTrackCustom } from "./AudioSettingsMenu";
 
 const initialOptions: PlayerOptions = {
-  controls: false,
   responsive: true,
   fluid: true,
   playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
@@ -33,6 +32,7 @@ const initialOptions: PlayerOptions = {
     nativeTextTracks: true,
   },
   preload: "auto",
+  sources: []
 };
 
 const MAX_RETRIES = 5;
@@ -59,7 +59,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
     const [subtitles, setSubtitles] = useState<Subtitle[]>([]);
     const [selectedSubtitle, setSelectedSubtitle] = useState<Subtitle | null>(null);
     const [isMouseMoving, setIsMouseMoving] = useState(false);
-    const mouseMoveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [isBuffering, setIsBuffering] = useState(false);
     const bufferingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -93,7 +92,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
       setControlsVisible,
       loadSavedState,
       saveCurrentState,
-    } = useVideoPlayerState();
+    } = useVideoPlayerState('USER-ID');
 
     const handlePlayerReady = useCallback(
       (player: Player) => {
@@ -105,7 +104,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
           if (bufferingTimeoutRef.current) clearTimeout(bufferingTimeoutRef.current);
           bufferingTimeoutRef.current = setTimeout(() => {
             if (isBuffering) {
-              trackEvent('long_buffering', { duration: Date.now() - (bufferingTimeoutRef.current || 0) });
+              trackEvent('long_buffering', { duration: Date.now() - Number(bufferingTimeoutRef.current || 0) });
             }
           }, BUFFER_THRESHOLD);
         });
@@ -128,7 +127,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
 
         player.on("fullscreenchange", () => {
           const isFullscreen = player.isFullscreen();
-          setIsFullscreen(isFullscreen);
+          setIsFullscreen(isFullscreen ?? false);
           setControlsVisible(true);
           setIsMouseMoving(true);
           
@@ -148,12 +147,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
         });
 
         player.on("timeupdate", () => {
-          setCurrentTime(player.currentTime());
-          saveCurrentState(player.currentTime(), player.volume(), player.muted());
+          setCurrentTime(player.currentTime() ?? 0);
+          saveCurrentState(player);
         });
 
         player.on("loadedmetadata", () => {
-          setDuration(player.duration());
+          setDuration(player.duration() ?? 0);
           checkAudioTracks(player);
           trackEvent('video_loaded', { title, duration: player.duration() });
         });
@@ -162,18 +161,20 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
           trackEvent('video_ended', { title, duration: player.duration() });
         });
 
-        player.on("error", (e) => {
-          console.error("Video player error:", player.error());
-          trackEvent('video_error', { error: player.error().code, message: player.error().message });
+        player.on("error", () => {
+          const error = player.error();
+          if (error) {
+            console.error("Video player error:", error);
+            trackEvent('video_error', { error: error.code, message: error.message });
+          }
 
           if (retryCount < MAX_RETRIES) {
             setTimeout(() => {
               setRetryCount((prev) => prev + 1);
               player.load();
-              player.play().catch((e) => {
-                console.error("Retry error:", e);
-                trackEvent('retry_error', { error: e.message, retryCount });
-              });
+              if (player) {
+               
+              }
             }, RETRY_DELAY);
           } else {
             console.error("Maximum retry attempts reached. Playback failed.");
@@ -191,7 +192,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
           const buffered = player.buffered();
           if (buffered.length > 0) {
             const bufferedEnd = buffered.end(buffered.length - 1);
-            const duration = player.duration();
+            const duration = player.duration() ?? 0;
             updateNetworkQuality(bufferedEnd / duration);
           }
         });
@@ -202,9 +203,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
     );
 
     const checkAudioTracks = useCallback(
-      (player: Player) => {
+      (player: any) => {
         const tracks = player.audioTracks();
-        const trackList: videojs.AudioTrack[] = [];
+        const trackList: AudioTrack[] = [];
 
         if (tracks && tracks.length) {
           for (let i = 0; i < tracks.length; i++) {
@@ -216,7 +217,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
 
         if (trackList.length > 0) {
           const defaultTrack = trackList.find((track) => track.enabled) || trackList[0];
-          setSelectedAudioTrack(defaultTrack.label);
+          setSelectedAudioTrack((defaultTrack as unknown as AudioTrackCustom).label);
           defaultTrack.enabled = true;
         }
       },
@@ -255,10 +256,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
         playerRef.current.src(options.sources || []);
         playerRef.current.currentTime(currentTime);
         if (!isPaused) {
-          playerRef.current.play().catch((e) => {
-            console.error("Play error:", e);
-            trackEvent('play_error', { error: e.message });
-          });
+          if (playerRef.current) {
+            (playerRef.current.play() ?? Promise.resolve()).catch((e) => {
+              console.error("Play error:", e);
+              trackEvent('play_error', { error: e.message });
+            });
+          }
         }
       }
     }, [selectedQuality, selectedLanguage, options.sources, isPaused, trackEvent]);
@@ -326,7 +329,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
         const player = playerRef.current;
         
         // Remove existing text tracks
-        const existingTracks = player.textTracks();
+        const existingTracks = (player as any).textTracks();
         for (let i = existingTracks.length - 1; i >= 0; i--) {
           player.removeRemoteTextTrack(existingTracks[i]);
         }
@@ -341,8 +344,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
               srclang: subtitle.ISO639,
               src: subtitleUrl,
               default: true
-            }, false);
-    
+            }, false) as unknown as TextTrack;
+            
             // Ensure the track is shown
             track.mode = 'showing';
             trackEvent('subtitle_changed', { language: subtitle.LanguageName });
@@ -418,14 +421,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
     }, [trackEvent]);
     useHotkeys("arrowleft", () => {
       if (playerRef.current) {
-        const newTime = Math.max(playerRef.current.currentTime() - 10, 0);
+        const newTime = Math.max(playerRef.current.currentTime() ?? 0 - 10, 0);
         playerRef.current.currentTime(newTime);
         trackEvent('hotkey_rewind', { amount: 10 });
       }
     }, [trackEvent]);
     useHotkeys("arrowright", () => {
       if (playerRef.current) {
-        const newTime = Math.min(playerRef.current.currentTime() + 10, playerRef.current.duration());
+        const newTime = Math.min(playerRef.current.currentTime() ?? 0 + 10, playerRef.current.duration() ?? 0);
         playerRef.current.currentTime(newTime);
         trackEvent('hotkey_fast_forward', { amount: 10 });
       }
@@ -436,7 +439,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
         playerRef.current.volume(newVolume);
         setVolume(newVolume);
         setIsMuted(newVolume === 0);
-        saveCurrentState(playerRef.current.currentTime(), newVolume, newVolume === 0);
+        saveCurrentState(playerRef.current);
         trackEvent('volume_change', { newVolume });
       }
     }, [setVolume, setIsMuted, saveCurrentState, trackEvent]);
@@ -488,10 +491,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
             onContextMenu={(e) => e.preventDefault()} // Prevent right-click menu
           />
         </div>
-        <SubtitlesDisplay player={playerRef.current} />
+        <SubtitlesDisplay player={playerRef.current} parsedCues={null} />
         <ErrorOverlay isVisible={retryCount >= MAX_RETRIES} />
         <QualityIndicator quality={selectedQuality} />
-        <BufferingOverlay isVisible={isBuffering} />
         <NetworkInfoOverlay quality={networkQuality} />
         <AnimatePresence>
           {controlsVisible && (
@@ -523,7 +525,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
                 onLanguageChange={handleLanguageChange}
                 onVolumeChange={handleVolumeChange}
                 subtitles={subtitles}
-                selectedSubtitle={selectedSubtitle}
+                selectedSubtitle={selectedSubtitle ? selectedSubtitle.toString() : null}
                 onSubtitleChange={handleSubtitleChange}
               />
             </motion.div>

@@ -2,9 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { Box } from '@chakra-ui/react';
 import Player from 'video.js/dist/types/player';
 
+interface Cue {
+  start: number;
+  end: number;
+  text: string;
+}
+
 interface SubtitlesDisplayProps {
   player: Player | null;
-  parsedCues: any[] | null;
+  parsedCues: Cue[] | null;
 }
 
 export const SubtitlesDisplay: React.FC<SubtitlesDisplayProps> = ({ player, parsedCues }) => {
@@ -13,16 +19,20 @@ export const SubtitlesDisplay: React.FC<SubtitlesDisplayProps> = ({ player, pars
   useEffect(() => {
     if (player && parsedCues) {
       const updateSubtitles = () => {
-        const currentTime = player.currentTime();
-        const activeCues = parsedCues.filter(
-          cue => currentTime >= cue.start && currentTime <= cue.end
-        );
+        const currentTime = player?.currentTime();
+        
+        // Solo proceder si currentTime es un número válido
+        if (typeof currentTime === 'number') {
+          const activeCues = parsedCues.filter(
+            cue => currentTime >= cue.start && currentTime <= cue.end
+          );
 
-        if (activeCues.length > 0) {
-          const combinedText = activeCues.map(cue => cue.text).join('\n');
-          setSubtitleText(combinedText);
-        } else {
-          setSubtitleText('');
+          if (activeCues.length > 0) {
+            const combinedText = activeCues.map(cue => cue.text).join('\n');
+            setSubtitleText(combinedText);
+          } else {
+            setSubtitleText('');
+          }
         }
       };
 

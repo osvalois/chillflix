@@ -1,10 +1,5 @@
 import { useCallback } from 'react';
 
-interface AnalyticsEvent {
-  eventName: string;
-  eventProperties?: Record<string, any>;
-}
-
 export const useAnalytics = () => {
   const trackEvent = useCallback((eventName: string, eventProperties?: Record<string, any>) => {
     // This is a placeholder for actual analytics tracking

@@ -22,7 +22,6 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X, Keyboard, Clock, Sliders, Trash, RotateCcw } from 'lucide-react';
 import { FaHistory } from 'react-icons/fa';
-import VoiceSearch from './VoiceSearch';
 import VirtualKeyboard from './VirtualKeyboard';
 import { useInView } from 'react-intersection-observer';
 
@@ -49,7 +48,6 @@ const SearchInput: React.FC<SearchInputProps> = ({
   isLoading,
 }) => {
   const [inputValue, setInputValue] = useState('');
-  const [isListening, setIsListening] = useState(false);
 
   const { isOpen: isKeyboardOpen, onToggle: toggleKeyboard, onClose: closeKeyboard } = useDisclosure();
   const { isOpen: isHistoryOpen, onToggle: toggleHistory, onClose: closeHistory } = useDisclosure();
@@ -84,13 +82,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
     threshold: 0.1,
     triggerOnce: false,
   });
-
-  useEffect(() => {
-    if (isListening && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isListening]);
-
+  
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setInputValue(newValue);
@@ -139,12 +131,6 @@ const SearchInput: React.FC<SearchInputProps> = ({
       }
     }
   }, [deletedTerms, handleHistorySelect, hideUndo]);
-
-  const handleVoiceSearch = useCallback((transcript: string) => {
-    setInputValue(transcript);
-    onSearchChange(transcript);
-    setIsListening(false);
-  }, [onSearchChange]);
 
   useEffect(() => {
     return () => {
@@ -204,11 +190,6 @@ const SearchInput: React.FC<SearchInputProps> = ({
           />
         </Flex>
         <Flex mt={isMobile ? 4 : 0} justifyContent="flex-end" alignItems="center">
-          <VoiceSearch
-            isListening={isListening}
-            onVoiceSearch={handleVoiceSearch}
-            size={buttonSize}
-          />
           <motion.div variants={buttonVariants} whileHover="hover" whileTap="tap">
             <Tooltip label="Search" hasArrow>
               <IconButton

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Select, useToast, Text } from "@chakra-ui/react";
-import { Subtitle } from '../../services/OpenSubtitlesService';
 import pako from 'pako';
+import { Subtitle } from '../../types';
 
 interface SubtitleSelectorProps {
   subtitles: Subtitle[] | undefined;

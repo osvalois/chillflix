@@ -19,17 +19,9 @@ import { FaStar, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { useQuery } from 'react-query';
 import { useNavigate } from 'react-router-dom';
 import tmdbService from '../services/tmdbService';
+import { CombinedContent } from './Home/ContentCarousel';
 
 const MotionBox = motion(Box as any);
-
-interface Movie {
-  id: string;
-  title: string;
-  poster_path: string;
-  release_date: string;
-  vote_average: number;
-  overview: string;
-}
 
 interface RecommendationListProps {
   tmdbId: string | undefined;
@@ -37,13 +29,16 @@ interface RecommendationListProps {
 
 const RecommendationList: React.FC<RecommendationListProps> = ({ tmdbId }) => {
   const [currentPage, setCurrentPage] = useState(0);
-  const itemsPerPage = useBreakpointValue({ base: 2, md: 4, lg: 5 });
+  const itemsPerPage = useBreakpointValue({ base: 2, md: 4, lg: 5 }) ?? 4;
   const navigate = useNavigate();
 
-  const { data: recommendations, isLoading, error } = useQuery<Movie[]>(
+  const { data: recommendations, isLoading, error } = useQuery<CombinedContent[], Error>(
     ['recommendations', tmdbId],
     () => tmdbService.getRecommendationsMovies(),
-    { enabled: !!tmdbId }
+    {
+      enabled: !!tmdbId,
+      initialData: [] as CombinedContent[],
+    }
   );
 
   const bgColor = useColorModeValue("gray.50", "gray.800");
@@ -100,7 +95,7 @@ const RecommendationList: React.FC<RecommendationListProps> = ({ tmdbId }) => {
           </Button>
         </Flex>
         <Flex justifyContent="space-between" overflow="hidden">
-          {currentMovies.map((movie) => (
+          {currentMovies.map((movie: CombinedContent) => (
             <MotionBox
               key={movie.id}
               bg={cardBg}
@@ -109,7 +104,7 @@ const RecommendationList: React.FC<RecommendationListProps> = ({ tmdbId }) => {
               whileHover={{ scale: 1.05 }}
               transition={{ duration: 0.3 }}
               cursor="pointer"
-              onClick={() => handleMovieClick(movie.id)}
+              onClick={() => handleMovieClick(movie.title ?? '')}
               maxW={`${100 / itemsPerPage}%`}
               m={2}
               boxShadow="md"
@@ -129,12 +124,12 @@ const RecommendationList: React.FC<RecommendationListProps> = ({ tmdbId }) => {
                 </Tooltip>
                 <HStack justifyContent="space-between" mb={2}>
                   <Text fontSize="sm" color="gray.500">
-                    {new Date(movie.release_date).getFullYear()}
+                    {movie.release_date}
                   </Text>
                   <Flex align="center">
                     <Icon as={FaStar} color="yellow.400" mr={1} />
                     <Text fontSize="sm" fontWeight="bold" color={textColor}>
-                      {movie.vote_average.toFixed(1)}
+                      {movie.vote_average}
                     </Text>
                   </Flex>
                 </HStack>

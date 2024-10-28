@@ -17,7 +17,7 @@ import { SearchIcon } from '@chakra-ui/icons';
 import { FaKeyboard } from 'react-icons/fa';
 import tmdbService from '../../services/tmdbService';
 import SearchModal from './SearchModal';
-import { CombinedMovie } from '../../types';
+import { CombinedContent, ContentType } from '../../types';
 
 const KeyboardShortcutButton: React.FC = () => {
   const bgColor = useColorModeValue('gray.100', 'gray.700');
@@ -63,7 +63,7 @@ const SearchBar: React.FC = () => {
     refetch,
   } = useInfiniteQuery(
     ['searchMovies', searchTerm],
-    ({ pageParam = 1 }) => tmdbService.searchTMDBMovies(searchTerm, pageParam),
+    ({ pageParam = 1 }) => tmdbService.searchTMDBContent(searchTerm, pageParam),
     {
       getNextPageParam: (lastPage, pages) => {
         if (lastPage.length === 0) return undefined;
@@ -83,12 +83,26 @@ const SearchBar: React.FC = () => {
     }
   );
 
-  const allMovies: CombinedMovie[] = useMemo(() => 
+  const allContent: CombinedContent[] = useMemo(() => 
     data
       ? data.pages.flatMap(page =>
-          page.map(movie => ({
-            ...movie,
-            year: new Date(movie.release_date).getFullYear()
+          page.map(content => ({
+            ...content,
+            primary_color: '#000000', // Default primary color
+            genre_ids: content.genre_ids || [],
+            type: content.media_type === 'movie' ? ContentType.Movie : ContentType.TVSeries,
+            year: content.release_date 
+              ? new Date(content.release_date).getFullYear()
+              : content.first_air_date
+                ? new Date(content.first_air_date).getFullYear()
+                : 0,
+            backdrop_blurhash: undefined,
+            videos: content.videos || { results: [] },
+            genres: content.genres || [],
+            original_language: content.original_language || 'en',
+            vote_count: content.vote_count || 0,
+            homepage: content.homepage || '',
+            popularity: content.popularity || 0,
           }))
         )
       : [],
@@ -109,8 +123,9 @@ const SearchBar: React.FC = () => {
     debouncedSearch(term);
   }, [debouncedSearch]);
 
-  const handleMovieSelect = useCallback((movie: CombinedMovie) => {
-    navigate(`/movie/${movie.id}`);
+  const handleContentSelect = useCallback((content: CombinedContent) => {
+    const contentType = content.media_type === 'movie' ? 'movie' : 'tv';
+    navigate(`/${contentType}/${content.id}`);
     onClose();
     updateSearchHistory(searchTerm);
   }, [navigate, onClose, searchTerm]);
@@ -155,13 +170,13 @@ const SearchBar: React.FC = () => {
     inputRef,
     searchTerm,
     searchHistory,
-    allMovies,
+    content: allContent,
     isLoading,
     isError,
     hasNextPage,
     isFetchingNextPage,
     onSearchChange: handleSearchChange,
-    onMovieSelect: handleMovieSelect,
+    onContentSelect: handleContentSelect,
     onHistorySelect: handleHistorySelect,
     onFetchNextPage: fetchNextPage,
   };
@@ -188,9 +203,7 @@ const SearchBar: React.FC = () => {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
             >
-              <SearchModal onContentSelect={function (content: any): void {
-                throw new Error('Function not implemented.');
-              } } {...modalProps} />
+              <SearchModal {...modalProps} />
             </motion.div>
           </Portal>
         )}

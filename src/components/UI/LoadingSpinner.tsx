@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { Box, useColorModeValue, keyframes } from '@chakra-ui/react';
 import { motion, useAnimation } from 'framer-motion';
 import { rgba } from 'polished';

@@ -11,7 +11,7 @@ export const useRecommendationEngine = (userId: string) => {
   useEffect(() => {
     const fetchUserPreferences = async () => {
       // In a real app, this would fetch user preferences from a backend
-      const preferences = await tmdbService.getUserPreferences(userId);
+      const preferences = await tmdbService.getUserPreferences();
       setUserPreferences(preferences);
     };
 

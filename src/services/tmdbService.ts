@@ -43,14 +43,44 @@ const mapToSearchResult = (item: TMDBContent): SearchResult => ({
   genre_ids: Array.isArray(item.genre_ids) ? item.genre_ids : [],
   type: 'title' in item ? ContentType.Movie : ContentType.TVSeries,
   media_type: 'title' in item ? 'movie' : 'tv',
+  homepage: '', // Add a default value for homepage
+  genres: [], // Add a default value for genres
+  videos: { results: [] }, // Add a default value for videos
 });
 
-const mapToCombinedContent = (item: TMDBContent): CombinedContent => ({
-  ...item,
-  overview: filterContent(item.overview),
-  type: 'title' in item ? ContentType.Movie : ContentType.TVSeries,
-  year: new Date('release_date' in item ? item.release_date : item.first_air_date).getFullYear(),
-});
+  /**
+   * Mapea un objeto TMDBContent a un objeto CombinedContent.
+   * 
+   * Añade propiedades adicionales:
+   * - overview: el overview pasado por la función filterContent.
+   * - type: el tipo de contenido (ContentType.Movie o ContentType.TVSeries).
+   * - year: el año de lanzamiento del contenido.
+   * - title: el título del contenido.
+   * - primary_color: un color generado aleatoriamente.
+   * - media_type: el tipo de contenido (movie o tv).
+   * 
+   * @param {TMDBContent} item objeto TMDBContent a mapear.
+   * @returns {CombinedContent} objeto CombinedContent resultante.
+   */
+const mapToCombinedContent = (item: TMDBContent): CombinedContent => {
+  const releaseDate = 'release_date' in item ? item.release_date : item.first_air_date;
+  const title = 'title' in item ? item.title : item.name;
+  
+  return {
+    ...item,
+    overview: filterContent(item.overview),
+    type: 'title' in item ? ContentType.Movie : ContentType.TVSeries,
+    year: new Date(releaseDate).getFullYear(),
+    title: title,
+    primary_color: generatePrimaryColor(), // Función auxiliar para generar un color
+    media_type: 'title' in item ? 'movie' : 'tv',
+    genre_ids: item.genre_ids || [], // Add a default value of an empty array
+  };
+};
+const generatePrimaryColor = (): string => {
+  const colors = ['#1a237e', '#311b92', '#4a148c', '#006064', '#004d40'];
+  return colors[Math.floor(Math.random() * colors.length)];
+};
 
 const handleAxiosError = (error: any): never => {
   if (axios.isAxiosError(error)) {
@@ -250,7 +280,7 @@ export const getUpcoming = async (page: number = 1): Promise<CombinedContent[]> 
   }
 };
 
-export const getUserPreferences = async (userId: string): Promise<UserPreferences> => {
+export const getUserPreferences = async (): Promise<UserPreferences> => {
   // Mock data for now
   return {
     favoriteGenres: [28, 12, 16],
@@ -323,8 +353,8 @@ export const getSimilarMovies = async (tmdbId: number): Promise<CombinedContent[
     const similarMovies = response.data.results.map(mapToCombinedContent);
     
     return similarMovies.sort((a: { overview: string; }, b: { overview: string; }) => {
-      const similarityA = calculateSimilarity(movieDetails.overview, a.overview);
-      const similarityB = calculateSimilarity(movieDetails.overview, b.overview);
+      const similarityA = calculateSimilarity(movieDetails.overview ?? '', a.overview);
+      const similarityB = calculateSimilarity(movieDetails.overview ?? '', b.overview);
       return similarityB - similarityA;
     });
   } catch (error) {
@@ -366,7 +396,7 @@ export const getActorDetails = async (actorId: number): Promise<any> => {
 };
 export const getPersonalizedRecommendations = async (userId: string): Promise<CombinedContent[]> => {
   try {
-    const userPreferences = await getUserPreferences(userId);
+    const userPreferences = await getUserPreferences();
     const recommendationParams: RecommendationParams = {
       preferences: userPreferences,
       limit: 20,

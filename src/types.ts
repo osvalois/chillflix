@@ -1,9 +1,100 @@
-// Base types from TMDB service
-import { TMDBMovie, TMDBTVSeries } from "./services/tmdbService";
+import { LucideProps } from 'lucide-react';
+import type VideoJS from 'video.js';
+import React from 'react';
+import { AudioTrackCustom } from './components/VideoPlayer/AudioSettingsMenu';
 
+// Corregido: Definición correcta del tipo Player
+type Player = typeof VideoJS.players;
+
+// Enums
+export enum ContentType {
+  Movie = 'movie',
+  TVSeries = 'tv'
+}
+
+export enum VideoQuality {
+  SD = 'sd',
+  HD = 'hd',
+  FHD = 'fhd',
+  UHD = '4k'
+}
+
+// Navigation types
+export interface NavItem {
+  label: string;
+  path: string;
+  icon: React.ComponentType<LucideProps>;
+  gradient: string;
+  pulseColor: string;
+}
+
+export interface DesktopNavProps {
+  navItems: NavItem[];
+  handleNavigation: (path: string) => void;
+}
+
+// Content base interfaces
+export interface ContentBase {
+  release_date: string | number | Date;
+  id: number;
+  title: string;
+  overview: string;
+  poster_path: string | undefined;
+  backdrop_path: string | undefined;
+  vote_average: number;
+  popularity: number;
+  media_type: 'movie' | 'tv';
+}
+
+export interface BaseContent {
+  id: number;
+  overview: string;
+  poster_path: string | null;
+  backdrop_path: string | null;
+  vote_average: number;
+  vote_count: number;
+  popularity: number;
+  original_language: string;
+  genres: Genre[];
+  homepage?: string;
+  videos?: {
+    results: VideoResult[];
+  };
+}
+
+export interface VideoResult {
+  key: string;
+  site: string;
+  type: string;
+}
+
+// Search related interfaces
+export interface SearchResult {
+  homepage: string;
+  genres: never[];
+  videos: { results: never[]; };
+  id: number;
+  title: string;
+  name?: string;
+  overview: string;
+  poster_path: string | null;
+  backdrop_path: string | null;
+  vote_average: number;
+  vote_count: number;
+  popularity: number;
+  release_date?: string;
+  first_air_date?: string;
+  original_language: string;
+  genre_ids: number[];
+  type: ContentType;
+  media_type: 'movie' | 'tv';
+}
+
+// Movie specific interfaces
 export interface Movie {
   id: string;
   title: string;
+  overview: string;
   year: number;
   magnet: string;
   tmdbId: number | null;
@@ -13,8 +104,32 @@ export interface Movie {
   quality: string | null;
   fileType: string | null;
   sha256Hash: string | null;
+  poster_path: string;
+  backdrop_path: string;
+  vote_average: number;
 }
 
+export interface TMDBMovie extends BaseContent {
+  title: string;
+  release_date: string;
+  media_type: 'movie';
+  imdb_id?: string;
+  budget: number;
+  runtime: number;
+  genre_ids?: number[];
+}
+
+// TV Series specific interfaces
+export interface TMDBTVSeries extends BaseContent {
+  name: string;
+  first_air_date: string;
+  media_type: 'tv';
+  number_of_seasons: number;
+  number_of_episodes: number;
+  genre_ids?: number[];
+}
+
+// Response interfaces
 export interface MovieSearchResponse {
   content: Movie[];
   totalElements: number;
@@ -26,54 +141,17 @@ export interface MovieSearchResponse {
 export interface MovieInfo {
   Name: string;
   InfoHash: string;
-  Files: { ID: number; Name: string; Size: number; Progress: number }[];
+  Files: MovieFile[];
 }
 
-export interface TMDBMovie {
-  id: number;
-  title: string;
-  overview: string;
-  poster_path: string | null;
-  backdrop_path: string | null;
-  release_date: string;
-  vote_average: number;
-  vote_count: number;
-  original_language: string;
-  popularity: number;
-  genres: { id: number; name: string }[];
-  media_type: 'movie';
-  imdb_id?: string;
-  homepage?: string;
-  videos?: {
-    results: {
-      key: string;
-      site: string;
-      type: string;
-    }[];
-  };
+export interface MovieFile {
+  ID: number;
+  Name: string;
+  Size: number;
+  Progress: number;
 }
 
-export interface TMDBTVSeries {
-  id: number;
-  name: string;
-  overview: string;
-  poster_path: string | null;
-  backdrop_path: string | null;
-  first_air_date: string;
-  vote_average: number;
-  vote_count: number;
-  genres: { id: number; name: string }[];
-  media_type: 'tv';
-  homepage?: string;
-  videos?: {
-    results: {
-      key: string;
-      site: string;
-      type: string;
-    }[];
-  };
-}
-
+// Review interfaces
 export interface ReviewAuthorDetails {
   name: string;
   username: string;
@@ -91,6 +169,7 @@ export interface Review {
   url: string;
   likes: number;
   dislikes: number;
+  upvotes: number;
 }
 
 export interface MovieReviewsResponse {
@@ -101,61 +180,53 @@ export interface MovieReviewsResponse {
   total_results: number;
 }
 
-// Enums
-export enum ContentType {
-  Movie = 'movie',
-  TVSeries = 'tv'
-}
-
+// Cast and Credits interfaces
 export interface CastMember {
   id: number;
   name: string;
   character: string;
+  profile_path: string | null;
+  order?: number;
+}
+
+export interface CrewMember {
+  id: number;
+  name: string;
+  job: string;
+  department: string;
   profile_path: string | null;
 }
 
 export interface MovieCredits {
   id: number;
   cast: CastMember[];
+  crew: CrewMember[];
 }
 
-// Interfaces
+// Genre interface
 export interface Genre {
   id: number;
   name: string;
 }
 
-// Combined content type
-export interface CombinedContent {
-  id: number;
+// Combined content interface
+export interface CombinedContent extends BaseContent {
+  primary_color: string;
   title: string;
-  name?: string; // For TV series
-  overview: string;
-  poster_path: string | null;
-  backdrop_path: string | null;
-  vote_average: number;
-  vote_count: number;
-  popularity: number;
+  name?: string;
+  backdrop_blurhash?: string;
   release_date?: string;
-  first_air_date?: string; // For TV series
-  original_language: string;
+  first_air_date?: string;
   genre_ids: number[];
-  genres: { id: number; name: string }[];
   type: ContentType;
   media_type: 'movie' | 'tv';
   year: number;
   imdb_id?: string;
-  homepage?: string;
-  videos?: {
-    results: {
-      key: string;
-      site: string;
-      type: string;
-    }[];
-  };
+  budget?: number;
+  runtime?: number;
 }
 
-// Component Props
+// Component Props interfaces
 export interface SearchModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -164,14 +235,17 @@ export interface SearchModalProps {
   onHistorySelect: (term: string) => void;
 }
 
+
 export interface SearchResultsProps {
-  content: CombinedContent[];
+  content: Movie[];
   isLoading: boolean;
   isError: boolean;
   hasNextPage: boolean;
   isFetchingNextPage: boolean;
-  onContentSelect: (content: CombinedContent) => void;
   onFetchNextPage: () => void;
+  onSelectMovie: (movie: Movie) => void;
+  onAddToFavorites: (movie: Movie) => void;
+  favoriteMovies?: Set<number>; // Para tracking de favoritos
 }
 
 export interface ContentCardProps {
@@ -183,11 +257,15 @@ export interface SearchInputProps {
   onSearchChange: (term: string, contentType: ContentType) => void;
   onClose: () => void;
   placeholderColor: string;
+  onHistoryDelete: (term: string) => void;
+  onHistoryClear: () => void;
 }
 
 export interface SearchHistoryProps {
   searchHistory: string[];
   onHistorySelect: (term: string) => void;
+  onHistoryDelete: (term: string) => void;
+  onHistoryClear: () => void;
   textColor: string;
   placeholderColor: string;
   isOpen: boolean;
@@ -195,9 +273,122 @@ export interface SearchHistoryProps {
   onClose: () => void;
 }
 
-// TMDB Service types
-export type SearchTMDBFunction = (query: string, page?: number) => Promise<CombinedContent[]>;
+// VideoPlayer interfaces
+export interface Subtitle {
+  MatchedBy: string;
+  IDSubMovieFile: string;
+  MovieHash: string;
+  MovieByteSize: string;
+  MovieTimeMS: string;
+  IDSubtitleFile: string;
+  SubFileName: string;
+  SubActualCD: string;
+  SubSize: string;
+  SubHash: string;
+  SubLastTS: string;
+  SubTSGroup: string | null;
+  InfoReleaseGroup: string | null;
+  InfoFormat: string | null;
+  InfoOther: string | null;
+  IDSubtitle: string;
+  UserID: string;
+  SubLanguageID: string;
+  SubFormat: string;
+  SubSumCD: string;
+  SubAuthorComment: string;
+  SubAddDate: string;
+  SubBad: string;
+  SubRating: string;
+  SubSumVotes: string;
+  SubDownloadsCnt: string;
+  MovieReleaseName: string;
+  MovieFPS: string;
+  IDMovie: string;
+  IDMovieImdb: string;
+  MovieName: string;
+  MovieNameEng: string | null;
+  MovieYear: string;
+  MovieImdbRating: string;
+  SubFeatured: string;
+  UserNickName: string | null;
+  SubTranslator: string;
+  ISO639: string;
+  LanguageName: string;
+  SubComments: string;
+  SubHearingImpaired: string;
+  UserRank: string | null;
+  SeriesSeason: string;
+  SeriesEpisode: string;
+  MovieKind: string;
+  SubHD: string;
+  SeriesIMDBParent: string;
+  SubEncoding: string;
+  SubAutoTranslation: string;
+  SubForeignPartsOnly: string;
+  SubFromTrusted: string;
+  QueryCached: number;
+  SubTSGroupHash: string | null;
+  SubDownloadLink: string;
+  ZipDownloadLink: string;
+  SubtitlesLink: string;
+  Score: number;
+}
 
+export interface PlayerOptions {
+  sources: {
+    src: string;
+    type: string;
+  }[];
+  fluid?: boolean;
+  controls?: boolean;
+  autoplay?: boolean;
+  preload?: string;
+  width?: number;
+  height?: number;
+  poster?: string;
+  responsive?: boolean;
+  playbackRates?: any;
+  html5?: any;
+}
+
+export interface VideoPlayerProps {
+  options: PlayerOptions;
+  title: string;
+  onQualityChange: (newQuality: VideoQuality) => void;
+  onLanguageChange: (newLanguage: string) => void;
+  availableQualities: VideoQuality[];
+  availableLanguages: string[];
+  imdbId: string;
+  posterUrl: string;
+}
+
+export interface ControlsProps {
+  movieId: string;
+  player: Player | null;
+  isLoading: boolean;
+  isPaused: boolean;
+  isFullscreen: boolean;
+  isMuted: boolean;
+  currentTime: number;
+  duration: number;
+  volume: number;
+  audioTracks: AudioTrackCustom[];
+  selectedAudioTrack: string;
+  subtitles: Subtitle[];
+  selectedSubtitle: string | null;
+  selectedQuality: string;
+  selectedLanguage: string;
+  controlsVisible: boolean;
+  availableQualities: string[];
+  availableLanguages: string[];
+  title: string;
+  onQualityChange: (quality: string) => void;
+  onLanguageChange: (language: string) => void;
+  onSubtitleChange: (subtitle: Subtitle | null) => void;
+  onVolumeChange: (volume: number) => void;
+}
+
+// Service interfaces
 export interface TMDBService {
   searchTMDBMovies: SearchTMDBFunction;
   searchTMDBTVSeries: SearchTMDBFunction;
@@ -209,7 +400,60 @@ export interface TMDBService {
   getUpcoming: () => Promise<CombinedContent[]>;
   getGenres: () => Promise<Genre[]>;
   getMoviesByGenre: (genreId: number) => Promise<CombinedContent[]>;
+  getMovieCredits: (tmdbId: number) => Promise<MovieCredits>;
+  getSimilarMovies: (tmdbId: number) => Promise<CombinedContent[]>;
+  getMovieReviews: (tmdbId: string, page?: number) => Promise<MovieReviewsResponse>;
+  getPersonalizedRecommendations: (userId: string) => Promise<CombinedContent[]>;
 }
+
+// Actor interfaces
+export interface ActorDetails {
+  id: number;
+  name: string;
+  birthday: string | null;
+  deathday: string | null;
+  place_of_birth: string | null;
+  biography: string;
+  profile_path: string | null;
+  imdb_id: string | null;
+  instagram_id: string | null;
+  twitter_id: string | null;
+  facebook_id: string | null;
+}
+
+export interface MovieCredit {
+  id: number;
+  title?: string;
+  name?: string;
+  character: string;
+  poster_path: string | null;
+  vote_average: number;
+  media_type: 'movie' | 'tv';
+  overview: string;
+  release_date?: string;
+  first_air_date?: string;
+  popularity: number;
+}
+
+export interface ActorDetailsContentProps {
+  actorDetails: ActorDetails | null;
+  actorCredits: MovieCredit[];
+}
+
+export interface CastSectionProps {
+  cast: CastMember[];
+  isLoading: boolean;
+}
+
+export interface FilmographyTimelineProps {
+  credits: MovieCredit[];
+}
+
+export interface CastCardProps {
+  member: CastMember;
+}
+
+export type SearchTMDBFunction = (query: string, page?: number) => Promise<CombinedContent[]>;
 
 // Search state and actions
 export interface SearchState {
@@ -241,7 +485,7 @@ export interface SearchContextType {
   dispatch: React.Dispatch<SearchAction>;
 }
 
-// User preferences
+// User preferences and recommendations
 export interface UserPreferences {
   favoriteGenres: number[];
   favoriteActors: number[];
@@ -253,4 +497,17 @@ export interface RecommendationParams {
   userId: string;
   preferences: UserPreferences;
   limit?: number;
+}
+
+export interface MovieHeaderProps {
+  movie: CombinedContent;
+  onTrailerPlay: () => void;
+  isMobile: boolean;
+  isLoading: boolean;
+  isChangingMirror: boolean;
+  currentMirrorIndex: number;
+  totalMirrors: number;
+  onOpenQualitySelector: () => void;
+  isPlaying: boolean;
+  currentQuality: VideoQuality;
 }

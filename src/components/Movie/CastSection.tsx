@@ -1,10 +1,10 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import {
   Box, Text, Flex, Image, VStack, useColorModeValue, 
   Tooltip, useBreakpointValue, IconButton, Skeleton,
-  Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton,
-  SimpleGrid, Badge, Heading, useDisclosure, Button, HStack, Progress,
-  Drawer, DrawerBody, DrawerHeader, DrawerOverlay, DrawerContent, DrawerCloseButton,
+  Modal, ModalOverlay, ModalContent, ModalBody, ModalCloseButton,
+  SimpleGrid, Badge, useDisclosure, Button, HStack,
+  Drawer, DrawerBody, DrawerOverlay, DrawerContent, DrawerCloseButton,
   useMediaQuery, Tabs, TabList, TabPanels, Tab, TabPanel, Collapse,
   Popover, PopoverTrigger, PopoverContent, PopoverHeader, PopoverBody, PopoverArrow, PopoverCloseButton
 } from '@chakra-ui/react';
@@ -15,14 +15,17 @@ import { useSpring, animated, config } from 'react-spring';
 import { Blurhash } from 'react-blurhash';
 import axios from 'axios';
 import { format, parseISO, differenceInYears } from 'date-fns';
+import { ActorDetailsContentProps, CastCardProps, CastMember, CastSectionProps, FilmographyTimelineProps, MovieCredit } from '../../types';
 
 const TMDB_API_KEY = '466fcb69c820905983bdd53d3a80a842';
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 
-const MotionBox = motion(Box);
+const MotionBox = motion(Box as any);
 const AnimatedBox = animated(MotionBox);
-
-const CastSection = ({ cast, isLoading }) => {
+interface AwardsSectionProps {
+  actorName: string;
+}
+const CastSection: React.FC<CastSectionProps> = ({ cast, isLoading }) => {
   const [ref, inView] = useInView({
     threshold: 0.1,
     triggerOnce: true,
@@ -43,8 +46,6 @@ const CastSection = ({ cast, isLoading }) => {
 
   const itemsPerView = useBreakpointValue({ base: 2, sm: 3, md: 4, lg: 5, xl: 6 }) || 4;
   const glassBg = useColorModeValue('rgba(255, 255, 255, 0.7)', 'rgba(26, 32, 44, 0.7)');
-  const textColor = useColorModeValue('gray.800', 'white');
-
   const handleNext = useCallback(() => {
     if (cast) {
       setCurrentIndex((prevIndex) => 
@@ -118,8 +119,8 @@ const CastSection = ({ cast, isLoading }) => {
           px={4}
         >
           <AnimatePresence initial={false}>
-            <Flex>
-              {cast.slice(currentIndex, currentIndex + itemsPerView).map((member) => (
+          <Flex>
+            {cast.slice(currentIndex, currentIndex + itemsPerView).map((member: CastMember) => (
                 <MotionBox
                   key={member.id}
                   initial={{ opacity: 0, x: 50 }}
@@ -155,7 +156,7 @@ const CastSection = ({ cast, isLoading }) => {
   );
 };
 
-const CastCard = ({ member }) => {
+const CastCard: React.FC<CastCardProps> = ({ member }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const textColor = useColorModeValue('gray.800', 'white');
   const placeholderColor = useColorModeValue('gray.300', 'gray.600');
@@ -175,7 +176,7 @@ const CastCard = ({ member }) => {
         })
       ]);
       setActorDetails(detailsResponse.data);
-      setActorCredits(creditsResponse.data.cast.sort((a, b) => b.popularity - a.popularity).slice(0, 20));
+      setActorCredits(creditsResponse.data.cast.sort((a: { popularity: number; }, b: { popularity: number; }) => b.popularity - a.popularity).slice(0, 20));
     } catch (error) {
       console.error('Error fetching actor details:', error);
     }
@@ -259,7 +260,6 @@ const CastCard = ({ member }) => {
             borderRadius="xl"
             boxShadow="xl"
           >
-            <ModalHeader>{actorDetails?.name}</ModalHeader>
             <ModalCloseButton />
             <ModalBody>
               <ActorDetailsContent actorDetails={actorDetails} actorCredits={actorCredits} />
@@ -271,7 +271,6 @@ const CastCard = ({ member }) => {
           <DrawerOverlay />
           <DrawerContent>
             <DrawerCloseButton />
-            <DrawerHeader>{actorDetails?.name}</DrawerHeader>
             <DrawerBody>
               <ActorDetailsContent actorDetails={actorDetails} actorCredits={actorCredits} />
             </DrawerBody>
@@ -282,8 +281,7 @@ const CastCard = ({ member }) => {
   );
 };
 
-const ActorDetailsContent = ({ actorDetails, actorCredits }) => {
-  const textColor = useColorModeValue('gray.800', 'white');
+const ActorDetailsContent: React.FC<ActorDetailsContentProps> = ({ actorDetails, actorCredits }) => {
   const bgColor = useColorModeValue('white', 'gray.800');
   const [showFullBio, setShowFullBio] = useState(false);
 
@@ -347,7 +345,7 @@ const ActorDetailsContent = ({ actorDetails, actorCredits }) => {
             <TabPanels>
               <TabPanel>
                 <SimpleGrid columns={{ base: 2, md: 3, lg: 4 }} spacing={4}>
-                  {actorCredits.map((credit) => (
+                {actorCredits.map((credit: MovieCredit) => (
                     <VStack 
                       key={credit.id} 
                       align="start" 
@@ -417,11 +415,11 @@ const ActorDetailsContent = ({ actorDetails, actorCredits }) => {
     );
   };
   
-  const FilmographyTimeline = ({ credits }) => {
+  const FilmographyTimeline: React.FC<FilmographyTimelineProps> = ({ credits }) => {
     const lineColor = useColorModeValue('gray.200', 'gray.700');
     const dotColor = useColorModeValue('blue.500', 'blue.300');
   
-    const sortedCredits = credits.sort((a, b) => {
+    const sortedCredits = [...credits].sort((a: MovieCredit, b: MovieCredit) => {
       const dateA = a.release_date || a.first_air_date || '0000';
       const dateB = b.release_date || b.first_air_date || '0000';
       return dateB.localeCompare(dateA);
@@ -429,7 +427,7 @@ const ActorDetailsContent = ({ actorDetails, actorCredits }) => {
   
     return (
       <VStack align="stretch" spacing={4}>
-        {sortedCredits.map((credit, index) => (
+        {sortedCredits.map((credit: MovieCredit) => (
           <Flex key={credit.id} align="center">
             <Box width="100px" textAlign="right" fontSize="sm" fontWeight="bold">
               {credit.release_date || credit.first_air_date || 'Unknown'}
@@ -449,8 +447,8 @@ const ActorDetailsContent = ({ actorDetails, actorCredits }) => {
     );
   };
   
-  const AwardsSection = ({ actorName }) => {
-    // This is a placeholder. In a real application, you would fetch this data from an API.
+  
+  const AwardsSection: React.FC<AwardsSectionProps> = ({ actorName }) => {
     const awards = [
       { name: 'Academy Award', year: 2020, category: 'Best Actor' },
       { name: 'Golden Globe', year: 2019, category: 'Best Actor in a Drama' },
@@ -459,7 +457,7 @@ const ActorDetailsContent = ({ actorDetails, actorCredits }) => {
   
     return (
       <VStack align="stretch" spacing={4}>
-        <Text fontSize="xl" fontWeight="bold">Awards and Nominations</Text>
+        <Text fontSize="xl" fontWeight="bold">Awards and Nominations for {actorName}</Text>
         {awards.map((award, index) => (
           <Box key={index} p={4} borderWidth={1} borderRadius="md" boxShadow="sm">
             <Flex justify="space-between" align="center">
@@ -477,7 +475,6 @@ const ActorDetailsContent = ({ actorDetails, actorCredits }) => {
       </VStack>
     );
   };
-  
   const SkeletonCastCard = () => (
     <VStack spacing={2} align="center" width={`${100 / 6}%`} px={2}>
       <Skeleton

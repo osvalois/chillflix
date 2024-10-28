@@ -1,12 +1,12 @@
 import React, { useState, useCallback } from 'react';
-import { Box, Text, SimpleGrid, useColorModeValue, Button, VStack, Heading, useBreakpointValue } from '@chakra-ui/react';
+import { Box, SimpleGrid, useColorModeValue, Button, Heading, useBreakpointValue } from '@chakra-ui/react';
 import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import { useSpring, animated } from 'react-spring';
 import MovieCard from './MovieCard';
 import OptimizedImage from '../UI/OptimizedImage';
 
-const MotionBox = motion(Box);
+const MotionBox = motion(Box as any);
 const AnimatedBox = animated(MotionBox);
 
 interface Movie {
