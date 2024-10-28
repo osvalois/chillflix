@@ -228,8 +228,6 @@ export const getTrendingContent = async (): Promise<CombinedContent[]> => {
       console.error('Unexpected response format from getTrendingContent:', response.data);
       return [];
     }
-    console.log("response.data.results");
-    console.log(response.data.results);
     return response.data.results.map(mapToCombinedContent);
   } catch (error) {
     console.error('Error in getTrendingContent:', error);

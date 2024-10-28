@@ -278,7 +278,7 @@ const Logo: React.FC<LogoProps> = ({ className }) => {
             color={textColor}
             textShadow={`0 1px 5px ${rgba(baseColor, 0.2)}`}
           >
-            {'Chillflix'.split('').map((letter, index) => (
+            {''.split('').map((letter, index) => (
               <motion.span
                 key={index}
                 variants={letterAnimation}
