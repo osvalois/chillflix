@@ -9,7 +9,7 @@ import {
   useBreakpointValue,
 } from "@chakra-ui/react";
 import { motion } from 'framer-motion';
-import { Menu as MenuIcon, Search as SearchIcon } from 'lucide-react';
+import { Menu as MenuIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ParallaxProvider, Parallax } from 'react-scroll-parallax';
 
@@ -65,7 +65,6 @@ const HeaderContent = React.memo(({
   handleNavigation,
   navItems,
   isSearchVisible,
-  toggleSearch
 }: {
   isLargeScreen: boolean;
   onMobileMenuOpen: () => void;
@@ -129,14 +128,7 @@ const HeaderContent = React.memo(({
         )}
 
         {!isLargeScreen && (
-          <IconButton
-            aria-label="Toggle search"
-            icon={<SearchIcon size={20} />}
-            variant="ghost"
-            onClick={toggleSearch}
-            size="sm"
-            display={{ base: "flex", sm: "none" }}
-          />
+          <SearchBar />
         )}
       </HStack>
 

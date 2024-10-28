@@ -7,7 +7,7 @@ import {
   Grid,
   useBreakpointValue,
 } from '@chakra-ui/react';
-import { CONTENT_CONFIG } from '../constants';
+import { CONTENT_CONFIG } from '../../constants';
 
 const { SKELETON } = CONTENT_CONFIG;
 

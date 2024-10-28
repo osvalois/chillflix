@@ -53,6 +53,7 @@ interface ContentBase {
 interface ContentCardProps {
   content: ContentBase;
   isFavorited?: boolean;
+  isActive?: boolean;
 }
 
 const ContentCard: React.FC<ContentCardProps> = ({

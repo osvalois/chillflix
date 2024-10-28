@@ -19,7 +19,7 @@ import { FaStar, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { useQuery } from 'react-query';
 import { useNavigate } from 'react-router-dom';
 import tmdbService from '../services/tmdbService';
-import { CombinedContent } from './Home/ContentCarousel';
+import { CombinedContent } from '../types';
 
 const MotionBox = motion(Box as any);
 

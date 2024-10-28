@@ -1,10 +1,10 @@
 // Home.tsx
 import React, { Suspense, lazy, useEffect } from 'react';
-import { 
-  Box, 
-  Container, 
-  VStack, 
-  Text, 
+import {
+  Box,
+  Container,
+  VStack,
+  Text,
   Center,
   Skeleton,
   SkeletonText,
@@ -16,11 +16,9 @@ import { ParallaxProvider } from 'react-scroll-parallax';
 import { useContentData } from '../hooks/useContentData';
 import { useDynamicBackground } from '../hooks/useDynamicBackground';
 import GlassmorphicBox from '../components/UI/GlassmorphicBox';
+import ContentCarousel from '../components/Home/ContentCarousel';
 
 const FeaturedContent = lazy(() => import('../components/Home/FeaturedContent'));
-const GenreExplorer = lazy(() => import('../components/Home/GenreExplorer'));
-const ContentCarousel = lazy(() => import('../components/Home/ContentCarousel'));
-
 // Componentes Skeleton
 const FeaturedContentSkeleton: React.FC = () => (
   <Box width="100%" height="60vh" position="relative">
@@ -58,15 +56,15 @@ const GenreExplorerSkeleton: React.FC = () => (
 );
 
 export const Home: React.FC = () => {
-  const { 
-    featuredContent, 
-    trendingContent, 
+  const {
+    featuredContent,
+    trendingContent,
     genres,
     isLoading,
     error,
     refreshContent
   } = useContentData();
-  
+
   const { bgGradient, textColor } = useDynamicBackground();
 
   useEffect(() => {
@@ -115,28 +113,14 @@ export const Home: React.FC = () => {
         <Suspense fallback={<FeaturedContentSkeleton />}>
           {featuredContent && <FeaturedContent content={{ ...featuredContent, backdrop_path: featuredContent.backdrop_path ?? '' }} genres={genres} />}
         </Suspense>
-        
-        <Container maxW="container.xl" py={12}>
-          <VStack spacing={16} align="stretch">
-            <Suspense 
-              fallback={
-                <VStack spacing={16} align="stretch">
-                  <GlassmorphicBox>
-                    <ContentCarouselSkeleton />
-                  </GlassmorphicBox>
-                  <GenreExplorerSkeleton />
-                </VStack>
-              }
-            >
-              {trendingContent.length > 0 && (
-                <GlassmorphicBox>
-                  <ContentCarousel title="Trending Now" content={trendingContent} icon="FaFire" />
-                </GlassmorphicBox>
-              )}
-              {genres.length > 0 && <GenreExplorer genres={genres} />}
-            </Suspense>
-          </VStack>
-        </Container>
+        {trendingContent.length > 0 && (
+          <GlassmorphicBox>
+            <ContentCarousel title="Trending" content={trendingContent} icon="FaStar" autoplay={true}
+              interval={10000}
+              onSlideChange={(index) => console.log('Current slide:', index)}
+            />
+          </GlassmorphicBox>
+        )}
       </Box>
     </ParallaxProvider>
   );

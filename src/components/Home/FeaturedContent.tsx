@@ -114,10 +114,6 @@ const FeaturedContent: React.FC<FeaturedContentProps> = memo(({ content, genres 
     'title' in content ? 'movie' : 'tv'
   , [content]);
 
-  const releaseYear = useMemo(() => 
-    content.release_date?.slice(0, 4) || content.first_air_date?.slice(0, 4)
-  , [content.release_date, content.first_air_date]);
-
   const contentGenres = useMemo(() => {
     const maxGenres = isMobile ? 2 : isTablet ? 3 : 4;
     return content.genre_ids
@@ -162,7 +158,7 @@ const FeaturedContent: React.FC<FeaturedContentProps> = memo(({ content, genres 
     <Box 
       ref={ref}
       position="relative" 
-      height={{ base: "80vh", md: "90vh" }}
+      height={{ base: "90vh", md: "100vh" }}
       overflow="hidden"
     >
       {/* Backdrop */}

@@ -1,5 +1,3 @@
-import { keyframes } from '@emotion/react';
-
 // Types
 export interface Breakpoint {
   value: number;
