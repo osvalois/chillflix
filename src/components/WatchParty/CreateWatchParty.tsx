@@ -35,20 +35,10 @@ import {
   FormControl,
   FormLabel,
   Switch,
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-  PopoverBody,
-  useClipboard
 } from '@chakra-ui/react';
 import {
   AddIcon,
   CloseIcon,
-  CopyIcon,
-  CheckIcon,
-  InfoIcon,
-  WarningIcon,
-  TimeIcon
 } from '@chakra-ui/icons';
 import {
   Users,
@@ -57,12 +47,9 @@ import {
   Calendar,
   Clock,
   Settings,
-  Share2,
   MessageCircle,
-  Film,
   Lock,
   Globe,
-  Shield
 } from 'lucide-react';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { useSound } from 'use-sound';
@@ -109,13 +96,11 @@ const PartyUserInput = ({
   onChange, 
   onRemove, 
   isMain,
-  onStatusChange
 }: { 
   user: PartyUser; 
   onChange: (value: string) => void;
   onRemove: () => void;
   isMain: boolean;
-  onStatusChange?: (status: PartyUser['status']) => void;
 }) => {
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
@@ -249,7 +234,6 @@ export const CreateWatchParty: React.FC<CreateWatchPartyProps> = ({
   movieId,
   movieTitle = 'Movie',
   movieDuration,
-  movieThumbnail,
   onWatchPartyCreated,
   onCancel,
   maxParticipants = 10,
@@ -301,7 +285,7 @@ export const CreateWatchParty: React.FC<CreateWatchPartyProps> = ({
           position: 'top-right'
         });
       },
-      onError: (error) => {
+      onError: () => {
         playError();
         toast({
           title: 'Error Creating Watch Party',

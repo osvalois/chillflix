@@ -407,9 +407,7 @@ const MoviePage: React.FC = () => {
                       movieTitle={movie.title ?? ""}
                       movieDuration={movie.runtime}
                       movieThumbnail={movie.backdrop_path ?? ""}
-                      onWatchPartyCreated={(partyId) => {
-                        console.log('Party created:', partyId);
-                      }}
+                      onWatchPartyCreated={handleCreateWatchParty}
                       onCancel={() => {
                         console.log('Cancelled');
                       }}

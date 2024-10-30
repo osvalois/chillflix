@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { useSpring, animated, config } from 'react-spring';
 import { Player } from '@lottiefiles/react-lottie-player';
 import { useMutation } from 'react-query';
@@ -22,7 +22,6 @@ import {
   IconButton,
   Tooltip,
   Flex,
-  Collapse,
   useDisclosure,
   Avatar,
   Progress,
@@ -39,35 +38,17 @@ import {
   Switch,
   InputGroup,
   InputLeftElement,
-  InputRightElement,
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-  PopoverBody,
-  ScaleFade,
 } from '@chakra-ui/react';
-import {
-  CheckIcon,
-  InfoIcon,
-  WarningIcon,
-  CloseIcon,
-  CopyIcon
-} from '@chakra-ui/icons';
 import {
   Users,
   PartyPopper,
-  Share2,
   UserPlus,
-  Link as LinkIcon,
   Clock,
-  Video,
   Film,
   Calendar,
   MessageCircle,
   Settings,
-  Eye,
   Shield,
-  Ticket
 } from 'lucide-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -207,13 +188,12 @@ export const JoinWatchParty: React.FC<JoinWatchPartyProps> = ({
   maxParticipants = 10,
   currentParticipants = 0,
   movieDuration,
-  movieThumbnail,
   isPrivate = true,
   chatEnabled = true
 }) => {
   const [userId, setUserId] = useState('');
   const [nickname, setNickname] = useState('');
-  const [enteredPartyId, setEnteredPartyId] = useState(partyId);
+  const [enteredPartyId] = useState(partyId);
   const [preferences, setPreferences] = useState<PartyPreferences>({
     notifications: true,
     autoSync: true,
@@ -235,7 +215,6 @@ export const JoinWatchParty: React.FC<JoinWatchPartyProps> = ({
   );
   
   const cardBg = useColorModeValue('white', 'gray.800');
-  const borderColor = useColorModeValue('gray.200', 'gray.600');
 
   const mutation = useMutation(
     async (request: JoinPartyRequest) => {
@@ -250,7 +229,7 @@ export const JoinWatchParty: React.FC<JoinWatchPartyProps> = ({
       return response.data;
     },
     {
-      onSuccess: (data) => {
+      onSuccess: () => {
         playSuccess();
         toast({
           title: 'Joined Successfully! 🎉',
@@ -262,7 +241,7 @@ export const JoinWatchParty: React.FC<JoinWatchPartyProps> = ({
         });
         onJoin();
       },
-      onError: (error) => {
+      onError: () => {
         playError();
         toast({
           title: 'Failed to Join',
