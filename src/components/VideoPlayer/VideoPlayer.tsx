@@ -457,13 +457,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
     }, [setSelectedLanguage, onLanguageChange, trackEvent]);
 
     return (
-      <Box
+<Box
         position="relative"
         ref={containerRef}
-        borderRadius="xl"
+        borderRadius={{ base: "none", md: "xl" }}
         overflow="hidden"
         boxShadow="xl"
         bg={bgColor}
+        width="100%"
+        height="100%"
+        minHeight={{ base: "calc(50vh)", md: "auto" }}
+        maxHeight={{ base: "calc(60vh)", md: "80vh" }}
+        margin={{ base: 0, md: "auto" }}
         _before={{
           content: '""',
           position: "absolute",
@@ -481,14 +486,39 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
             borderRadius: 0,
           },
           cursor: isFullscreen && !isMouseMoving ? 'none' : 'auto',
+          // Estilos específicos para el contenedor de video
+          '.video-js': {
+            width: '100%',
+            height: '100%',
+            minHeight: { base: '300px', md: '360px' },
+            maxHeight: { base: '70vh', md: '80vh' },
+            '@media (orientation: landscape) and (max-width: 768px)': {
+              minHeight: '85vh',
+            }
+          },
+          // Asegurar que el video llene el contenedor manteniendo proporción
+          '.video-js video': {
+            objectFit: 'contain',
+            width: '100%',
+            height: '100%'
+          },
+          // Ajustes para controles en móvil
+          '.vjs-control-bar': {
+            padding: { base: '0.5rem', md: '0.25rem' },
+            fontSize: { base: '1.2rem', md: '1rem' }
+          },
+          // Ajuste del tamaño del botón de play central
+          '.vjs-big-play-button': {
+            scale: { base: '0.8', md: '1' }
+          }
         }}
       >
-        <div data-vjs-player>
+         <div data-vjs-player>
           <video 
             ref={videoRef} 
             className="video-js vjs-big-play-centered" 
             onClick={handleVideoClick}
-            onContextMenu={(e) => e.preventDefault()} // Prevent right-click menu
+            onContextMenu={(e) => e.preventDefault()}
           />
         </div>
         <SubtitlesDisplay player={playerRef.current} parsedCues={null} />
