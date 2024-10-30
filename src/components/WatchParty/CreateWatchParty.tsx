@@ -397,7 +397,7 @@ export const CreateWatchParty: React.FC<CreateWatchPartyProps> = ({
               borderRadius="2xl 2xl 0 0"
             />
             
-            <Box p={0}>
+            <Box p={1}>
               <VStack spacing={6} align="stretch">
                 {/* Header Section */}
                 <Flex justify="space-between" align="center">

@@ -154,7 +154,7 @@ const UserProfileInput = ({
                 />
               </InputGroup>
             </FormControl>
-            
+
             <FormControl>
               <FormLabel>Nickname (Optional)</FormLabel>
               <InputGroup>
@@ -213,17 +213,17 @@ export const JoinWatchParty: React.FC<JoinWatchPartyProps> = ({
     'linear(to-br, purple.50, pink.50)',
     'linear(to-br, gray.900, purple.900)'
   );
-  
+
   const cardBg = useColorModeValue('white', 'gray.800');
 
   const mutation = useMutation(
     async (request: JoinPartyRequest) => {
       const response = await axios.post(
         `http://127.0.0.1:9090/party/${request.partyId}/join`,
-        { 
-          id: request.userId, 
+        {
+          id: request.userId,
           nickname: request.nickname,
-          preferences: request.preferences 
+          preferences: request.preferences
         }
       );
       return response.data;
@@ -294,13 +294,13 @@ export const JoinWatchParty: React.FC<JoinWatchPartyProps> = ({
 
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       y: 0,
       transition: { duration: 0.5 }
     },
-    exit: { 
-      opacity: 0, 
+    exit: {
+      opacity: 0,
       y: -20,
       transition: { duration: 0.3 }
     }
@@ -334,8 +334,8 @@ export const JoinWatchParty: React.FC<JoinWatchPartyProps> = ({
                 colorScheme="purple"
                 borderRadius="2xl 2xl 0 0"
               />
-              
-              <Box p={0}>
+
+              <Box p={1}>
                 <VStack spacing={6} align="stretch">
                   {/* Header Section */}
                   <Flex justify="space-between" align="center">
@@ -359,9 +359,9 @@ export const JoinWatchParty: React.FC<JoinWatchPartyProps> = ({
                     <HStack spacing={3}>
                       {startTime && (
                         <Tooltip label={dayjs(startTime).format('MMM D, YYYY h:mm A')}>
-                          <Badge 
-                            colorScheme="blue" 
-                            p={2} 
+                          <Badge
+                            colorScheme="blue"
+                            p={2}
                             borderRadius="md"
                             display="flex"
                             alignItems="center"
@@ -372,12 +372,12 @@ export const JoinWatchParty: React.FC<JoinWatchPartyProps> = ({
                           </Badge>
                         </Tooltip>
                       )}
-                      
+
                       {movieDuration && (
                         <Tooltip label="Movie Duration">
-                          <Badge 
-                            colorScheme="purple" 
-                            p={2} 
+                          <Badge
+                            colorScheme="purple"
+                            p={2}
                             borderRadius="md"
                             display="flex"
                             alignItems="center"
@@ -390,7 +390,7 @@ export const JoinWatchParty: React.FC<JoinWatchPartyProps> = ({
                       )}
 
                       <Tooltip label={`${currentParticipants}/${maxParticipants} participants`}>
-                        <Badge 
+                        <Badge
                           colorScheme={currentParticipants >= maxParticipants ? 'red' : 'green'}
                           p={2}
                           borderRadius="md"
@@ -455,7 +455,7 @@ export const JoinWatchParty: React.FC<JoinWatchPartyProps> = ({
 
                   {/* Host Info */}
                   {hostName && (
-                    <HStack 
+                    <HStack
                       spacing={3}
                       p={4}
                       bg={useColorModeValue('purple.50', 'purple.900')}
@@ -471,8 +471,8 @@ export const JoinWatchParty: React.FC<JoinWatchPartyProps> = ({
                     </HStack>
                   )}
 
-      {/* Action Buttons */}
-      <VStack spacing={4}>
+                  {/* Action Buttons */}
+                  <VStack spacing={4}>
                     <HStack spacing={4} width="100%">
                       <Button
                         onClick={handleJoin}
@@ -507,8 +507,8 @@ export const JoinWatchParty: React.FC<JoinWatchPartyProps> = ({
                     </HStack>
 
                     {/* Keyboard Shortcut Hint */}
-                    <Text 
-                      fontSize="sm" 
+                    <Text
+                      fontSize="sm"
                       color="gray.500"
                       textAlign="center"
                     >
