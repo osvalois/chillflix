@@ -2,7 +2,7 @@
 import React from 'react';
 import { Box } from '@chakra-ui/react';
 import { motion } from 'framer-motion';
-import { NotificationBadgeProps } from '../../header.types';
+import { NotificationBadgeProps } from '../../types';
 const MotionBox = motion(Box as any);
 
 export const NotificationBadge: React.FC<NotificationBadgeProps> = ({ count, color = "red.500" }) => (

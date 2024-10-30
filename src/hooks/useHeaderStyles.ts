@@ -1,7 +1,7 @@
 // hooks/useHeaderStyles.ts
 import { useColorMode } from "@chakra-ui/react";
 import { rgba, lighten } from 'polished';
-import { HeaderGradients, ThemeColors } from "../header.types";
+import { HeaderGradients, ThemeColors } from "../types";
 
 export const useHeaderStyles = () => {
   const { colorMode } = useColorMode();

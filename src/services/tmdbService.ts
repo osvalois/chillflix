@@ -46,6 +46,7 @@ const mapToSearchResult = (item: TMDBContent): SearchResult => ({
   homepage: '', // Add a default value for homepage
   genres: [], // Add a default value for genres
   videos: { results: [] }, // Add a default value for videos
+  primary_color: ''
 });
 
   /**

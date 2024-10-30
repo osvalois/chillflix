@@ -1,7 +1,7 @@
-import { LucideProps } from 'lucide-react';
 import type VideoJS from 'video.js';
 import React from 'react';
 import { AudioTrackCustom } from './components/VideoPlayer/AudioSettingsMenu';
+import { ANIMATION_PRESETS } from './constants';
 
 // Corregido: Definición correcta del tipo Player
 type Player = typeof VideoJS.players;
@@ -18,14 +18,94 @@ export enum VideoQuality {
   FHD = 'fhd',
   UHD = '4k'
 }
+// types/header.types.ts
+export interface GlassEffect {
+  background: string;
+  backdropFilter: string;
+  border: string;
+}
 
-// Navigation types
+export interface NavItemBadge {
+  show: boolean;
+  content?: string | number;
+  color?: string;
+}
+
+export interface NavItemAnimation {
+  hoverScale?: number;
+  transition?: string;
+  pulseEffect?: boolean;
+}
+
 export interface NavItem {
+  icon: React.ElementType;
   label: string;
   path: string;
-  icon: React.ComponentType<LucideProps>;
   gradient: string;
   pulseColor: string;
+  isActive?: boolean;
+  glassEffect?: GlassEffect;
+  badge?: NavItemBadge;
+  animation?: NavItemAnimation;
+  submenu?: NavItem[];
+  onClick?: () => void;
+  permission?: string[];
+  shortcut: string;
+}
+
+export interface NavItemProps {
+  item: NavItem;
+  isActive: boolean;
+  onClick: () => void;
+  index?: number;
+  showTooltip?: boolean;
+  isHovered?: boolean;
+  soundEnabled?: boolean;
+  animationPreset?: keyof typeof ANIMATION_PRESETS;
+  disableParallax?: boolean;
+  className?: string;
+  onHoverStart?: () => void;
+  onHoverEnd?: () => void;
+}
+
+// Valores por defecto para las propiedades de glassmorfismo
+export const DEFAULT_GLASS_EFFECT: GlassEffect = {
+  background: 'rgba(255, 255, 255, 0.1)',
+  backdropFilter: 'blur(10px)',
+  border: '1px solid rgba(255, 255, 255, 0.18)'
+};
+
+// Valores por defecto para las animaciones
+export const DEFAULT_ANIMATION: NavItemAnimation = {
+  hoverScale: 1.05,
+  transition: 'all 0.3s ease',
+  pulseEffect: true
+};
+export interface NotificationBadgeProps {
+  count: number;
+  color?: string;
+}
+
+export interface ThemeColors {
+  primary: string;
+  secondary: string;
+  accent: string;
+  background: string;
+  text: string;
+  border: string;
+}
+
+export interface HeaderGradients {
+  primary: string;
+  accent: string;
+  glass: string;
+}
+
+
+export interface MobileBottomNavProps {
+  navItems: NavItem[];
+  handleNavigation: (path: string) => void;
+  soundEnabled?: boolean;
 }
 
 export interface DesktopNavProps {
@@ -70,6 +150,7 @@ export interface VideoResult {
 
 // Search related interfaces
 export interface SearchResult {
+  primary_color: string;
   homepage: string;
   genres: never[];
   videos: { results: never[]; };

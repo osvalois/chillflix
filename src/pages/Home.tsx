@@ -16,7 +16,7 @@ import { ParallaxProvider } from 'react-scroll-parallax';
 import { useContentData } from '../hooks/useContentData';
 import { useDynamicBackground } from '../hooks/useDynamicBackground';
 import GlassmorphicBox from '../components/UI/GlassmorphicBox';
-import ContentCarousel from '../components/Home/ContentCarousel';
+import SimilarMoviesSection from '../components/Movie/SimilarMoviesSection';
 
 const FeaturedContent = lazy(() => import('../components/Home/FeaturedContent'));
 // Componentes Skeleton
@@ -66,7 +66,7 @@ export const Home: React.FC = () => {
   } = useContentData();
 
   const { bgGradient, textColor } = useDynamicBackground();
-
+  console.log(trendingContent)
   useEffect(() => {
     if (error) {
       console.error('Error loading content:', error);
@@ -113,13 +113,10 @@ export const Home: React.FC = () => {
         <Suspense fallback={<FeaturedContentSkeleton />}>
           {featuredContent && <FeaturedContent content={{ ...featuredContent, backdrop_path: featuredContent.backdrop_path ?? '' }} genres={genres} />}
         </Suspense>
-        {trendingContent.length > 0 && (
-          <GlassmorphicBox>
-            <ContentCarousel title="Trending" content={trendingContent} icon="FaStar" autoplay={true}
-              interval={10000}
-              onSlideChange={(index) => console.log('Current slide:', index)}
-            />
-          </GlassmorphicBox>
+         {trendingContent.length > 0 && (
+           <Suspense fallback={<Skeleton height="200px" />}>
+           <SimilarMoviesSection movies={trendingContent} isLoading={trendingContent.length > 0} />
+         </Suspense>
         )}
       </Box>
     </ParallaxProvider>

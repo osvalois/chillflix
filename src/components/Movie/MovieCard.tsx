@@ -19,7 +19,6 @@ import { FaHeart} from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { Play } from 'lucide-react';
 
-// Definición mejorada de tipos
 interface Movie {
   id: number;
   title: string;
@@ -55,20 +54,27 @@ const MovieCard: React.FC<MovieCardProps> = React.memo(({
   const [imageLoaded, setImageLoaded] = useState(false);
   const navigate = useNavigate();
 
-  // Color mode values
-  const colors = useMemo(() => ({
-    text: useColorModeValue('gray.800', 'white'),
-    placeholder: useColorModeValue('gray.600', 'gray.300'),
-    glassBg: useColorModeValue('rgba(255, 255, 255, 0.7)', 'rgba(26, 32, 44, 0.7)'),
-    glassBoxShadow: useColorModeValue(
-      '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
-      '0 8px 32px 0 rgba(0, 0, 0, 0.37)'
-    ),
-    cardBg: useColorModeValue('white', 'gray.800'),
-    hoverBg: useColorModeValue('gray.50', 'gray.700')
-  }), []);
+  // Mover los useColorModeValue fuera del useMemo
+  const textColor = useColorModeValue('gray.800', 'white');
+  const placeholderColor = useColorModeValue('gray.600', 'gray.300');
+  const glassBgColor = useColorModeValue('rgba(255, 255, 255, 0.7)', 'rgba(26, 32, 44, 0.7)');
+  const glassBoxShadowColor = useColorModeValue(
+    '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
+    '0 8px 32px 0 rgba(0, 0, 0, 0.37)'
+  );
+  const cardBgColor = useColorModeValue('white', 'gray.800');
+  const hoverBgColor = useColorModeValue('gray.50', 'gray.700');
 
-  // Animation springs
+  // Ahora useMemo solo usa los valores ya calculados
+  const colors = useMemo(() => ({
+    text: textColor,
+    placeholder: placeholderColor,
+    glassBg: glassBgColor,
+    glassBoxShadow: glassBoxShadowColor,
+    cardBg: cardBgColor,
+    hoverBg: hoverBgColor
+  }), [textColor, placeholderColor, glassBgColor, glassBoxShadowColor, cardBgColor, hoverBgColor]);
+
   const cardSpring = useSpring({
     scale: isHovered ? 1.05 : 1,
     boxShadow: isHovered
@@ -77,7 +83,6 @@ const MovieCard: React.FC<MovieCardProps> = React.memo(({
     config: { mass: 1, tension: 300, friction: 20 }
   });
 
-  // Event handlers
   const handleMouseEnter = useCallback(() => setIsHovered(true), []);
   const handleMouseLeave = useCallback(() => setIsHovered(false), []);
 
@@ -109,11 +114,10 @@ const MovieCard: React.FC<MovieCardProps> = React.memo(({
     setImageLoaded(true);
   }, []);
 
-  // Memoized values
   const posterUrl = useMemo(() => {
     return movie.poster_path
       ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
-      : '/default-movie-poster.jpg'; // Asegúrate de tener una imagen por defecto
+      : '/default-movie-poster.jpg';
   }, [movie.poster_path]);
 
   const ratingColor = useMemo(() => {
@@ -201,10 +205,10 @@ const MovieCard: React.FC<MovieCardProps> = React.memo(({
                     leftIcon={<Play />}
                     onClick={handleDetailClick}
                     size="sm"
-                    bg="rgba(255, 255, 255, 0.15)"  // Transparent background
-                    backdropFilter="blur(10px)"      // Blur effect
-                    border="1px solid rgba(255, 255, 255, 0.18)" // Subtle border
-                    color="white"                    // White text
+                    bg="rgba(255, 255, 255, 0.15)"
+                    backdropFilter="blur(10px)"
+                    border="1px solid rgba(255, 255, 255, 0.18)"
+                    color="white"
                     _hover={{
                       bg: "rgba(255, 255, 255, 0.25)",
                       transform: 'translateY(-2px)',

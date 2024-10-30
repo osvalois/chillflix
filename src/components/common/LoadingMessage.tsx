@@ -15,8 +15,6 @@ const MotionBox = motion(Box as any);
 
 
 const LoadingMessage = () => {
-  const [progress, setProgress] = useState(0)
-  console.log(progress)
   const [currentCategory, setCurrentCategory] = useState(0);
   const isMobile = useMediaQuery({ maxWidth: 768 });
 
@@ -28,11 +26,7 @@ const LoadingMessage = () => {
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setProgress((oldProgress) => {
-        const newProgress = Math.min(oldProgress + 0.5, 100);
-        if (newProgress === 100) clearInterval(timer);
-        return newProgress;
-      });
+
     }, 50);
     return () => clearInterval(timer);
   }, []);

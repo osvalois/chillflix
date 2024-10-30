@@ -1,280 +1,431 @@
-import React, { useMemo, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useMemo, useCallback, useRef, useEffect, useState } from 'react';
+import { motion, AnimatePresence, useAnimation, useMotionValue, useTransform, useSpring as useFramerSpring } from 'framer-motion';
 import { 
   Box, 
-  HStack, 
-  Text, 
-  useColorModeValue, 
+  HStack,
+  Text,
+  Portal,
+  useColorModeValue,
   useBreakpointValue,
-  useTheme
+  useTheme,
+  useDisclosure,
+  Tooltip,
+  chakra,
+  useMergeRefs
 } from '@chakra-ui/react';
-import { rgba } from 'polished';
-import { itemVariants } from '../../theme/animations';
-import { NavItem } from '../../types';
-import { DESIGN } from '../../theme/design';
+import { rgba, lighten, darken, transparentize } from 'polished';
+import { useInView } from 'react-intersection-observer';
+import { useSpring, animated, config } from 'react-spring';
+import { useMediaQuery } from 'react-responsive';
+import { useHotkeys } from 'react-hotkeys-hook';
+import { useGesture } from '@use-gesture/react';
+import { useParallax } from 'react-scroll-parallax';
+import { useMeasure } from 'react-use';
+import type { NavItem } from '../../types';
+import { ANIMATION_PRESETS, ANIMATION_VARIANTS, RESPONSIVE_CONFIG, VISUAL_EFFECTS } from '../../constants';
+import MemoizedParticleEffect from '../common/MemoizedParticleEffect';
 
-// Optimized motion components with proper typing
-const MotionBox = motion(Box as any);
-const MotionText = motion(Text as any);
-
-// Constants for performance optimization
-const ANIMATION_CONFIG = {
-  duration: DESIGN.animation.duration.normal,
-  ease: DESIGN.animation.easing.smooth
-} as const;
-
-const HOVER_SCALE = 1.1;
-const ROTATION_DEGREES = 360;
-const BACKDROP_BLUR = '8px';
-
-// Responsive configuration for better maintainability
-const RESPONSIVE_CONFIG = {
-  paddings: {
-    base: '0.25rem',
-    sm: '0.375rem',
-    md: '0.5rem',
-    lg: '0.75rem',
-    xl: '1rem'
-  },
-  spacings: {
-    base: '0.25rem',
-    sm: '0.375rem',
-    md: '0.5rem',
-    lg: '0.625rem',
-    xl: '0.75rem'
-  },
-  fontSizes: {
-    base: 'xs',
-    sm: 'sm',
-    md: 'md',
-    lg: 'lg',
-    xl: 'xl'
-  },
-  maxWidths: {
-    base: '60px',
-    sm: '80px',
-    md: '100px',
-    lg: '120px',
-    xl: '150px'
-  },
-  indicators: {
-    width: {
-      base: '12px',
-      sm: '14px',
-      md: '16px',
-      lg: '18px',
-      xl: '20px'
-    },
-    height: {
-      base: '2px',
-      md: '3px'
-    },
-    bottom: {
-      base: '-8px',
-      md: '-12px'
-    }
-  }
-} as const;
+// Enhanced motion components with proper typing and performance optimizations
+const MotionBox = chakra(motion(Box as any));
+const MotionText = chakra(motion(Text as any));
+const AnimatedBox = chakra(animated(Box));
 
 interface NavItemProps {
   item: NavItem;
   isActive: boolean;
-  isHovered: boolean;
   onClick: () => void;
-  onHoverStart: () => void;
-  onHoverEnd: () => void;
+  index?: number;
+  showTooltip?: boolean;
+  isHovered?: boolean;
+  soundEnabled?: boolean;
+  animationPreset?: keyof typeof ANIMATION_PRESETS;
+  disableParallax?: boolean;
+  className?: string;
+  onHoverStart?: () => void;
+  onHoverEnd?: () => void;
 }
 
 export const NavItemEnhanced = React.memo(({ 
   item, 
   isActive, 
-  isHovered, 
   onClick, 
-  onHoverStart, 
-  onHoverEnd 
+  index = 0,
+  showTooltip = true,
+  disableParallax = false,
+  className
 }: NavItemProps) => {
+  // Enhanced hooks
   const theme = useTheme();
-  
-  // Moving all hooks to the top level
-  const textColor = useColorModeValue('gray.700', 'whiteAlpha.900');
-  const iconSize = useBreakpointValue({
-    base: 16,
-    sm: 18,
-    md: 20,
-    lg: 24,
-    xl: 28
-  }) ?? 20;
+  const controls = useAnimation();
+  const [ref] = useMeasure<HTMLDivElement>();
+  const itemRef = useRef<HTMLDivElement>(null);
+  const { onOpen, onClose } = useDisclosure();
+  const [isHovered, setIsHovered] = useState(false);
+  const isReducedMotion = useMediaQuery({ query: '(prefers-reduced-motion: reduce)' });
 
-  const isHighlighted = isActive || isHovered;
+  // Responsive values
+  const showText = useBreakpointValue({ base: false, md: true });
+  const containerWidth = useBreakpointValue({ 
+    base: '40px',  // Más compacto en móvil
+    md: 'auto'     // Auto en desktop
+  });
+  const containerPadding = useBreakpointValue({
+    base: '8px',   // Padding más pequeño en móvil
+    md: '16px'     // Padding normal en desktop
+  });
+  const stackSpacing = useBreakpointValue({
+    base: 2,  // Menor espacio en móvil
+    md: 3     // Espacio normal en desktop
+  });
 
-  // Memoized style computations
-  const backgroundStyle = useMemo(() => ({
-    backdropFilter: `blur(${BACKDROP_BLUR})`,
-    boxShadow: `
-      0 4px 15px ${rgba(item.pulseColor, 0.3)},
-      0 1px 3px ${rgba(item.pulseColor, 0.2)},
-      inset 0 0 0 1px ${rgba(item.pulseColor, 0.1)}
-    `,
-  }), [item.pulseColor]);
+  const parallax = useParallax<HTMLDivElement>({
+    disabled: disableParallax || isReducedMotion,
+    speed: -5,
+    translateY: [-10, 10]
+  });
 
-  const iconStyle = useMemo(() => ({
-    filter: isHighlighted 
-      ? `drop-shadow(0 0 8px ${rgba(item.pulseColor, 0.6)})`
-      : 'none',
-    transition: `filter ${theme.transition.duration.normal}`,
-  }), [isHighlighted, item.pulseColor, theme.transition.duration.normal]);
+  // Intersection observer with threshold array for smoother animations
+  const [inViewRef, inView] = useInView({
+    threshold: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1],
+    triggerOnce: true,
+    delay: 100 * index
+  });
 
-  const textStyle = useMemo(() => ({
-    textShadow: isHighlighted 
-      ? `0 2px 4px ${rgba(item.pulseColor, 0.3)}`
-      : 'none',
-    transition: `all ${theme.transition.duration.normal}`,
-  }), [isHighlighted, item.pulseColor, theme.transition.duration.normal]);
+  // Enhanced theme values
+  const textColor = useColorModeValue('gray.800', 'whiteAlpha.900');
+  const activeTextColor = useColorModeValue(
+    darken(0.1, item.pulseColor),
+    lighten(0.1, item.pulseColor)
+  );
+  const iconConfig = useBreakpointValue(RESPONSIVE_CONFIG.icon) ?? RESPONSIVE_CONFIG.icon.base;
+  const containerConfig = useBreakpointValue(RESPONSIVE_CONFIG.container) ?? RESPONSIVE_CONFIG.container.base;
+  const textConfig = useBreakpointValue(RESPONSIVE_CONFIG.text) ?? RESPONSIVE_CONFIG.text.base;
+  const animationConfig = useBreakpointValue(RESPONSIVE_CONFIG.animation) ?? RESPONSIVE_CONFIG.animation.base;
 
-  // Optimized animation variants
-  const highlightAnimationVariants = useMemo(() => ({
-    initial: { opacity: 0, scale: 0.8 },
-    animate: { 
-      opacity: 1, 
-      scale: 1,
-      transition: { duration: 0.2 }
+  // Motion values for advanced interactions
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+  const rotateX = useTransform(mouseY, [-100, 100], [10, -10]);
+  const rotateY = useTransform(mouseX, [-100, 100], [-10, 10]);
+  const brightness = useTransform(
+    mouseY,
+    [-100, 0, 100],
+    [1.2, 1, 0.8]
+  );
+
+  // Spring animations for smooth interactions
+  const [spring, setSpring] = useSpring(() => ({
+    scale: 1,
+    rotate: 0,
+    config: isReducedMotion ? config.gentle : config.wobbly
+  }));
+
+  // Smooth motion values
+  const smoothRotateX = useFramerSpring(rotateX, {
+    stiffness: 300,
+    damping: 30
+  });
+  const smoothRotateY = useFramerSpring(rotateY, {
+    stiffness: 300,
+    damping: 30
+  });
+
+  // Enhanced gesture handling
+  const bind = useGesture({
+    onHover: ({ active }) => {
+      setIsHovered(active);
+      if (active) {
+        handleHoverStart();
+      } else {
+        handleHoverEnd();
+      }
     },
-    exit: { 
-      opacity: 0, 
-      scale: 0.8,
-      transition: { duration: 0.15 }
+    onMove: ({ xy: [x, y] }) => {
+      if (itemRef.current) {
+        const rect = itemRef.current.getBoundingClientRect();
+        mouseX.set(x - rect.left - rect.width / 2);
+        mouseY.set(y - rect.top - rect.height / 2);
+      }
     }
-  }), []);
+  });
 
-  const iconAnimationVariants = useMemo(() => ({
-    scale: isHighlighted ? HOVER_SCALE : 1,
-    rotate: isHovered ? ROTATION_DEGREES : 0,
-  }), [isHighlighted, isHovered]);
-
-  // Memoized handlers
-  const handleClick = useCallback(() => {
-    requestAnimationFrame(onClick);
-  }, [onClick]);
-
+  // Enhanced interaction handlers
   const handleHoverStart = useCallback(() => {
-    requestAnimationFrame(onHoverStart);
-  }, [onHoverStart]);
+    if (!isReducedMotion) {
+      setSpring({ 
+        scale: animationConfig.scale,
+        rotate: 5,
+        config: {
+          mass: 1,
+          tension: 200,
+          friction: 20
+        }
+      });
+    }
+    onOpen();
+  }, [setSpring, onOpen, isReducedMotion, animationConfig]);
 
   const handleHoverEnd = useCallback(() => {
-    requestAnimationFrame(onHoverEnd);
-  }, [onHoverEnd]);
+    if (!isReducedMotion) {
+      setSpring({ 
+        scale: 1,
+        rotate: 0,
+        config: {
+          mass: 1,
+          tension: 200,
+          friction: 20
+        }
+      });
+    }
+    onClose();
+  }, [setSpring, onClose, isReducedMotion]);
 
-  // Render optimization for active indicator
-  const ActiveIndicator = useMemo(() => {
-    if (!isActive) return null;
+  // Enhanced click handler with rich feedback
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    if (itemRef.current) {
+      const rect = itemRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      controls.start({
+        opacity: [0, 0.8, 0],
+        scale: [0.8, 1.4, 0],
+        x: x,
+        y: y,
+        transition: { 
+          duration: 0.6,
+          ease: [0.32, 0.72, 0, 1]
+        }
+      });
+    }
+    
+    onClick();
+  }, [onClick, controls]);
 
-    return (
-      <Box
-        position="absolute"
-        bottom={RESPONSIVE_CONFIG.indicators.bottom}
-        left="50%"
-        transform="translateX(-50%)"
-        height={RESPONSIVE_CONFIG.indicators.height}
-        width={RESPONSIVE_CONFIG.indicators.width}
-        borderRadius="full"
-        bg={`linear-gradient(to right, ${rgba(item.pulseColor, 0.8)}, ${rgba(item.pulseColor, 0.4)})`}
-        boxShadow={`0 0 10px ${rgba(item.pulseColor, 0.4)}, 0 0 5px ${rgba(item.pulseColor, 0.2)}`}
-      >
-        <Box
-          position="absolute"
-          inset={0}
-          borderRadius="full"
-          bg={`linear-gradient(to right, ${rgba(item.pulseColor, 1)}, ${rgba(item.pulseColor, 0.6)})`}
-          animation="pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite"
-          opacity={0.6}
-        />
-      </Box>
-    );
-  }, [isActive, item.pulseColor]);
+  // Keyboard navigation
+  useHotkeys(item.shortcut || '', onClick, [onClick]);
+
+  // Animation on scroll into view
+  useEffect(() => {
+    if (inView) {
+      controls.start('animate');
+    }
+  }, [controls, inView]);
+
+  // Memoized styles with enhanced visual effects and responsive width
+  const containerStyle = useMemo(() => ({
+    position: 'relative' as const,
+    borderRadius: 'full',
+    cursor: 'pointer',
+    width: containerWidth,
+    padding: containerPadding,
+    transition: `all ${theme.transition.duration.normal}`,
+    transform: isActive ? 'translateY(-2px)' : 'none',
+    ...VISUAL_EFFECTS.glassmorphism(item.pulseColor, isActive ? 1 : 0.5, isHovered)
+  }), [isActive, isHovered, item.pulseColor, theme.transition.duration.normal, containerWidth, containerPadding]);
 
   return (
-    <MotionBox
-      variants={itemVariants}
-      whileHover="hover"
-      whileTap="tap"
-      onClick={handleClick}
-      onHoverStart={handleHoverStart}
-      onHoverEnd={handleHoverEnd}
-      position="relative"
-      px={RESPONSIVE_CONFIG.paddings}
-      py={{ base: '0.25rem', md: '0.5rem' }}
-      role="button"
-      aria-pressed={isActive}
-      transition={`all ${theme.transition.duration.normal}`}
-      _hover={{ transform: 'translateY(-1px)' }}
-      style={{ willChange: 'transform' }}
+    <Tooltip
+      isDisabled={!showTooltip || isHovered || showText}
+      label={`${item.label} ${item.shortcut ? `(${item.shortcut})` : ''}`}
+      placement="right"
+      hasArrow
+      openDelay={400}
+      closeDelay={200}
+      gutter={16}
+      bg={transparentize(0.1, item.pulseColor)}
     >
-      <AnimatePresence>
-        {isHighlighted && (
+      <MotionBox
+        ref={useMergeRefs(itemRef, ref, inViewRef, parallax.ref)}
+        custom={index}
+        variants={ANIMATION_VARIANTS}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        whileHover="hover"
+        whileTap="tap"
+        style={{
+          ...containerStyle,
+          rotateX: smoothRotateX,
+          rotateY: smoothRotateY,
+          filter: `brightness(${brightness})`
+        }}
+        {...bind()}
+        onClick={handleClick}
+        className={className}
+        role="button"
+        aria-pressed={isActive}
+        tabIndex={0}
+      >
+        <HStack 
+          spacing={stackSpacing}
+          align="center" 
+          justify="center"
+          position="relative"
+          zIndex={1}
+          width="100%"
+        >
+          <AnimatedBox 
+            style={spring}
+            {...VISUAL_EFFECTS.item.glow(item.pulseColor)}
+          >
+            <Box
+              color={isActive ? activeTextColor : textColor}
+              transition="color 0.2s ease"
+            >
+              <item.icon 
+                {...iconConfig}
+                size={useBreakpointValue({ base: 20, md: 24 })}
+                aria-hidden="true"
+              />
+            </Box>
+          </AnimatedBox>
+
+          {/* Particle effects on hover */}
+          <AnimatePresence>
+            {isHovered && !isReducedMotion && (
+              <MemoizedParticleEffect
+                color={item.pulseColor}
+                direction="horizontal"
+                count={6}
+                size={6}
+                speed={0.8} 
+                shapes={['circle']}
+                blendMode="screen"
+                interaction={true}
+                enabled={true}
+                onComplete={() => console.log('Animation cycle completed')}
+                className="w-64 h-64"    
+                spread={100}
+                gravity={0.5}
+                turbulence={1.5}
+                fadeDistance={0.8}
+              />
+            )}
+          </AnimatePresence>
+
+          {/* Responsive text */}
+          {showText && (
+            <MotionText
+              fontSize={textConfig.size}
+              letterSpacing={textConfig.spacing}
+              fontWeight="semibold"
+              color={isActive ? activeTextColor : textColor}
+              maxW={containerConfig.maxW}
+              isTruncated
+              style={{
+                ...VISUAL_EFFECTS.text.glow(item.pulseColor, 3)
+              }}
+              animate={{
+                scale: isActive ? 1.05 : 1,
+                transition: ANIMATION_PRESETS.gentle
+              }}
+            >
+              {item.label}
+            </MotionText>
+          )}
+        </HStack>
+
+        {/* Active indicator with enhanced animation */}
+        <AnimatePresence>
+          {isActive && (
+            <MotionBox
+              position="absolute"
+              bottom="-7px"
+              left="50%"
+              height="2px"
+              initial={{ width: 0, x: '-50%', opacity: 0 }}
+              animate={{ 
+                width: '50%', 
+                x: '-50%',
+                opacity: 1,
+                transition: {
+                  type: 'spring',
+                  stiffness: 400,
+                  damping: 40
+                }
+              }}
+              exit={{ 
+                width: 0, 
+                x: '-50%', 
+                opacity: 0,
+                transition: {
+                  duration: 0.2,
+                  ease: 'easeInOut'
+                }
+              }}
+              style={{
+                background: `linear-gradient(
+                  to right,
+                  ${rgba(item.pulseColor, 1)},
+                  ${rgba(item.pulseColor, 0.5)}
+                )`,
+                borderRadius: 'full',
+                boxShadow: `
+                  0 0 10px ${rgba(item.pulseColor, 0.5)},
+                  0 0 20px ${rgba(item.pulseColor, 0.3)}
+                `
+              }}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Hover glow effect */}
+        <AnimatePresence>
+          {isHovered && (
+            <MotionBox
+              position="absolute"
+              inset={-2}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ 
+                opacity: 0.15, 
+                scale: 1,
+                transition: {
+                  duration: 0.3,
+                  ease: 'easeOut'
+                }
+              }}
+              exit={{ 
+                opacity: 0, 
+                scale: 1.2,
+                transition: {
+                  duration: 0.2,
+                  ease: 'easeIn'
+                }
+              }}
+              style={{
+                background: `radial-gradient(
+                  circle,
+                  ${rgba(item.pulseColor, 0.6)} 0%,
+                  transparent 70%
+                )`,
+                borderRadius: 'full',
+                pointerEvents: 'none'
+              }}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Click ripple effect */}
+        <Portal>
           <MotionBox
             position="absolute"
             inset={0}
-            variants={highlightAnimationVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
             borderRadius="full"
-            bg={item.gradient}
-            style={backgroundStyle}
+            animate={controls}
+            style={{
+              background: `radial-gradient(
+                circle,
+                ${rgba(item.pulseColor, 0.2)} 0%,
+                transparent 50%
+              )`,
+              pointerEvents: 'none',
+              zIndex: 0
+            }}
           />
-        )}
-      </AnimatePresence>
-
-      <HStack 
-        spacing={RESPONSIVE_CONFIG.spacings}
-        position="relative" 
-        zIndex={1}
-        justify="center"
-        align="center"
-      >
-        <MotionBox
-          animate={iconAnimationVariants}
-          transition={ANIMATION_CONFIG}
-        >
-          <Box
-            color={isHighlighted ? 'white' : textColor}
-            style={iconStyle}
-          >
-            <item.icon size={iconSize} />
-          </Box>
-        </MotionBox>
-
-        <MotionText
-          initial="hidden"
-          animate="visible"
-          exit="exit"
-          className="text-white font-semibold tracking-wider whitespace-nowrap overflow-hidden"
-          fontSize={RESPONSIVE_CONFIG.fontSizes}
-          style={textStyle}
-          maxW={RESPONSIVE_CONFIG.maxWidths}
-          isTruncated
-        >
-          {item.label}
-        </MotionText>
-      </HStack>
-
-      {ActiveIndicator}
-
-      <style>
-        {`
-          @keyframes pulse {
-            0%, 100% { 
-              transform: scale(1); 
-              opacity: 0.6; 
-            }
-            50% { 
-              transform: scale(1.5); 
-              opacity: 0; 
-            }
-          }
-        `}
-      </style>
-    </MotionBox>
+        </Portal>
+      </MotionBox>
+    </Tooltip>
   );
 });
 

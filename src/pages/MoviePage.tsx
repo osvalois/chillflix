@@ -37,7 +37,7 @@ const glassmorphismStyle = {
   backdropFilter: "blur(10px)",
   borderRadius: "20px",
   border: "1px solid rgba(255, 255, 255, 0.1)",
-  boxShadow: 
+  boxShadow:
     "0 4px 30px rgba(0, 0, 0, 0.1), " +
     "inset 0 0 20px rgba(255, 255, 255, 0.05), " +
     "0 0 0 1px rgba(255, 255, 255, 0.1)",
@@ -94,7 +94,7 @@ const MoviePage: React.FC = () => {
   const { data: movie, isLoading: isMovieLoading, error: movieError } = useQuery<CombinedContent, Error>(
     ['movie', tmdbId],
     () => fetchMovieDetails(tmdbId!),
-    { 
+    {
       enabled: !!tmdbId,
       onError: (error) => {
         console.error('Error fetching movie details:', error);
@@ -112,7 +112,7 @@ const MoviePage: React.FC = () => {
   const { data: credits, isLoading: isCreditsLoading } = useQuery<MovieCredits, Error>(
     ['credits', tmdbId],
     () => getMovieCredits(parseInt(tmdbId!, 10)),
-    { 
+    {
       enabled: !!tmdbId,
       onError: (error) => {
         console.error('Error fetching movie credits:', error);
@@ -123,7 +123,7 @@ const MoviePage: React.FC = () => {
   const { data: similarMovies, isLoading: isSimilarMoviesLoading } = useQuery<CombinedContent[], Error>(
     ['similarMovies', tmdbId],
     () => getSimilarMovies(parseInt(tmdbId!, 10)),
-    { 
+    {
       enabled: !!tmdbId,
       onError: (error) => {
         console.error('Error fetching similar movies:', error);
@@ -134,7 +134,7 @@ const MoviePage: React.FC = () => {
   const { data: mirrors, isLoading: isMirrorsLoading } = useQuery<Mirror[], Error>(
     ['mirrors', tmdbId],
     () => movieService.searchMirrors(tmdbId ?? ''),
-    { 
+    {
       enabled: !!movie,
       onError: (error) => {
         console.error('Error fetching mirrors:', error);
@@ -182,7 +182,7 @@ const MoviePage: React.FC = () => {
   const { data: movieInfo, isLoading: isMovieInfoLoading, error: movieInfoError } = useQuery<MovieInfo, Error>(
     ['movieInfo', selectedMirror?.infoHash],
     () => movieService.getMovieInfo(selectedMirror!.infoHash),
-    { 
+    {
       enabled: !!selectedMirror,
       retry: false,
       onError: (error) => {
@@ -351,7 +351,7 @@ const MoviePage: React.FC = () => {
               >
                 Back
               </Button>
-              
+
               {/* Video Player */}
               <MotionBox
                 {...glassmorphismStyle}
@@ -365,19 +365,19 @@ const MoviePage: React.FC = () => {
                   </Box>
                 ) : streamUrl ? (
                   <Suspense fallback={<Skeleton height="400px" width="100%" />}>
-                    <VideoPlayer 
-                        options={videoJsOptions}
-                        title={movie.title}
-                        onQualityChange={handleQualityChangeWrapper}
-                        onLanguageChange={handleLanguageChange}
-                        availableQualities={qualities}
-                        availableLanguages={languages}
-                        imdbId={movie.imdb_id || ''} posterUrl={''}                    />
+                    <VideoPlayer
+                      options={videoJsOptions}
+                      title={movie.title}
+                      onQualityChange={handleQualityChangeWrapper}
+                      onLanguageChange={handleLanguageChange}
+                      availableQualities={qualities}
+                      availableLanguages={languages}
+                      imdbId={movie.imdb_id || ''} posterUrl={''} />
                   </Suspense>
                 ) : (
-                  <Box 
-                    height="400px" 
-                    width="100%" 
+                  <Box
+                    height="400px"
+                    width="100%"
                     bgImage={`url(${posterUrl})`}
                     bgSize="cover"
                     bgPosition="center"
@@ -403,9 +403,9 @@ const MoviePage: React.FC = () => {
                 <Text fontSize="xl" fontWeight="bold" mb={4}>Watch Party</Text>
                 {!watchPartyId && !hasJoined && (
                   <HStack spacing={4} justifyContent="space-between">
-                    <CreateWatchParty 
-                      movieId={tmdbId!} 
-                      onWatchPartyCreated={handleCreateWatchParty} 
+                    <CreateWatchParty
+                      movieId={tmdbId!}
+                      onWatchPartyCreated={handleCreateWatchParty}
                     />
                     <JoinWatchParty onJoin={handleJoinWatchParty} />
                   </HStack>
@@ -431,36 +431,21 @@ const MoviePage: React.FC = () => {
                 transition={{ duration: 0.5 }}
               >
                 <Suspense fallback={<Skeleton height="200px" />}>
-                  <MovieHeader 
-                    movie={movie} 
-                    onTrailerPlay={() => {}} 
-                    isMobile={isMobile} 
+                  <MovieHeader
+                    movie={movie}
+                    onTrailerPlay={() => { }}
+                    isMobile={isMobile}
                     isLoading={false}
                     onChangeMirror={handleChangeMirror}
                     isChangingMirror={isChangingMirror}
                     currentMirrorIndex={currentMirrorIndex}
                     totalMirrors={mirrors?.length ?? 0}
-                    onOpenQualitySelector={() => {}}
+                    onOpenQualitySelector={() => { }}
                     isPlaying={isPlaying}
                     currentQuality={currentQuality}
                   />
                 </Suspense>
               </motion.div>
-
-              {/* Cast Section */}
-              <motion.div
-                ref={castRef}
-                initial={{ opacity: 0, y: 20 }}
-                animate={castInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.5 }}
-              >
-                {credits && (
-                  <Suspense fallback={<Skeleton height="200px" />}>
-                    <CastSection cast={credits.cast} isLoading={isCreditsLoading} />
-                  </Suspense>
-                )}
-              </motion.div>
-
               {/* Similar Movies Section */}
               <motion.div
                 ref={similarRef}
@@ -474,7 +459,20 @@ const MoviePage: React.FC = () => {
                   </Suspense>
                 )}
               </motion.div>
-
+              
+              {/* Cast Section */}
+              <motion.div
+                ref={castRef}
+                initial={{ opacity: 0, y: 20 }}
+                animate={castInView ? { opacity: 1, y: 0 } : {}}
+                transition={{ duration: 0.5 }}
+              >
+                {credits && (
+                  <Suspense fallback={<Skeleton height="200px" />}>
+                    <CastSection cast={credits.cast} isLoading={isCreditsLoading} />
+                  </Suspense>
+                )}
+              </motion.div>
               {/* Review Section */}
               <motion.div
                 ref={reviewRef}

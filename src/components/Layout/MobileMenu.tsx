@@ -13,7 +13,7 @@ import {
 import { useHeaderStyles } from '../../hooks/useHeaderStyles';
 import { useLocation } from 'react-router-dom';
 import Logo from '../UI/Logo';
-import { NavItem } from '../../header.types';
+import { NavItem } from '../../types';
 
 interface MobileMenuProps {
   isOpen: boolean;

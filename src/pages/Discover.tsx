@@ -9,10 +9,9 @@ import GlassmorphicBox from '../components/UI/GlassmorphicBox';
 const GenreExplorer = lazy(() => import('../components/Home/GenreExplorer'));
 const ContentCarousel = lazy(() => import('../components/Home/ContentCarousel'));
 
-export const Movies: React.FC = () => {
+export const Discover: React.FC = () => {
   const { 
     topRated, 
-    upcoming, 
     genres,
     isLoading,
     error,
@@ -65,11 +64,6 @@ export const Movies: React.FC = () => {
                   <ContentCarousel title="Top Rated" content={topRated} icon="FaStar" />
                 </GlassmorphicBox>
               )}
-              {upcoming.length > 0 && (
-                <GlassmorphicBox>
-                  <ContentCarousel title="Upcoming" content={upcoming} icon="FaCalendar" />
-                </GlassmorphicBox>
-              )}
               {genres.length > 0 && <GenreExplorer genres={genres} />}
             </Suspense>
           </VStack>
@@ -79,4 +73,4 @@ export const Movies: React.FC = () => {
   );
 };
 
-export default Movies;
+export default Discover;

@@ -4,12 +4,10 @@ import {
   Flex,
   HStack,
   useMediaQuery,
-  IconButton,
   useDisclosure,
   useBreakpointValue,
 } from "@chakra-ui/react";
 import { motion } from 'framer-motion';
-import { Menu as MenuIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ParallaxProvider, Parallax } from 'react-scroll-parallax';
 
@@ -61,7 +59,6 @@ const useSearchBarVisibility = () => {
 // Memorización de componentes puros
 const HeaderContent = React.memo(({ 
   isLargeScreen,
-  onMobileMenuOpen,
   handleNavigation,
   navItems,
   isSearchVisible,
@@ -96,15 +93,6 @@ const HeaderContent = React.memo(({
         w={{ base: "100%", sm: "auto" }}
         justifyContent={{ base: "space-between", sm: "flex-start" }}
       >
-        {!isLargeScreen && (
-          <IconButton
-            aria-label="Open menu"
-            icon={<MenuIcon size={24} />}
-            variant="ghost"
-            onClick={onMobileMenuOpen}
-            size="sm"
-          />
-        )}
 
         <Parallax translateX={[-5, 5]}>
           <MotionBox
@@ -120,15 +108,13 @@ const HeaderContent = React.memo(({
           </MotionBox>
         </Parallax>
 
-        {isLargeScreen && (
-          <DesktopNav
+        <DesktopNav
             navItems={navItems}
             handleNavigation={handleNavigation}
           />
-        )}
 
         {!isLargeScreen && (
-          <SearchBar />
+          <SearchBar/>
         )}
       </HStack>
 

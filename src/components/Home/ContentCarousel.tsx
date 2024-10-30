@@ -1,16 +1,22 @@
-import React, { useRef, useCallback, useMemo, useState, useEffect, useReducer } from 'react';
-import { Box, Flex, Heading, IconButton, useToken, Portal, useTheme, useToast } from '@chakra-ui/react';
+import React, { useRef, useCallback, useMemo, useState, useEffect } from 'react';
+import { Box, Flex, Heading, IconButton, useToken, Portal, useTheme } from '@chakra-ui/react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import type { Swiper as SwiperType } from 'swiper';
-import { Navigation, EffectCoverflow, Autoplay, Parallax, Keyboard, A11y, Virtual } from 'swiper/modules';
+import { Navigation, EffectCoverflow, Autoplay, Parallax } from 'swiper/modules';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import { FaFire, FaStar, FaHeart, FaCalendar, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
-import { useMediaQuery } from '@chakra-ui/react';
-import { ErrorBoundary } from 'react-error-boundary';
+import useSound from 'use-sound';
+import { useBreakpointValue } from '@chakra-ui/react';
+import { useDebounce } from 'use-debounce';
 import ContentCard from './ContentCard';
+// Style imports
+import 'swiper/css';
+import 'swiper/css/navigation';
+import 'swiper/css/effect-coverflow';
+import 'swiper/css/parallax';
 
-// Tipos mejorados
+// Types with stricter definitions
 interface ContentBase {
   id: number;
   title?: string;
@@ -31,33 +37,6 @@ interface ContentBase {
 
 export type CombinedContent = ContentBase;
 
-// Estado del carrusel
-interface CarouselState {
-  isLoading: boolean;
-  error: Error | null;
-  activeIndex: number;
-  isAnimating: boolean;
-  isAutoPlaying: boolean;
-  direction: 'prev' | 'next' | null;
-  touchStartX: number | null;
-  touchEndX: number | null;
-  lastInteractionTime: number;
-}
-
-// Acciones del reducer
-type CarouselAction =
-  | { type: 'START_LOADING' }
-  | { type: 'LOAD_SUCCESS' }
-  | { type: 'LOAD_ERROR'; payload: Error }
-  | { type: 'SET_ACTIVE_INDEX'; payload: number }
-  | { type: 'START_ANIMATION'; payload: 'prev' | 'next' }
-  | { type: 'END_ANIMATION' }
-  | { type: 'TOGGLE_AUTOPLAY' }
-  | { type: 'SET_TOUCH_START'; payload: number }
-  | { type: 'SET_TOUCH_END'; payload: number }
-  | { type: 'RESET_TOUCH' }
-  | { type: 'UPDATE_LAST_INTERACTION' };
-
 interface ContentCarouselProps {
   title: string;
   content: CombinedContent[];
@@ -68,13 +47,18 @@ interface ContentCarouselProps {
   onCardClick?: (content: CombinedContent) => void;
 }
 
-// Constantes
+interface CarouselState {
+  activeSlide: number;
+  isInteracting: boolean;
+  autoplayEnabled: boolean;
+  isTransitioning: boolean;
+  error: string | null;
+}
+
+// Constants
 const ANIMATION_DURATION = 0.3;
-const MIN_SWIPE_DISTANCE = 50;
-const SWIPE_VELOCITY_THRESHOLD = 0.5;
-const INTERACTION_TIMEOUT = 3000;
-const ERROR_RETRY_DELAY = 3000;
-const MAX_RETRIES = 3;
+const HOVER_DEBOUNCE_TIME = 100;
+const TRANSITION_LOCK_TIME = 300;
 
 const iconMap = {
   FaFire,
@@ -83,53 +67,59 @@ const iconMap = {
   FaCalendar,
 } as const;
 
-// Reducer para manejar el estado del carrusel
-const carouselReducer = (state: CarouselState, action: CarouselAction): CarouselState => {
-  switch (action.type) {
-    case 'START_LOADING':
-      return { ...state, isLoading: true, error: null };
-    case 'LOAD_SUCCESS':
-      return { ...state, isLoading: false };
-    case 'LOAD_ERROR':
-      return { ...state, isLoading: false, error: action.payload };
-    case 'SET_ACTIVE_INDEX':
-      return { ...state, activeIndex: action.payload };
-    case 'START_ANIMATION':
-      return { ...state, isAnimating: true, direction: action.payload };
-    case 'END_ANIMATION':
-      return { ...state, isAnimating: false, direction: null };
-    case 'TOGGLE_AUTOPLAY':
-      return { ...state, isAutoPlaying: !state.isAutoPlaying };
-    case 'SET_TOUCH_START':
-      return { ...state, touchStartX: action.payload };
-    case 'SET_TOUCH_END':
-      return { ...state, touchEndX: action.payload };
-    case 'RESET_TOUCH':
-      return { ...state, touchStartX: null, touchEndX: null };
-    case 'UPDATE_LAST_INTERACTION':
-      return { ...state, lastInteractionTime: Date.now() };
-    default:
-      return state;
-  }
+// Enhanced animations configuration
+const animations = {
+  slide: {
+    initial: { opacity: 0, y: 50 },
+    animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: -50 },
+  },
+  icon: {
+    initial: { rotate: 0 },
+    animate: { rotate: 360 },
+    transition: { duration: 20, repeat: Infinity, ease: "linear" },
+  },
 };
 
-// Componente de gestión de errores
-const ErrorFallback: React.FC<{ error: Error; resetErrorBoundary: () => void }> = ({
-  error,
-}) => {
-  const toast = useToast();
+// Enhanced carousel state management
+const useCarouselState = (initialAutoplay = false): [CarouselState, React.Dispatch<React.SetStateAction<CarouselState>>] => {
+  const [state, setState] = useState<CarouselState>({
+    activeSlide: 0,
+    isInteracting: false,
+    autoplayEnabled: initialAutoplay,
+    isTransitioning: false,
+    error: null,
+  });
+
+  return [state, setState];
+};
+
+const useCarouselBreakpoints = () => {
+  const isMobile = useBreakpointValue({ base: true, md: false });
+  const isTablet = useBreakpointValue({ md: true, lg: false });
+  
+  return useMemo(() => ({
+    isMobile,
+    isTablet,
+    slidesPerView: isMobile ? 1 : isTablet ? 1.5 : 2.5,
+  }), [isMobile, isTablet]);
+};
+
+// Enhanced error boundary component
+const ErrorBoundary: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
-    toast({
-      title: "Error en el carrusel",
-      description: error.message,
-      status: "error",
-      duration: 5000,
-      isClosable: true,
-    });
-  }, [error, toast]);
+    const handleError = () => setHasError(true);
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
 
-  return null;
+  if (hasError) {
+    return <Box p={4}>An error occurred. Please try again.</Box>;
+  }
+
+  return <>{children}</>;
 };
 
 const ContentCarousel: React.FC<ContentCarouselProps> = ({
@@ -141,442 +131,431 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
   onSlideChange,
   onCardClick,
 }) => {
-  // Referencias y estado
+  // Enhanced refs and state management
   const swiperRef = useRef<SwiperType | null>(null);
-  const retryCountRef = useRef(0);
-  const [showControls, setShowControls] = useState(false);
+  const transitionLockRef = useRef<boolean>(false);
+  const [state, setState] = useCarouselState(autoplay);
+  const [debouncedIsInteracting] = useDebounce(state.isInteracting, HOVER_DEBOUNCE_TIME);
 
-  // Estado principal usando reducer
-  const [state, dispatch] = useReducer(carouselReducer, {
-    isLoading: false,
-    error: null,
-    activeIndex: 0,
-    isAnimating: false,
-    isAutoPlaying: autoplay,
-    direction: null,
-    touchStartX: null,
-    touchEndX: null,
-    lastInteractionTime: Date.now(),
-  });
-
-  // Hooks responsivos
-  const [isLargerThan768] = useMediaQuery("(min-width: 768px)");
-  const [isLargerThan1024] = useMediaQuery("(min-width: 1024px)");
-  const [isLargerThan1440] = useMediaQuery("(min-width: 1440px)");
-  const toast = useToast();
-
-  const { ref, inView } = useInView({
-    threshold: 0.2,
-    triggerOnce: true,
-  });
-
+  // Hooks
+  const { ref, inView } = useInView({ threshold: 0.2, triggerOnce: true });
   const theme = useTheme();
   const [purple400, pink400] = useToken('colors', ['purple.400', 'pink.400']);
+  const { isMobile, slidesPerView } = useCarouselBreakpoints();
 
-  // Configuraciones responsivas
-  const slidesPerView = useMemo(() => {
-    if (!isLargerThan768) return 1;
-    if (!isLargerThan1024) return 2;
-    if (!isLargerThan1440) return 2.5;
-    return 3;
-  }, [isLargerThan768, isLargerThan1024, isLargerThan1440]);
-
-  const spacing = useMemo(() => {
-    if (!isLargerThan768) return 10;
-    if (!isLargerThan1024) return 20;
-    return 30;
-  }, [isLargerThan768, isLargerThan1024]);
-
-  // Manejadores de eventos táctiles optimizados
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    dispatch({ type: 'SET_TOUCH_START', payload: e.touches[0].clientX });
-    dispatch({ type: 'UPDATE_LAST_INTERACTION' });
-  }, []);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!state.touchStartX || state.isAnimating || !swiperRef.current) return;
-
-    const currentX = e.touches[0].clientX;
-    dispatch({ type: 'SET_TOUCH_END', payload: currentX });
-
-    const distance = currentX - state.touchStartX;
-    const velocity = Math.abs(distance) / e.timeStamp;
-
-    if (Math.abs(distance) > MIN_SWIPE_DISTANCE && velocity > SWIPE_VELOCITY_THRESHOLD) {
-      try {
-        if (distance > 0) {
-          dispatch({ type: 'START_ANIMATION', payload: 'prev' });
-          swiperRef.current.slidePrev();
-        } else {
-          dispatch({ type: 'START_ANIMATION', payload: 'next' });
-          swiperRef.current.slideNext();
-        }
-      } catch (error) {
-        console.error('Error during slide transition:', error);
-        toast({
-          title: "Error en la navegación",
-          description: "No se pudo cambiar de slide",
-          status: "error",
-          duration: 3000,
-        });
-      } finally {
-        dispatch({ type: 'RESET_TOUCH' });
-      }
+  // Optimized sound effects with error handling
+  const [playHover] = useSound('/assets/sounds/hover.mp3', {
+    volume: 0.3,
+    preload: false,
+    sprite: {
+      hover: [0, 300]
     }
-  }, [state.touchStartX, state.isAnimating, toast]);
-
-  // Manejador de navegación mejorado
-  const handleNavigation = useCallback((direction: 'prev' | 'next') => {
-    if (!swiperRef.current || state.isAnimating) return;
-
-    try {
-      dispatch({ type: 'START_ANIMATION', payload: direction });
-      dispatch({ type: 'UPDATE_LAST_INTERACTION' });
-
-      if (direction === 'prev') {
-        swiperRef.current.slidePrev();
-      } else {
-        swiperRef.current.slideNext();
-      }
-
-      setTimeout(() => {
-        dispatch({ type: 'END_ANIMATION' });
-      }, ANIMATION_DURATION * 1000);
-    } catch (error) {
-      console.error('Navigation error:', error);
-      toast({
-        title: "Error en la navegación",
-        description: "Intente nuevamente",
-        status: "error",
-        duration: 3000,
-      });
+  });
+  const [playClick] = useSound('/assets/sounds/click.mp3', {
+    volume: 0.4,
+    preload: false,
+    sprite: {
+      click: [0, 300]
     }
-  }, [state.isAnimating, toast]);
+  });
 
-  // Configuración de Swiper mejorada
-  const swiperParams = useMemo(() => ({
-    modules: [Navigation, EffectCoverflow, Autoplay, Parallax, Keyboard, A11y, Virtual],
-    spaceBetween: spacing,
+  // Enhanced Swiper configuration
+  const swiperConfig = useMemo(() => ({
+    modules: [Navigation, EffectCoverflow, Autoplay, Parallax],
+    spaceBetween: 30,
     slidesPerView,
     centeredSlides: true,
     loop: true,
     parallax: true,
-    virtual: true,
     effect: "coverflow" as const,
     coverflowEffect: {
-      rotate: isLargerThan768 ? 35 : 25,
+      rotate: 35,
       stretch: 0,
-      depth: isLargerThan768 ? 100 : 50,
+      depth: 100,
       modifier: 1.5,
       slideShadows: true,
     },
-    autoplay: state.isAutoPlaying ? {
+    autoplay: state.autoplayEnabled && !debouncedIsInteracting ? {
       delay: interval,
       disableOnInteraction: false,
       pauseOnMouseEnter: true,
-      waitForTransition: true,
     } : false,
     navigation: false,
     grabCursor: true,
-    keyboard: {
-      enabled: true,
-      onlyInViewport: true,
-    },
+    keyboard: { enabled: true, onlyInViewport: true },
     observer: true,
     observeParents: true,
     watchSlidesProgress: true,
-    preventClicksPropagation: true,
-    preventClicks: false,
-    touchReleaseOnEdges: true,
-    resistance: true,
-    resistanceRatio: 0.85,
-    on: {
-      touchEnd: () => {
-        dispatch({ type: 'RESET_TOUCH' });
-      },
-      slideChange: () => {
-        if (swiperRef.current) {
-          dispatch({ type: 'SET_ACTIVE_INDEX', payload: swiperRef.current.realIndex });
-          onSlideChange?.(swiperRef.current.realIndex);
-        }
-      },
-      error: (error: Error) => {
-        console.error('Swiper error:', error);
-        if (retryCountRef.current < MAX_RETRIES) {
-          retryCountRef.current++;
-          setTimeout(() => {
-            swiperRef.current?.update();
-          }, ERROR_RETRY_DELAY);
-        } else {
-          dispatch({ type: 'LOAD_ERROR', payload: error });
-        }
-      },
-    },
-  }), [spacing, slidesPerView, state.isAutoPlaying, interval, isLargerThan768, onSlideChange]);
+    preventInteractionOnTransition: true,
+    speed: 500,
+    touchRatio: 1,
+    threshold: 5,
+  }), [state.autoplayEnabled, interval, debouncedIsInteracting, slidesPerView]);
 
-  // Componente de navegación optimizado
-  const NavButton = useCallback(({ direction }: { direction: 'prev' | 'next' }) => (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: showControls ? 1 : 0 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: ANIMATION_DURATION }}
-    >
-      <IconButton
-        aria-label={`${direction} slide`}
-        icon={direction === 'prev' ? <FaChevronLeft /> : <FaChevronRight />}
-        position="absolute"
-        top="50%"
-        transform="translateY(-50%)"
-        zIndex={2}
-        {...(direction === 'prev' ? { left: 2 } : { right: 2 })}
-        size={isLargerThan768 ? "lg" : "md"}
-        variant="ghost"
-        colorScheme="whiteAlpha"
-        bg="rgba(0, 0, 0, 0.6)"
-        backdropFilter="blur(4px)"
-        boxShadow={theme.shadows.lg}
-        onClick={() => handleNavigation(direction)}
-        _hover={{
-          bg: "rgba(0, 0, 0, 0.8)",
-          transform: "translateY(-50%) scale(1.1)",
-        }}
-        _active={{
-          transform: "translateY(-50%) scale(0.95)",
-        }}
-        display={isLargerThan768 ? "flex" : "none"}
-      />
-    </motion.div>
-  ), [showControls, isLargerThan768, handleNavigation, theme.shadows.lg]);
+  // Enhanced slide change handler with error prevention
+  const handleSlideChange = useCallback((swiper: SwiperType) => {
+    if (transitionLockRef.current) return;
 
-  // Efectos y limpieza
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!showControls) return;
-      if (e.key === 'ArrowLeft') handleNavigation('prev');
-      if (e.key === 'ArrowRight') handleNavigation('next');
+    try {
+      const newIndex = swiper.realIndex;
+      
+      if (newIndex !== state.activeSlide) {
+        transitionLockRef.current = true;
+        
+        setState(prev => ({
+          ...prev,
+          activeSlide: newIndex,
+          isTransitioning: true,
+          error: null
+        }));
+
+        onSlideChange?.(newIndex);
+        playClick();
+
+        // Release transition lock after delay
+        setTimeout(() => {
+          transitionLockRef.current = false;
+          setState(prev => ({
+            ...prev,
+            isTransitioning: false
+          }));
+        }, TRANSITION_LOCK_TIME);
+      }
+    } catch (error) {
+      console.error('Slide change error:', error);
+      setState(prev => ({
+        ...prev,
+        error: 'Failed to change slide'
+      }));
+    }
+  }, [state.activeSlide, onSlideChange, playClick]);
+
+  // Enhanced interaction handler
+  const handleInteraction = useCallback((type: 'enter' | 'leave') => {
+    if (state.isTransitioning) return;
+
+    try {
+      setState(prev => ({
+        ...prev,
+        isInteracting: type === 'enter',
+        autoplayEnabled: type === 'leave' && autoplay,
+        error: null
+      }));
+
+      if (type === 'enter') {
+        playHover();
+      }
+    } catch (error) {
+      console.error('Interaction error:', error);
+      setState(prev => ({
+        ...prev,
+        error: 'Failed to handle interaction'
+      }));
+    }
+  }, [state.isTransitioning, autoplay, playHover]);
+
+  // Enhanced navigation buttons with error handling
+  const NavigationButton = useMemo(() => {
+    return ({ direction }: { direction: 'prev' | 'next' }) => {
+      const handleClick = () => {
+        if (!swiperRef.current || state.isTransitioning) return;
+
+        try {
+          direction === 'prev'
+            ? swiperRef.current.slidePrev()
+            : swiperRef.current.slideNext();
+        } catch (error) {
+          console.error('Navigation error:', error);
+          setState(prev => ({
+            ...prev,
+            error: 'Failed to navigate'
+          }));
+        }
+      };
+
+      return (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: ANIMATION_DURATION }}
+        >
+          <IconButton
+            aria-label={`${direction} slide`}
+            icon={direction === 'prev' ? <FaChevronLeft /> : <FaChevronRight />}
+            position="absolute"
+            top="50%"
+            transform="translateY(-50%)"
+            zIndex={2}
+            {...(direction === 'prev' ? { left: 4 } : { right: 4 })}
+            size={isMobile ? "md" : "lg"}
+            variant="ghost"
+            colorScheme="whiteAlpha"
+            bg="rgba(0, 0, 0, 0.6)"
+            backdropFilter="blur(4px)"
+            boxShadow={theme.shadows.lg}
+            _hover={{
+              bg: "rgba(0, 0, 0, 0.8)",
+              transform: "translateY(-50%) scale(1.1)",
+            }}
+            onClick={handleClick}
+            onMouseEnter={() => handleInteraction('enter')}
+            onMouseLeave={() => handleInteraction('leave')}
+            isDisabled={state.isTransitioning}
+          />
+        </motion.div>
+      );
     };
+  }, [handleInteraction, isMobile, state.isTransitioning, theme.shadows.lg]);
 
-    window.addEventListener('keydown', handleKeyDown);
+  // Enhanced content rendering with error handling
+  const renderContent = useMemo(() => (
+    content.map((item: CombinedContent) => (
+      <SwiperSlide
+        key={item.id}
+        data-swiper-parallax="-300"
+      >
+        <ErrorBoundary>
+          <Box
+            p={4}
+            transition={`all ${ANIMATION_DURATION}s cubic-bezier(0.4, 0, 0.2, 1)`}
+            _hover={{ transform: 'scale(1.02)' }}
+            position="relative"
+            overflow="hidden"
+            onClick={() => !state.isTransitioning && onCardClick?.(item)}
+            cursor={state.isTransitioning ? "wait" : "pointer"}
+            role="group"
+          >
+            <ContentCard
+              content={item}
+              isActive={state.activeSlide === content.indexOf(item)}
+            />
+          </Box>
+        </ErrorBoundary>
+      </SwiperSlide>
+    ))
+  ), [content, state.activeSlide, state.isTransitioning, onCardClick]);
+
+  // Cleanup effect
+  useEffect(() => {
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      if (swiperRef.current?.autoplay) {
-        swiperRef.current.autoplay.stop();
+      if (swiperRef.current) {
+        swiperRef.current.destroy(true, true);
       }
     };
-  }, [handleNavigation, showControls]);
+  }, []);
 
-  // Auto-reactivación del autoplay después de la inactividad
-// Auto-reactivación del autoplay después de la inactividad
-useEffect(() => {
-  if (!autoplay) return;
-
-  const checkInactivity = setInterval(() => {
-    const timeSinceLastInteraction = Date.now() - state.lastInteractionTime;
-    if (timeSinceLastInteraction > INTERACTION_TIMEOUT && !state.isAutoPlaying) {
-      dispatch({ type: 'TOGGLE_AUTOPLAY' });
-    }
-  }, 1000);
-
-  return () => clearInterval(checkInactivity);
-}, [autoplay, state.lastInteractionTime, state.isAutoPlaying]);
-
-// Gestión del estado de carga inicial
-useEffect(() => {
-  if (!content.length) {
-    dispatch({ type: 'LOAD_ERROR', payload: new Error('No hay contenido disponible') });
-    return;
-  }
-
-  dispatch({ type: 'START_LOADING' });
-  try {
-    // Precarga de imágenes para una experiencia más fluida
-    const preloadImages = async () => {
-      const imagePromises = content.map((item) => {
-        return new Promise((resolve) => {
-          if (item.backdrop_path || item.poster_path) {
-            const img = new Image();
-            img.onload = () => resolve(true);
-            img.onerror = () => resolve(false);
-            img.src = item.backdrop_path || item.poster_path || '';
-          } else {
-            resolve(false);
-          }
-        });
-      });
-
-      await Promise.all(imagePromises);
-      dispatch({ type: 'LOAD_SUCCESS' });
-    };
-
-    preloadImages();
-  } catch (error) {
-    dispatch({ type: 'LOAD_ERROR', payload: error as Error });
-  }
-}, [content]);
-
-return (
-  <ErrorBoundary
-    FallbackComponent={ErrorFallback}
-    onReset={() => {
-      retryCountRef.current = 0;
-      dispatch({ type: 'LOAD_SUCCESS' });
-    }}
-  >
-    <AnimatePresence>
-      <motion.div
-        ref={ref}
-        initial="initial"
-        animate={inView ? "animate" : "initial"}
-        exit="exit"
-        variants={{
-          initial: { opacity: 0, y: 50 },
-          animate: { opacity: 1, y: 0 },
-          exit: { opacity: 0, y: -50 },
-        }}
-        transition={{ duration: ANIMATION_DURATION }}
-      >
-        <Flex
-          direction="column"
-          mb={8}
-          position="relative"
-          onMouseEnter={() => {
-            setShowControls(true);
-            if (state.isAutoPlaying) {
-              dispatch({ type: 'TOGGLE_AUTOPLAY' });
-            }
-          }}
-          onMouseLeave={() => {
-            setShowControls(false);
-            const timeSinceLastInteraction = Date.now() - state.lastInteractionTime;
-            if (timeSinceLastInteraction > INTERACTION_TIMEOUT) {
-              dispatch({ type: 'TOGGLE_AUTOPLAY' });
-            }
-          }}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={() => dispatch({ type: 'RESET_TOUCH' })}
+  return (
+    <ErrorBoundary>
+      <AnimatePresence>
+        <motion.div
+          ref={ref}
+          initial="initial"
+          animate={inView ? "animate" : "initial"}
+          exit="exit"
+          variants={animations.slide}
+          transition={{ duration: ANIMATION_DURATION }}
         >
-          {/* Sección de título e icono con animación mejorada */}
           <Flex
-            align="center"
-            mb={6}
-            p={4}
-            borderRadius="xl"
-            backdropFilter="blur(8px)"
+            direction="column"
+            mb={16}
             position="relative"
-            sx={{
-              '&::before': {
+          >
+            {/* Header Section */}
+            <Flex
+              align="center"
+              mb={8}
+              p={4}
+              borderRadius="xl"
+              backdropFilter="blur(8px)"
+              position="relative"
+              _before={{
                 content: '""',
                 position: 'absolute',
                 inset: 0,
+                bgGradient: `linear(to-r, ${purple400}, ${pink400})`,
+                opacity: 0.1,
                 borderRadius: 'xl',
-                background: `linear-gradient(135deg, ${purple400}20, ${pink400}20)`,
-                filter: 'blur(8px)',
-                zIndex: -1,
-              }
-            }}
-          >
-            <motion.div
-              animate={{
-                rotate: 360,
-                transition: {
-                  duration: 20,
-                  repeat: Infinity,
-                  ease: "linear"
-                }
+                filter: 'blur(2px)',
               }}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
             >
-              <Box
-                as={iconMap[icon]}
-                color="white"
-                fontSize="2xl"
-                p={4}
-                bg={`linear-gradient(45deg, ${purple400}, ${pink400})`}
-                borderRadius="full"
-                boxShadow={theme.shadows.lg}
-              />
-            </motion.div>
-            
-            <Heading
-              size={isLargerThan768 ? "2xl" : "xl"}
-              ml={4}
-              bgGradient={`linear(to-r, ${purple400}, ${pink400})`}
-              bgClip="text"
-              fontWeight="extrabold"
-              letterSpacing="tight"
-              _hover={{ letterSpacing: "wide", transition: "all 0.3s ease" }}
-            >
-              {title}
-            </Heading>
-          </Flex>
-
-          {/* Sección del carrusel con gestión mejorada de estados */}
-          <Box
-            position="relative"
-            px={isLargerThan768 ? 6 : 2}
-            mx={isLargerThan768 ? 0 : -2}
-          >
-            {state.isLoading ? (
-              <Flex justify="center" align="center" minH="300px">
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                >
-                  <Box
-                    as={FaFire}
-                    color={purple400}
-                    fontSize="3xl"
-                  />
-                </motion.div>
-              </Flex>
-            ) : (
-              <Swiper
-                {...swiperParams}
-                onSwiper={(swiper) => {
-                  swiperRef.current = swiper;
+              <motion.div
+                variants={animations.icon}
+                style={{
+                  background: `linear-gradient(45deg, ${purple400}, ${pink400})`,
+                  width: "70px",
+                  height: "70px",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginRight: "24px",
+                  boxShadow: theme.shadows.lg,
                 }}
               >
-                {content.map((item) => (
-                  <SwiperSlide key={item.id}>
-                    <motion.div
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <Box
-                        p={2}
-                        cursor="pointer"
-                        onClick={() => {
-                          dispatch({ type: 'UPDATE_LAST_INTERACTION' });
-                          onCardClick?.(item);
-                        }}
-                        role="group"
-                        position="relative"
-                        overflow="hidden"
-                      >
-                        <ContentCard 
-                          content={item}
-                          isActive={state.activeIndex === content.indexOf(item)}
-                        />
-                      </Box>
-                    </motion.div>
-                  </SwiperSlide>
-                ))}
-              </Swiper>
-            )}
+                <Box
+                  as={iconMap[icon]}
+                  color="white"
+                  fontSize="2xl"
+                />
+              </motion.div>
 
-            <Portal>
-              <NavButton direction="prev" />
-              <NavButton direction="next" />
-            </Portal>
-          </Box>
-        </Flex>
-      </motion.div>
-    </AnimatePresence>
-  </ErrorBoundary>
-);
+              <Heading
+                size={isMobile ? "xl" : "2xl"}
+                bgGradient={`linear(to-r, ${purple400}, ${pink400})`}
+                bgClip="text"
+                fontWeight="extrabold"
+                letterSpacing="tight"
+                textShadow="2px 2px 4px rgba(0,0,0,0.1)"
+                transition="all 0.3s ease"
+                _hover={{
+                  letterSpacing: "wider",
+                  transform: "scale(1.01)",
+                }}
+              >
+                {title}
+              </Heading>
+            </Flex>
+
+            {/* Carousel Section */}
+            <Box
+              position="relative"
+              px={isMobile ? 2 : 6}
+              mx={isMobile ? -4 : 0}
+              onMouseEnter={() => handleInteraction('enter')}
+              onMouseLeave={() => handleInteraction('leave')}
+              sx={{
+                '& .swiper-slide': {
+                  transition: `all ${ANIMATION_DURATION}s cubic-bezier(0.4, 0, 0.2, 1)`,
+                  filter: 'brightness(0.7) blur(1px)',
+                  transform: 'scale(0.95)',
+                },
+                '& .swiper-slide-active': {
+                  filter: 'brightness(1) blur(0px)',
+                  transform: 'scale(1.05)',
+                  zIndex: 1,
+                  pointerEvents: state.isTransitioning ? 'none' : 'auto',
+                },
+                '& .swiper-slide-prev, & .swiper-slide-next': {
+                  filter: 'brightness(0.85) blur(0.5px)',
+                  transform: 'scale(0.98)',
+                  pointerEvents: state.isTransitioning ? 'none' : 'auto',
+                },
+                // Prevent interaction during transitions
+                '& .swiper-wrapper': {
+                  pointerEvents: state.isTransitioning ? 'none' : 'auto',
+                },
+                // Improved transition handling
+                '& .swiper-slide-transform': {
+                  transition: `all ${ANIMATION_DURATION}s cubic-bezier(0.4, 0, 0.2, 1)`,
+                },
+                // Better visual feedback during transitions
+                '& .swiper-slide-shadow-left, & .swiper-slide-shadow-right': {
+                  transition: `opacity ${ANIMATION_DURATION}s ease-in-out`,
+                },
+              }}
+            >
+              <ErrorBoundary>
+                <Swiper
+                  {...swiperConfig}
+                  onSwiper={(swiper) => {
+                    swiperRef.current = swiper;
+                    // Initialize swiper with safety checks
+                    try {
+                      swiper.on('beforeTransitionStart', () => {
+                        setState(prev => ({
+                          ...prev,
+                          isTransitioning: true
+                        }));
+                      });
+                      
+                      swiper.on('transitionEnd', () => {
+                        // Delay transition end to prevent rapid state changes
+                        setTimeout(() => {
+                          setState(prev => ({
+                            ...prev,
+                            isTransitioning: false
+                          }));
+                        }, 50);
+                      });
+
+                      // Handle swiper errors
+                    } catch (error) {
+                      console.error('Swiper initialization error:', error);
+                    }
+                  }}
+                  onSlideChange={handleSlideChange}
+                  // Additional event handlers for better stability
+                  onTouchStart={() => {
+                    setState(prev => ({
+                      ...prev,
+                      isInteracting: true
+                    }));
+                  }}
+                  onTouchEnd={() => {
+                    setTimeout(() => {
+                      setState(prev => ({
+                        ...prev,
+                        isInteracting: false
+                      }));
+                    }, TRANSITION_LOCK_TIME);
+                  }}
+                  // Prevent multiple slide changes during transition
+                  allowTouchMove={!state.isTransitioning}
+                  // Better touch handling
+                  touchStartPreventDefault={true}
+                  touchStartForcePreventDefault={true}
+                  resistance={true}
+                  resistanceRatio={0.85}
+                >
+                  {renderContent}
+                </Swiper>
+
+                <Portal>
+                  <AnimatePresence>
+                    {!state.isTransitioning && (
+                      <>
+                        <NavigationButton direction="prev" />
+                        <NavigationButton direction="next" />
+                      </>
+                    )}
+                  </AnimatePresence>
+                </Portal>
+
+                {/* Error Message Display */}
+                {state.error && (
+                  <Box
+                    position="absolute"
+                    bottom={4}
+                    left="50%"
+                    transform="translateX(-50%)"
+                    bg="red.500"
+                    color="white"
+                    px={4}
+                    py={2}
+                    borderRadius="md"
+                    zIndex={1000}
+                  >
+                    {state.error}
+                  </Box>
+                )}
+              </ErrorBoundary>
+            </Box>
+          </Flex>
+        </motion.div>
+      </AnimatePresence>
+    </ErrorBoundary>
+  );
 };
 
-export default React.memo(ContentCarousel);
+// Memoize the entire component for better performance
+export default React.memo(ContentCarousel, (prevProps, nextProps) => {
+  // Custom comparison function to prevent unnecessary re-renders
+  return (
+    prevProps.title === nextProps.title &&
+    prevProps.icon === nextProps.icon &&
+    prevProps.content === nextProps.content &&
+    prevProps.autoplay === nextProps.autoplay &&
+    prevProps.interval === nextProps.interval
+  );
+});

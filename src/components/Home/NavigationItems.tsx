@@ -1,6 +1,6 @@
 // components/Header/NavigationItems.tsx
-import { Home, Film, User } from 'lucide-react';
-import { NavItem } from '../../header.types';
+import { Home, User, CompassIcon } from 'lucide-react';
+import { NavItem } from '../../types';
 
 export const useNavigationItems = (): NavItem[] => {
   return [
@@ -15,11 +15,12 @@ export const useNavigationItems = (): NavItem[] => {
         border: '1px solid rgba(255, 255, 255, 0.18)'
       },
       pulseColor: '#00F5A0',
+      shortcut: ''
     },
     {
-      icon: Film,
-      label: 'Movies',
-      path: '/movies',
+      icon: CompassIcon,
+      label: 'Discover',
+      path: '/discover',
       gradient: 'linear-gradient(135deg, #FF0080 0%, #7928CA 100%)',
       glassEffect: {
         background: 'rgba(255, 255, 255, 0.1)',
@@ -27,6 +28,7 @@ export const useNavigationItems = (): NavItem[] => {
         border: '1px solid rgba(255, 255, 255, 0.18)'
       },
       pulseColor: '#FF0080',
+      shortcut: ''
     },
     {
       icon: User,
@@ -39,7 +41,7 @@ export const useNavigationItems = (): NavItem[] => {
         border: '1px solid rgba(255, 255, 255, 0.18)'
       },
       pulseColor: '#00DFD8',
-      
+      shortcut: ''
     }
   ];
 };

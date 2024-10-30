@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Modal,
@@ -16,43 +16,49 @@ import {
   Spinner,
   useDisclosure,
   Fade,
+  useColorMode,
+  IconButton,
+  Tooltip,
 } from '@chakra-ui/react';
 import { animated } from 'react-spring';
 import { useInView } from 'react-intersection-observer';
-import 'swiper/css';
-import 'swiper/css/pagination';
-import 'swiper/css/navigation';
-import 'swiper/css/effect-coverflow';
-import { Film, Tv } from 'lucide-react';
+import { Film, Tv, Moon, Sun, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useDebounce } from 'use-debounce';
 import SearchInput from './SearchInput';
 import tmdbService from '../../services/tmdbService';
 import { CombinedContent, SearchModalProps } from '../../types';
+import { LazyLoadImage } from 'react-lazy-load-image-component';
+import 'react-lazy-load-image-component/src/effects/blur.css';
 
-const AnimatedBox = chakra(animated(Box as any));
+const AnimatedBox = chakra(animated(Box));
 const MotionBox = motion(Box as any);
 
+const ITEMS_PER_PAGE = 20;
 const SearchModal: React.FC<SearchModalProps> = ({
   isOpen,
   onClose,
   searchHistory,
-  onHistorySelect,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
   const [results, setResults] = useState<CombinedContent[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isError, setIsError] = useState(false);
   const [page, setPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(false);
   const [trendingContent, setTrendingContent] = useState<CombinedContent[]>([]);
-  console.log(trendingContent);
+  
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-
+  const { colorMode, toggleColorMode } = useColorMode();
+  // Theme-aware styles
   const theme = useTheme();
   const bgColor = useColorModeValue('rgba(255, 255, 255, 0.1)', 'rgba(26, 32, 44, 0.1)');
   const textColor = useColorModeValue('gray.800', 'white');
   const cardBgColor = useColorModeValue('rgba(255, 255, 255, 0.7)', 'rgba(26, 32, 44, 0.7)');
   const accentColor = theme.colors.blue[500];
+  
   const glassEffect = useMemo(() => ({
     backdropFilter: 'blur(16px)',
     boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1)',
@@ -61,9 +67,10 @@ const SearchModal: React.FC<SearchModalProps> = ({
     background: `linear-gradient(135deg, ${bgColor}, rgba(255, 255, 255, 0.05))`,
   }), [bgColor]);
 
+  // Infinite scroll setup
   const [ref, inView] = useInView({
     threshold: 0.1,
-    triggerOnce: false,
+    rootMargin: '100px',
   });
 
   const { isOpen: isResultsVisible, onOpen: showResults, onClose: hideResults } = useDisclosure();
@@ -85,39 +92,45 @@ const SearchModal: React.FC<SearchModalProps> = ({
 
   const handleSearchChange = useCallback(async (term: string) => {
     setSearchTerm(term);
-    setPage(1);
-    onHistorySelect(term);
-
     if (term.trim() === '') {
       setResults([]);
       hideResults();
       return;
     }
+  }, [hideResults]);
 
-    setIsLoading(true);
-    setIsError(false);
+  useEffect(() => {
+    const fetchResults = async () => {
+      if (!debouncedSearchTerm.trim()) return;
 
-    try {
-      const newResults = await tmdbService.searchAllContent(term, 1);
-      setResults(newResults);
-      setHasNextPage(newResults.length === 20);
-      showResults();
-    } catch (error) {
-      console.error('Error fetching search results:', error);
-      setIsError(true);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [onHistorySelect, hideResults, showResults]);
+      setIsLoading(true);
+      setIsError(false);
+      setPage(1);
+
+      try {
+        const newResults = await tmdbService.searchAllContent(debouncedSearchTerm, 1);
+        setResults(newResults);
+        setHasNextPage(newResults.length === ITEMS_PER_PAGE);
+        showResults();
+      } catch (error) {
+        console.error('Error fetching search results:', error);
+        setIsError(true);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchResults();
+  }, [debouncedSearchTerm, showResults]);
 
   const handleFetchNextPage = useCallback(async () => {
-    if (hasNextPage && !isLoading) {
+    if (hasNextPage && !isLoading && debouncedSearchTerm) {
       setIsLoading(true);
       try {
         const nextPage = page + 1;
-        const newResults = await tmdbService.searchAllContent(searchTerm, nextPage);
-        setResults(prevResults => [...prevResults, ...newResults]);
-        setHasNextPage(newResults.length === 20);
+        const newResults = await tmdbService.searchAllContent(debouncedSearchTerm, nextPage);
+        setResults(prev => [...prev, ...newResults]);
+        setHasNextPage(newResults.length === ITEMS_PER_PAGE);
         setPage(nextPage);
       } catch (error) {
         console.error('Error fetching next page:', error);
@@ -125,19 +138,16 @@ const SearchModal: React.FC<SearchModalProps> = ({
         setIsLoading(false);
       }
     }
-  }, [hasNextPage, isLoading, page, searchTerm]);
+  }, [hasNextPage, isLoading, page, debouncedSearchTerm]);
 
   useEffect(() => {
-    if (inView) {
+    if (inView && !isLoading) {
       handleFetchNextPage();
     }
-  }, [inView, handleFetchNextPage]);
+  }, [inView, handleFetchNextPage, isLoading]);
+
   const handleContentSelect = useCallback((content: CombinedContent) => {
-    if (content.media_type === 'movie') {
-      navigate(`/movie/${content.id}`);
-    } else if (content.media_type === 'tv') {
-      navigate(`/tv/${content.id}`);
-    }
+    navigate(`/${content.media_type}/${content.id}`);
     onClose();
   }, [navigate, onClose]);
 
@@ -146,6 +156,9 @@ const SearchModal: React.FC<SearchModalProps> = ({
       whileHover={{ scale: 1.05, zIndex: 1 }}
       whileTap={{ scale: 0.95 }}
       layout
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
     >
       <Box
         overflow="hidden"
@@ -157,27 +170,34 @@ const SearchModal: React.FC<SearchModalProps> = ({
         {...glassEffect}
       >
         <Box position="relative">
-          <img
+          <LazyLoadImage
             src={`https://image.tmdb.org/t/p/w500${content.poster_path}`}
             alt={content.title || content.name}
-            style={{ width: '100%', height: 'auto', objectFit: 'cover' }}
-            loading="lazy"
+            effect="blur"
+            width="100%"
+            height="auto"
+            style={{ objectFit: 'cover' }}
+            placeholder={
+              <Box bg="gray.200" width="100%" paddingBottom="150%" />
+            }
           />
-          <Box
-            position="absolute"
-            top={2}
-            right={2}
-            bg="rgba(0,0,0,0.7)"
-            color="white"
-            borderRadius="full"
-            p={1}
-          >
-            {content.media_type === 'movie' ? <Film size={16} /> : <Tv size={16} />}
-          </Box>
+          <Tooltip label={content.media_type === 'movie' ? 'Movie' : 'TV Series'}>
+            <Box
+              position="absolute"
+              top={2}
+              right={2}
+              bg="rgba(0,0,0,0.7)"
+              color="white"
+              borderRadius="full"
+              p={1}
+            >
+              {content.media_type === 'movie' ? <Film size={16} /> : <Tv size={16} />}
+            </Box>
+          </Tooltip>
         </Box>
         <Box p={3}>
           <Text fontSize="sm" fontWeight="bold" isTruncated>
-            {content.title || content.name || "Sin título"}
+            {content.title || content.name || "Untitled"}
           </Text>
           <Text fontSize="xs" color={textColor} opacity={0.8}>
             {content.release_date || content.first_air_date} • {content.vote_average.toFixed(1)}⭐
@@ -190,10 +210,17 @@ const SearchModal: React.FC<SearchModalProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <Modal isOpen={isOpen} onClose={onClose} size="full" motionPreset="scale">
+        <Modal 
+          isOpen={isOpen} 
+          onClose={onClose} 
+          size="full" 
+          motionPreset="scale"
+          scrollBehavior="inside"
+        >
           <ModalOverlay bg="rgba(0, 0, 0, 0.8)" backdropFilter="blur(10px)" />
           <ModalContent
             as={AnimatedBox}
+            
             {...glassEffect}
             maxWidth="100%"
             height="100vh"
@@ -201,39 +228,96 @@ const SearchModal: React.FC<SearchModalProps> = ({
           >
             <ModalBody p={0}>
               <Flex direction="column" height="100%">
-                <Box p={4} {...glassEffect} position="sticky" top={0} zIndex={1}>
+                <Box 
+                  p={4} 
+                  {...glassEffect} 
+                  position="sticky" 
+                  top={0} 
+                  zIndex={1}
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="space-between"
+                >
                   <SearchInput
                     onSearchChange={handleSearchChange}
                     onClose={onClose}
                     recentSearches={searchHistory}
                     onRecentSearchSelect={handleSearchChange}
-                    isLoading={isLoading} onHistoryDelete={function (): void {
-                      throw new Error('Function not implemented.');
-                    } } onHistoryClear={function (): void {
-                      throw new Error('Function not implemented.');
-                    } }                  />
+                    isLoading={isLoading}
+                    onHistoryDelete={() => {}}
+                    onHistoryClear={() => {}}
+                  />
+                  <IconButton
+                    aria-label="Toggle color mode"
+                    icon={colorMode === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+                    onClick={toggleColorMode}
+                    variant="ghost"
+                    ml={2}
+                  />
                 </Box>
                 
-                <Box flex={1} overflowY="auto" p={4}>
+                <Box 
+                  flex={1} 
+                  overflowY="auto" 
+                  p={4} 
+                  ref={scrollContainerRef}
+                >
                   <Fade in={isResultsVisible}>
                     <VStack spacing={4} align="stretch">
-                      {searchTerm && <Text fontSize="2xl" fontWeight="bold">Search Results</Text>}
-                      <SimpleGrid columns={{ base: 2, md: 3, lg: 4, xl: 5 }} spacing={4} ref={ref}>
-                        <AnimatePresence>
-                          {results.map((item, index) => (
-                            <ContentCard key={`${item.id}-${index}`} content={item} />
-                          ))}
-                        </AnimatePresence>
-                      </SimpleGrid>
+                      {searchTerm && (
+                        <Text fontSize="2xl" fontWeight="bold">
+                          Search Results
+                        </Text>
+                      )}
+                      
+                      {!searchTerm && trendingContent.length > 0 && (
+                        <>
+                          <Text fontSize="2xl" fontWeight="bold">
+                            Trending Now
+                          </Text>
+                          <SimpleGrid 
+                            columns={{ base: 2, md: 3, lg: 4, xl: 5 }} 
+                            spacing={4}
+                          >
+                            {trendingContent.map((item, index) => (
+                              <ContentCard key={`trending-${item.id}-${index}`} content={item} />
+                            ))}
+                          </SimpleGrid>
+                        </>
+                      )}
+
+                      {searchTerm && (
+                        <SimpleGrid 
+                          columns={{ base: 2, md: 3, lg: 4, xl: 5 }} 
+                          spacing={4} 
+                          ref={ref}
+                        >
+                          <AnimatePresence>
+                            {results.map((item, index) => (
+                              <ContentCard key={`${item.id}-${index}`} content={item} />
+                            ))}
+                          </AnimatePresence>
+                        </SimpleGrid>
+                      )}
+
                       {isLoading && (
                         <Flex justify="center" py={4}>
                           <Spinner size="xl" color={accentColor} />
                         </Flex>
                       )}
+
                       {isError && (
-                        <Text textAlign="center" color="red.500">
-                          Error fetching results. Please try again.
-                        </Text>
+                        <Flex 
+                          justify="center" 
+                          align="center" 
+                          py={4} 
+                          color="red.500"
+                        >
+                          <AlertCircle size={24} />
+                          <Text ml={2}>
+                            Error fetching results. Please try again.
+                          </Text>
+                        </Flex>
                       )}
                     </VStack>
                   </Fade>

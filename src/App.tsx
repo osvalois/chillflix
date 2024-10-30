@@ -4,9 +4,8 @@ import Layout from './components/Layout/Layout';
 import Home from './pages/Home';
 import MoviePage from './pages/MoviePage';
 import NotFound from './pages/NotFound';
-import Movies from './pages/Movies';
-import TVShows from './pages/TVShows';
 import Profile from './pages/Profile';
+import Discover from './pages/Discover';
 
 
 const App: React.FC = () => {
@@ -14,8 +13,7 @@ const App: React.FC = () => {
     <Layout>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/movies" element={<Movies />} />
-        <Route path="/tv-shows" element={<TVShows />} />
+        <Route path="/discover" element={<Discover/>} />
         <Route path="/movie/:tmdbId" element={<MoviePage />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="*" element={<NotFound />} />

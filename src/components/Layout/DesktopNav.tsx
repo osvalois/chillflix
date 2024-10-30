@@ -1,77 +1,17 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { motion, Variants } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Box, HStack, useBreakpointValue, useTheme } from '@chakra-ui/react';
 import { useLocation } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { useNavStyles } from '../../hooks/useNavStyles';
 import { NavItemEnhanced } from '../Nav/NavItem';
 import { DesktopNavProps, NavItem } from '../../types';
-
-// Constants for better performance and maintainability
-const VIEWPORT_SIZES = {
-  base: '90vw',
-  sm: '85vw',
-  md: '80vw',
-  lg: '75vw',
-  xl: '70vw'
-} as const;
-
-const RESPONSIVE_SPACING = {
-  padding: {
-    base: 1,
-    sm: 1.5,
-    md: 2,
-    lg: 2.5,
-    xl: 3
-  },
-  margin: {
-    base: 2,
-    sm: 3,
-    md: 4,
-    lg: 5,
-    xl: 6
-  },
-  itemSpacing: {
-    base: 0.5,
-    sm: 1,
-    md: 1.5,
-    lg: 2,
-    xl: 2.5
-  }
-} as const;
-
-const INTERSECTION_OPTIONS = {
-  threshold: 0.2,
-  triggerOnce: true
-} as const;
+import { INTERSECTION_OPTIONS, RESPONSIVE_SPACING, VIEWPORT_SIZES, enhancedContainerVariants } from '../../constants';
 
 const MAX_WIDTH = '1200px';
 
 // Optimized motion component with proper typing
 const MotionBox = motion(Box as any);
-
-// Enhanced animation variants
-const enhancedContainerVariants: Variants = {
-  hidden: {
-    opacity: 0,
-    y: 20,
-    scale: 0.95,
-    transition: {
-      duration: 0.3,
-      ease: 'easeOut'
-    }
-  },
-  visible: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: {
-      duration: 0.5,
-      ease: 'easeOut',
-      staggerChildren: 0.1
-    }
-  }
-};
 
 export const DesktopNav: React.FC<DesktopNavProps> = React.memo(({ 
   navItems, 
@@ -117,6 +57,7 @@ export const DesktopNav: React.FC<DesktopNavProps> = React.memo(({
       <NavItemEnhanced
         key={item.label}
         item={item}
+        showTooltip={false}
         isActive={isItemActive(item.path)}
         isHovered={hoveredItem === item.label}
         onClick={createClickHandler(item.path)}
