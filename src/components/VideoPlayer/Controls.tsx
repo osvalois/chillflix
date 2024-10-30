@@ -69,7 +69,7 @@ const Controls: React.FC<ControlsProps> = ({
     });
     const [localAudioTrack, setLocalAudioTrack] = useState(selectedAudioTrack);
     const [isConfigChanged, setIsConfigChanged] = useState(false);
-    
+
     const lastSavedRef = useRef<SavedConfig | null>(null);
 
     const glassmorphismStyle = {
@@ -165,7 +165,7 @@ const Controls: React.FC<ControlsProps> = ({
             player.volume(savedConfig.volume);
             setLocalQuality(savedConfig.selectedQuality);
             setLocalLanguage(savedConfig.selectedLanguage);
-            
+
             // Find the matching subtitle from saved ISO639
             if (savedConfig.selectedSubtitle && Array.isArray(subtitles)) {
                 const savedSubtitle = (subtitles as unknown as Subtitle[]).find(
@@ -175,7 +175,7 @@ const Controls: React.FC<ControlsProps> = ({
                     setLocalSubtitle({ subtitle: savedSubtitle, cues: null });
                 }
             }
-            
+
             setLocalAudioTrack(savedConfig.selectedAudioTrack);
         }
     }, [player, loadSavedConfig, subtitles]);
@@ -235,9 +235,9 @@ const Controls: React.FC<ControlsProps> = ({
                         <SeekBar currentTime={currentTime} duration={duration} onSeek={handleSeek} />
                         <Flex alignItems="center" justifyContent="space-between" flexWrap={["wrap", "nowrap"]}>
                             <Flex alignItems="center" width={["100%", "auto"]}>
-                                <PlaybackControls 
-                                    isPaused={isPaused} 
-                                    onPlayPause={handlePlayPause} 
+                                <PlaybackControls
+                                    isPaused={isPaused}
+                                    onPlayPause={handlePlayPause}
                                 />
                                 <VolumeControls
                                     isMuted={isMuted}
@@ -247,53 +247,70 @@ const Controls: React.FC<ControlsProps> = ({
                                     isLargerThan768={isLargerThan768}
                                 />
                                 <TimeDisplay currentTime={currentTime} duration={duration} />
+                                <Flex alignItems="center" mt={[2, 0]} width={["100%", "auto"]} justifyContent={["space-between", "flex-end"]}>
+                                {isLargerThan768 ? (
+                                    null
+                                ) : (
+                                    <><MobileMenu
+                                        selectedQuality={localQuality}
+                                        availableQualities={availableQualities}
+                                        onQualityChange={handleQualityChange}
+                                        selectedLanguage={localLanguage}
+                                        availableLanguages={availableLanguages}
+                                        onLanguageChange={handleLanguageChange}
+                                        audioTracks={audioTracks}
+                                        selectedAudioTrack={localAudioTrack}
+                                        onAudioTrackChange={(track: AudioTrack) => handleAudioTrackChange(track.id)}
+                                        subtitles={subtitles as unknown as Subtitle[]}
+                                        selectedSubtitle={localSubtitle.subtitle}
+                                        onSubtitleChange={function (subtitle: Subtitle | null): void {
+                                            console.log(subtitle)
+                                            throw new Error('Function not implemented.');
+                                        }} />
+                                        <FullscreenButton
+                                            isFullscreen={isFullscreen}
+                                            onFullscreenToggle={handleFullscreenToggle}
+                                        />
+                                    </>
+
+                                )}
+                                </Flex>
+                                
+
                             </Flex>
                             <Flex alignItems="center" mt={[2, 0]} width={["100%", "auto"]} justifyContent={["space-between", "flex-end"]}>
                                 {isLargerThan768 ? (
                                     <>
-                                        <QualitySelector 
-                                            selectedQuality={localQuality} 
-                                            availableQualities={availableQualities} 
-                                            onQualityChange={handleQualityChange} 
+                                        <QualitySelector
+                                            selectedQuality={localQuality}
+                                            availableQualities={availableQualities}
+                                            onQualityChange={handleQualityChange}
                                         />
                                         <LanguageSelector
                                             selectedLanguage={localLanguage}
                                             availableLanguages={availableLanguages}
                                             onLanguageChange={handleLanguageChange}
                                         />
-                                        <AudioSettingsMenu 
-                                            audioTracks={audioTracks} 
-                                            selectedAudioTrack={localAudioTrack} 
-                                            onAudioTrackChange={(track: AudioTrackCustom) => handleAudioTrackChange(track.id)} 
+                                        <AudioSettingsMenu
+                                            audioTracks={audioTracks}
+                                            selectedAudioTrack={localAudioTrack}
+                                            onAudioTrackChange={(track: AudioTrackCustom) => handleAudioTrackChange(track.id)}
                                         />
                                         <SubtitleSelector
                                             subtitles={subtitles as unknown as Subtitle[]}
                                             selectedSubtitle={localSubtitle.subtitle}
                                             onSubtitleChange={handleSubtitleChange}
                                         />
+
+                                        <FullscreenButton
+                                            isFullscreen={isFullscreen}
+                                            onFullscreenToggle={handleFullscreenToggle}
+                                        />
                                     </>
+
                                 ) : (
-                                    <MobileMenu
-                                            selectedQuality={localQuality}
-                                            availableQualities={availableQualities}
-                                            onQualityChange={handleQualityChange}
-                                            selectedLanguage={localLanguage}
-                                            availableLanguages={availableLanguages}
-                                            onLanguageChange={handleLanguageChange}
-                                            audioTracks={audioTracks}
-                                            selectedAudioTrack={localAudioTrack}
-                                            onAudioTrackChange={(track: AudioTrack) => handleAudioTrackChange(track.id)}
-                                            subtitles={subtitles as unknown as Subtitle[]}
-                                            selectedSubtitle={localSubtitle.subtitle} 
-                                            onSubtitleChange={function (subtitle: Subtitle | null): void {
-                                                console.log(subtitle)
-                                                throw new Error('Function not implemented.');
-                                            } }                                    />
+                                    null
                                 )}
-                                <FullscreenButton
-                                    isFullscreen={isFullscreen}
-                                    onFullscreenToggle={handleFullscreenToggle}
-                                />
                             </Flex>
                         </Flex>
                     </Flex>

@@ -14,9 +14,7 @@ import { QualityIndicator } from "./QualityIndicator";
 import { useHotkeys } from "react-hotkeys-hook";
 import { motion, AnimatePresence } from "framer-motion";
 import { SubtitlesDisplay } from "./SubtitlesDisplay";
-import { NetworkInfoOverlay } from "./NetworkInfoOverlay";
 import { useAnalytics } from "../../hooks/useAnalytics";
-import { useNetworkQuality } from "../../hooks/useNetworkQuality";
 import { PlayerOptions, Subtitle } from "../../types";
 import OpenSubtitlesService from "../../services/openSubtitlesService";
 import { useVideoPlayerState } from "../../hooks/useVideoPlayerState";
@@ -63,7 +61,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
     const [isBuffering, setIsBuffering] = useState(false);
     const bufferingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const { trackEvent } = useAnalytics();
-    const { networkQuality, updateNetworkQuality } = useNetworkQuality();
 
     const {
       isLoading,
@@ -191,15 +188,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
         player.on("progress", () => {
           const buffered = player.buffered();
           if (buffered.length > 0) {
-            const bufferedEnd = buffered.end(buffered.length - 1);
-            const duration = player.duration() ?? 0;
-            updateNetworkQuality(bufferedEnd / duration);
           }
         });
 
         loadSavedState(player);
       },
-      [retryCount, setIsLoading, setIsPaused, setIsFullscreen, setCurrentTime, setDuration, loadSavedState, saveCurrentState, toast, setControlsVisible, trackEvent, title, updateNetworkQuality]
+      [retryCount, setIsLoading, setIsPaused, setIsFullscreen, setCurrentTime, setDuration, loadSavedState, saveCurrentState, toast, setControlsVisible, trackEvent, title]
     );
 
     const checkAudioTracks = useCallback(
@@ -466,8 +460,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
         bg={bgColor}
         width="100%"
         height="100%"
-        minHeight={{ base: "calc(50vh)", md: "auto" }}
-        maxHeight={{ base: "calc(60vh)", md: "80vh" }}
+        minHeight={{ base: "calc(55vh)", md: "auto" }}
+        maxHeight={{ base: "calc(65vh)", md: "80vh" }}
         margin={{ base: 0, md: "auto" }}
         _before={{
           content: '""',
@@ -524,7 +518,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
         <SubtitlesDisplay player={playerRef.current} parsedCues={null} />
         <ErrorOverlay isVisible={retryCount >= MAX_RETRIES} />
         <QualityIndicator quality={selectedQuality} />
-        <NetworkInfoOverlay quality={networkQuality} />
         <AnimatePresence>
           {controlsVisible && (
             <motion.div
