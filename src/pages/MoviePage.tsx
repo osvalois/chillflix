@@ -400,16 +400,40 @@ const MoviePage: React.FC = () => {
                 transition={{ duration: 0.5 }}
                 p={4}
               >
-                <Text fontSize="xl" fontWeight="bold" mb={4}>Watch Party</Text>
                 {!watchPartyId && !hasJoined && (
                   <HStack spacing={4} justifyContent="space-between">
                     <CreateWatchParty
-                      movieId={tmdbId!}
-                      onWatchPartyCreated={handleCreateWatchParty}
+                      movieId={movie.imdb_id ?? ""}
+                      movieTitle={movie.title ?? ""}
+                      movieDuration={movie.runtime}
+                      movieThumbnail={movie.backdrop_path ?? ""}
+                      onWatchPartyCreated={(partyId) => {
+                        console.log('Party created:', partyId);
+                      }}
+                      onCancel={() => {
+                        console.log('Cancelled');
+                      }}
                     />
-                    <JoinWatchParty onJoin={handleJoinWatchParty} />
                   </HStack>
                 )}
+                {!watchPartyId && !hasJoined && (
+                  <HStack spacing={4} justifyContent="space-between">
+
+                    <JoinWatchParty
+                      partyId="party-123"
+                      movieTitle={movie.title ?? ""}
+                      hostName="John Doe"
+                      startTime={new Date('2024-10-29T20:00:00')}
+                      maxParticipants={10}
+                      currentParticipants={5}
+                      onJoin={handleJoinWatchParty}
+                      onCancel={() => {
+                        console.log('Cancelled');
+                      }}
+                    />
+                  </HStack>
+                )}
+
                 {watchPartyId && (
                   <VStack spacing={4} align="stretch">
                     <Text>Watch Party ID: {watchPartyId}</Text>
@@ -452,14 +476,15 @@ const MoviePage: React.FC = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={similarInView ? { opacity: 1, y: 0 } : {}}
                 transition={{ duration: 0.5 }}
-              >
+              >        <Text fontSize="2xl" fontWeight="bold" mb={6} bgGradient="linear(to-r, cyan.400, blue.500, purple.600)" bgClip="text">
+                  Similar Movies
+                </Text>
                 {similarMovies && (
                   <Suspense fallback={<Skeleton height="200px" />}>
                     <SimilarMoviesSection movies={similarMovies} isLoading={isSimilarMoviesLoading} />
                   </Suspense>
                 )}
               </motion.div>
-              
               {/* Cast Section */}
               <motion.div
                 ref={castRef}

@@ -66,7 +66,7 @@ export const NavItemEnhanced = React.memo(({
   // Responsive values
   const showText = useBreakpointValue({ base: false, md: true });
   const containerWidth = useBreakpointValue({ 
-    base: '40px',  // Más compacto en móvil
+    base: '50px',  // Más compacto en móvil
     md: 'auto'     // Auto en desktop
   });
   const containerPadding = useBreakpointValue({
@@ -275,7 +275,7 @@ export const NavItemEnhanced = React.memo(({
             >
               <item.icon 
                 {...iconConfig}
-                size={useBreakpointValue({ base: 20, md: 24 })}
+                size={useBreakpointValue({ base: 30, md: 34 })}
                 aria-hidden="true"
               />
             </Box>

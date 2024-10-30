@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { Box, HStack, useBreakpointValue, useTheme } from '@chakra-ui/react';
 import { useLocation } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
-import { useNavStyles } from '../../hooks/useNavStyles';
 import { NavItemEnhanced } from '../Nav/NavItem';
 import { DesktopNavProps, NavItem } from '../../types';
 import { INTERSECTION_OPTIONS, RESPONSIVE_SPACING, VIEWPORT_SIZES, enhancedContainerVariants } from '../../constants';
@@ -23,7 +22,6 @@ export const DesktopNav: React.FC<DesktopNavProps> = React.memo(({
   const [ref, inView] = useInView(INTERSECTION_OPTIONS);
   
   // Hooks at the top level
-  const containerStyle = useNavStyles();
   const containerPadding = useBreakpointValue(RESPONSIVE_SPACING.padding) ?? RESPONSIVE_SPACING.padding.base;
   const containerMargin = useBreakpointValue(RESPONSIVE_SPACING.margin) ?? RESPONSIVE_SPACING.margin.base;
   const itemSpacing = useBreakpointValue(RESPONSIVE_SPACING.itemSpacing) ?? RESPONSIVE_SPACING.itemSpacing.base;
@@ -67,19 +65,12 @@ export const DesktopNav: React.FC<DesktopNavProps> = React.memo(({
     ));
   }, [navItems, hoveredItem, isItemActive, createClickHandler, createHoverStartHandler, handleHoverEnd]);
 
-  // Memoized styles
-  const containerStyles = useMemo(() => ({
-    ...containerStyle,
-    willChange: 'transform, opacity'
-  }), [containerStyle]);
-
   return (
     <MotionBox
       ref={ref}
       variants={enhancedContainerVariants}
       initial="hidden"
       animate={inView ? "visible" : "hidden"}
-      style={containerStyles}
       borderRadius="full"
       p={containerPadding}
       mx={containerMargin}
