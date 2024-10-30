@@ -397,7 +397,7 @@ export const CreateWatchParty: React.FC<CreateWatchPartyProps> = ({
               borderRadius="2xl 2xl 0 0"
             />
             
-            <Box p={6}>
+            <Box p={0}>
               <VStack spacing={6} align="stretch">
                 {/* Header Section */}
                 <Flex justify="space-between" align="center">
@@ -593,7 +593,7 @@ export const CreateWatchParty: React.FC<CreateWatchPartyProps> = ({
                         boxShadow: 'md'
                       }}
                     >
-                      Create Watch Party
+                      Create
                     </Button>
                     {onCancel && (
                       <Button
@@ -730,6 +730,7 @@ export const CreateWatchParty: React.FC<CreateWatchPartyProps> = ({
           </ModalFooter>
         </ModalContent>
       </Modal>
+   
     </Box>
   );
 };

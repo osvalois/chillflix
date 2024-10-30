@@ -335,7 +335,7 @@ export const JoinWatchParty: React.FC<JoinWatchPartyProps> = ({
                 borderRadius="2xl 2xl 0 0"
               />
               
-              <Box p={6}>
+              <Box p={0}>
                 <VStack spacing={6} align="stretch">
                   {/* Header Section */}
                   <Flex justify="space-between" align="center">
@@ -492,7 +492,7 @@ export const JoinWatchParty: React.FC<JoinWatchPartyProps> = ({
                           boxShadow: 'md'
                         }}
                       >
-                        Join Watch Party
+                        Join
                       </Button>
                       {onCancel && (
                         <Button
