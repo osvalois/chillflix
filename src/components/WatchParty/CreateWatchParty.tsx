@@ -123,7 +123,7 @@ const PartyUserInput = ({
       <Box
         bg={bgColor}
         borderRadius="xl"
-        p={4}
+        p={6}
         boxShadow="sm"
         border="1px solid"
         borderColor={borderColor}
@@ -208,7 +208,7 @@ const SchedulePicker = ({
   return (
     <VStack align="stretch" spacing={3}>
       <Text fontWeight="medium">Select start time</Text>
-      <Box maxH="200px" overflowY="auto">
+      <Box maxH="300px" overflowY="auto">
         {timeSlots.map((slot) => (
           <Button
             key={slot.toISOString()}

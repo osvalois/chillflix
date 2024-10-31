@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 
 export interface Mirror {
+  seeds: any;
   infoHash: string;
   id: string;
   title: string;
@@ -134,6 +135,8 @@ class MovieService {
 
     try {
       const response = await this.apiInstance.get<Mirror[]>(`/movies/tmdb/${tmdbId}`);
+      console.log(response.data)
+      console.log("searchMirrors")
       const mirrors = response.data.map(mirror => ({
         ...mirror,
         infoHash: this.extractInfoHash(mirror.magnet),

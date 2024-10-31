@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from 'react-query';
+import { useQuery, useQueryClient } from 'react-query';
 import axios from 'axios';
-import { Box, Container, VStack, useToast, Button, Skeleton, HStack, Text } from '@chakra-ui/react';
+import { Box, Container, VStack, useToast, Button, Skeleton, Text } from '@chakra-ui/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaChevronLeft } from 'react-icons/fa';
 import { useMediaQuery } from 'react-responsive';
@@ -29,6 +29,9 @@ import { InviteFriends } from '../components/WatchParty/InviteFriends';
 import { JoinWatchParty } from '../components/WatchParty/JoinWatchParty';
 import { ChatRoom } from '../components/WatchParty/ChatRoom';
 import LoadingMessage from '../components/common/LoadingMessage';
+import ToggleWatchPartyButton from '../components/WatchParty/ToggleWatchPartyButton';
+import { GlassmorphicButton } from '../components/Button/GlassmorphicButton';
+import { FiSearch } from 'react-icons/fi';
 
 const MotionBox = motion(Box as any);
 
@@ -58,9 +61,12 @@ const MoviePage: React.FC = () => {
   const toast = useToast();
   const navigate = useNavigate();
   const isMobile = useMediaQuery({ maxWidth: 768 });
-
+  const [isVisible, setIsVisible] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState('');
   const [selectedQuality, setSelectedQuality] = useState('');
+  const [isBackupApiLoading, setIsBackupApiLoading] = useState(false);
+  const [hasTriedBackupApi, setHasTriedBackupApi] = useState(false);
+  const queryClient = useQueryClient();
 
   const {
     currentMirrorIndex,
@@ -73,13 +79,27 @@ const MoviePage: React.FC = () => {
     currentQuality,
     handleQualityChange,
   } = useVideoPlayerLogic();
-
+  useEffect(() => {
+    // Invalidar todas las queries relacionadas cuando cambia el tmdbId
+    queryClient.invalidateQueries(['movie', tmdbId]);
+    queryClient.invalidateQueries(['mirrors', tmdbId]);
+    queryClient.invalidateQueries(['movieInfo']);
+    queryClient.invalidateQueries(['backupMovieInfo']);
+    
+    // Reset estados locales
+    setSelectedLanguage('');
+    setSelectedQuality('');
+  }, [tmdbId, queryClient]);
   // Fetch current user ID (you'll need to implement this based on your auth system)
   const { data: userId } = useQuery('userId', () => "movieService.getCurrentUserId()");
 
   const fetchMovieDetails = async (id: string): Promise<CombinedContent> => {
     try {
+      console.log("fetchMovieDetails")
+      console.log(id)
       const tmdbData = await getTMDBMovieDetails(parseInt(id, 10));
+      console.log("tmdbData")
+      console.log(tmdbData)
       if (tmdbData && Object.keys(tmdbData).length > 0) {
         return tmdbData;
       } else {
@@ -90,10 +110,11 @@ const MoviePage: React.FC = () => {
       throw error;
     }
   };
-
+  console.log("tmdbId")
+  console.log(tmdbId)
   const { data: movie, isLoading: isMovieLoading, error: movieError } = useQuery<CombinedContent, Error>(
     ['movie', tmdbId],
-    () => fetchMovieDetails(tmdbId!),
+    () =>  fetchMovieDetails(tmdbId!),
     {
       enabled: !!tmdbId,
       onError: (error) => {
@@ -136,6 +157,9 @@ const MoviePage: React.FC = () => {
     () => movieService.searchMirrors(tmdbId ?? ''),
     {
       enabled: !!movie,
+      staleTime: 0, // Forzar revalidación
+      cacheTime: 0, // No mantener en caché
+      retry: 2,     // Intentar 2 veces si falla
       onError: (error) => {
         console.error('Error fetching mirrors:', error);
         toast({
@@ -151,17 +175,26 @@ const MoviePage: React.FC = () => {
 
   const groupedMirrors = useMemo<GroupedMirrors>(() => {
     if (!mirrors) return {};
+    
     return mirrors.reduce((acc, mirror) => {
+      // Inicializamos las estructuras si no existen
       if (!acc[mirror.language]) {
         acc[mirror.language] = {};
       }
       if (!acc[mirror.language][mirror.quality]) {
         acc[mirror.language][mirror.quality] = [];
       }
+      
+      // Añadimos el mirror al array correspondiente
       acc[mirror.language][mirror.quality].push(mirror);
+      
+      // Ordenamos el array por seeders de mayor a menor
+      acc[mirror.language][mirror.quality].sort((a, b) => b.seeds - a.seeds);
+      
       return acc;
     }, {} as GroupedMirrors);
   }, [mirrors]);
+  
 
   const languages = useMemo(() => {
     return Object.keys(groupedMirrors);
@@ -179,23 +212,34 @@ const MoviePage: React.FC = () => {
     return groupedMirrors[selectedLanguage]?.[selectedQuality]?.[0] ?? null;
   }, [groupedMirrors, selectedLanguage, selectedQuality]);
 
-  const { data: movieInfo, isLoading: isMovieInfoLoading, error: movieInfoError } = useQuery<MovieInfo, Error>(
+  const { data: movieInfo, isLoading: isMovieInfoLoading } = useQuery<MovieInfo, Error>(
     ['movieInfo', selectedMirror?.infoHash],
     () => movieService.getMovieInfo(selectedMirror!.infoHash),
     {
       enabled: !!selectedMirror,
-      retry: false,
-      onError: (error) => {
-        console.error('Error fetching movie info:', error);
+      staleTime: 0,
+      cacheTime: 0,
+      retry: 2,
+      onSettled: () => {
+        // Actualizar el estado cuando la query se complete (éxito o error)
+        setIsVideoLoading(false);
       }
     }
   );
+    // Agregar un efecto para manejar la selección automática de language/quality
+    useEffect(() => {
+      if (mirrors && mirrors.length > 0 && !selectedLanguage) {
+        const firstMirror = mirrors[0];
+        setSelectedLanguage(firstMirror.language);
+        setSelectedQuality(firstMirror.quality);
+      }
+    }, [mirrors, selectedLanguage]);
 
   const { data: backupMovieInfo, isLoading: isBackupMovieInfoLoading } = useQuery<MovieInfo, Error>(
     ['backupMovieInfo', tmdbId],
     () => axios.get(`https://chillflix-movie-importer.fly.dev/api/movie/${tmdbId}`).then(res => res.data),
     {
-      enabled: !!movieInfoError || (!!movieInfo && (!movieInfo.Files || movieInfo.Files.length === 0)),
+      enabled: !!movieError || (!!movieInfo && (!movieInfo.Files || movieInfo.Files.length === 0)),
       retry: false,
       onError: (error) => {
         console.error('Error fetching backup movie info:', error);
@@ -222,11 +266,21 @@ const MoviePage: React.FC = () => {
   }, [finalMovieInfo]);
 
   const streamUrl = useMemo(() => {
-    if (finalMovieInfo && videoFile) {
-      return movieService.getStreamUrl(videoFile.infoHash, videoFile.index);
+    if (!finalMovieInfo || !videoFile) {
+      return null;
     }
-    return null;
+    
+    try {
+      return movieService.getStreamUrl(videoFile.infoHash, videoFile.index);
+    } catch (error) {
+      console.error('Error generating stream URL:', error);
+      return null;
+    }
   }, [finalMovieInfo, videoFile]);
+
+  console.log("streamUrl")
+  console.log(streamUrl)
+
   const posterUrl = useMemo(() => {
     return movie ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : '';
   }, [movie]);
@@ -315,6 +369,223 @@ const MoviePage: React.FC = () => {
   if (!movie) {
     return <ErrorFallback error={new Error("Movie not found")} resetErrorBoundary={() => navigate('/')} />;
   }
+  // Separate function to handle backup API call
+  const handleBackupApiCall = async () => {
+    if (!tmdbId || isBackupApiLoading) return;
+  
+    const MAX_RETRIES = 2;
+    let currentTry = 0;
+    let lastError: any = null;
+  
+    setIsBackupApiLoading(true);
+  
+    const attemptCall = async (): Promise<any> => {
+      try {
+        const response = await axios.get(
+          `https://chillflix-movie-importer.fly.dev/api/movie/${tmdbId}`,
+          { timeout: 60000 } // 10 segundos de timeout
+        );
+  
+        if (response.data) {
+          setHasTriedBackupApi(true);
+          const backupData = response.data;
+          // Handle the backup data here
+          toast({
+            title: "Success",
+            description: "Alternative source found!",
+            status: "success",
+            duration: 5000,
+            isClosable: true,
+          });
+          return backupData;
+        }
+        throw new Error('Empty response data');
+      } catch (error: any) {
+        lastError = error;
+        throw error;
+      }
+    };
+  
+    while (currentTry <= MAX_RETRIES) {
+      try {
+        const data = await attemptCall();
+        setIsBackupApiLoading(false);
+        return data;
+      } catch (error: any) {
+        currentTry++;
+        
+        // Si no es el último intento, mostrar mensaje de reintento
+        if (currentTry <= MAX_RETRIES) {
+          toast({
+            title: "Retrying...",
+            description: `Attempt ${currentTry} of ${MAX_RETRIES}`,
+            status: "info",
+            duration: 3000,
+            isClosable: true,
+          });
+          
+          // Esperar antes de reintentar (tiempo exponencial)
+          await new Promise(resolve => setTimeout(resolve, 1000 * currentTry));
+        } else {
+          // Si es el último intento fallido, mostrar error final
+          console.error('Error fetching from backup API:', lastError);
+          
+          const errorMessage = lastError?.response?.status === 404
+            ? "No alternative source available for this content"
+            : lastError?.code === 'ECONNABORTED'
+              ? "Connection timed out. Please try again"
+              : "Could not find alternative source";
+  
+          toast({
+            title: "Error",
+            description: errorMessage,
+            status: "error",
+            duration: 5000,
+            isClosable: true,
+          });
+        }
+      }
+    }
+  
+    setIsBackupApiLoading(false);
+  };
+
+  // Modify the video player section to include the backup API button
+  const renderVideoSection = () => {
+    if (isVideoLoading) {
+      return (
+        <Box height="400px" width="100%" display="flex" justifyContent="center" alignItems="center">
+          <LoadingMessage />
+        </Box>
+      );
+    }
+
+    if (streamUrl) {
+      return (
+        <Suspense fallback={<Skeleton height="400px" width="100%" />}>
+          <VideoPlayer
+            options={videoJsOptions}
+            title={movie.title}
+            onQualityChange={handleQualityChangeWrapper}
+            onLanguageChange={handleLanguageChange}
+            availableQualities={qualities}
+            availableLanguages={languages}
+            imdbId={movie.imdb_id || ''}
+            posterUrl={posterUrl}
+          />
+        </Suspense>
+      );
+    }
+
+    return (
+<Box
+  height="400px"
+  width="100%"
+  position="relative"
+  overflow="hidden"
+  borderRadius="xl"
+>
+  {/* Capa de imagen de fondo con efecto de desenfoque */}
+  <Box
+    position="absolute"
+    top={0}
+    left={0}
+    right={0}
+    bottom={0}
+    bgImage={`url(${posterUrl})`}
+    bgSize="cover"
+    bgPosition="center"
+    filter="blur(2px)"
+    transform="scale(1.05)"
+    opacity={0.7}
+  />
+
+  {/* Overlay gradiente */}
+  <Box
+    position="absolute"
+    top={0}
+    left={0}
+    right={0}
+    bottom={0}
+    bg="linear-gradient(to bottom, rgba(0,0,0,0.4), rgba(0,0,0,0.8))"
+  />
+
+  {/* Contenedor de contenido */}
+  <Box
+    position="relative"
+    height="100%"
+    display="flex"
+    flexDirection="column"
+    justifyContent="center"
+    alignItems="center"
+    gap={6}
+    px={4}
+    textAlign="center"
+  >
+    {/* Mensaje principal */}
+    <Text
+      fontSize={{ base: "lg", md: "xl" }}
+      fontWeight="bold"
+      color="white"
+      bg="rgba(0,0,0,0.5)"
+      p={4}
+      borderRadius="lg"
+      backdropFilter="blur(8px)"
+      maxW="md"
+      letterSpacing="wide"
+    >
+      No playback options available at this moment
+    </Text>
+
+    {/* Botón de búsqueda alternativa */}
+    {!hasTriedBackupApi && (
+        <GlassmorphicButton
+        onClick={handleBackupApiCall}
+        isLoading={isBackupApiLoading}
+        loadingText="Searching sources..."
+        icon={<FiSearch size={16} />}
+        variant="info"
+        glowIntensity="none"
+        pulseEffect={false}
+        size="md"
+        animated={true}
+        px={6}
+        py={4}
+        fontSize="md"
+        fontWeight="semibold"
+        backdropFilter="blur(8px)"
+        bg="rgba(255,255,255,0.1)"
+        color="white"
+        _hover={{
+          transform: 'translateY(-1px)',
+          bg: 'rgba(255,255,255,0.15)',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
+        }}
+        _active={{
+          transform: 'translateY(0)',
+          boxShadow: 'none'
+        }}
+      >
+        Try Alternative Source
+      </GlassmorphicButton>
+  
+    )}
+
+    {/* Mensaje de carga */}
+    {isBackupApiLoading && (
+      <Text
+        fontSize="sm"
+        color="gray.300"
+        mt={2}
+        fontStyle="italic"
+      >
+        This may take a few moments...
+      </Text>
+    )}
+  </Box>
+</Box>
+    );
+  };
 
   return (
     <Box
@@ -385,9 +656,7 @@ const MoviePage: React.FC = () => {
                     justifyContent="center"
                     alignItems="center"
                   >
-                    <Text fontSize="xl" fontWeight="bold" bg="rgba(0,0,0,0.7)" p={4} borderRadius="md">
-                      No playback options available
-                    </Text>
+                    {renderVideoSection()}
                   </Box>
                 )}
               </MotionBox>
@@ -400,37 +669,47 @@ const MoviePage: React.FC = () => {
                 transition={{ duration: 0.5 }}
                 p={4}
               >
-                {!watchPartyId && !hasJoined && (
-                  <HStack spacing={4} justifyContent="space-between">
-                    <CreateWatchParty
-                      movieId={movie.imdb_id ?? ""}
-                      movieTitle={movie.title ?? ""}
-                      movieDuration={movie.runtime}
-                      movieThumbnail={movie.backdrop_path ?? ""}
-                      onWatchPartyCreated={handleCreateWatchParty}
-                      onCancel={() => {
-                        console.log('Cancelled');
-                      }}
-                    />
-                  </HStack>
-                )}
-                {!watchPartyId && !hasJoined && (
-                  <HStack spacing={4} justifyContent="space-between">
+                <div className="w-full space-y-4">
+                  <ToggleWatchPartyButton
+                    isVisible={isVisible}
+                    onToggle={() => setIsVisible(!isVisible)}
+                  />
+                  {isVisible && (
+                    <div className="space-y-4">
+                      {!watchPartyId && !hasJoined && (
+                        <div className="flex justify-between items-center space-x-4">
+                          <CreateWatchParty
+                            movieId={movie.imdb_id ?? ""}
+                            movieTitle={movie.title ?? ""}
+                            movieDuration={movie.runtime}
+                            movieThumbnail={movie.backdrop_path ?? ""}
+                            onWatchPartyCreated={handleCreateWatchParty}
+                            onCancel={() => {
+                              console.log('Cancelled');
+                            }}
+                          />
+                        </div>
+                      )}
 
-                    <JoinWatchParty
-                      partyId="party-123"
-                      movieTitle={movie.title ?? ""}
-                      hostName="John Doe"
-                      startTime={new Date('2024-10-29T20:00:00')}
-                      maxParticipants={10}
-                      currentParticipants={5}
-                      onJoin={handleJoinWatchParty}
-                      onCancel={() => {
-                        console.log('Cancelled');
-                      }}
-                    />
-                  </HStack>
-                )}
+                      {!watchPartyId && !hasJoined && (
+                        <div className="flex justify-between items-center space-x-4">
+                          <JoinWatchParty
+                            partyId="party-123"
+                            movieTitle={movie.title ?? ""}
+                            hostName="John Doe"
+                            startTime={new Date('2024-10-29T20:00:00')}
+                            maxParticipants={10}
+                            currentParticipants={5}
+                            onJoin={handleJoinWatchParty}
+                            onCancel={() => {
+                              console.log('Cancelled');
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 {watchPartyId && (
                   <VStack spacing={4} align="stretch">
