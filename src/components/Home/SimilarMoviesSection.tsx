@@ -5,20 +5,10 @@ import { useInView } from 'react-intersection-observer';
 import { useSpring, animated } from 'react-spring';
 import OptimizedImage from '../UI/OptimizedImage';
 import MovieCard from '../Movie/MovieCard';
+import { Movie } from '../../types';
 
 const MotionBox = motion(Box as any);
 const AnimatedBox = animated(MotionBox);
-
-interface Movie {
-  id: number;
-  title: string;
-  poster_path: string | null;
-  poster_blurhash?: string;
-  vote_average: number;
-  release_date?: string;
-  overview: string;
-  media_type: 'movie' | 'tv';
-}
 
 interface SimilarMoviesSectionProps {
   movies: Movie[];

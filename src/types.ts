@@ -173,6 +173,8 @@ export interface SearchResult {
 
 // Movie specific interfaces
 export interface Movie {
+  name: string;
+  first_air_date: string | undefined;
   id: string;
   title: string;
   overview: string;
@@ -481,7 +483,7 @@ export interface TMDBService {
   searchTMDBContent: (query: string, page?: number, contentType?: ContentType | 'both') => Promise<CombinedContent[]>;
   getTMDBMovieDetails: (tmdbId: number) => Promise<CombinedContent>;
   getTMDBTVSeriesDetails: (tmdbId: number) => Promise<CombinedContent>;
-  getTrendingContent: () => Promise<CombinedContent[]>;
+  getTrendingContent: () => Promise<Movie[]>;
   getTopRated: () => Promise<CombinedContent[]>;
   getUpcoming: () => Promise<CombinedContent[]>;
   getGenres: () => Promise<Genre[]>;

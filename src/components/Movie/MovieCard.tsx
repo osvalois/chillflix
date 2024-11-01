@@ -20,7 +20,7 @@ import { useSpring, animated } from 'react-spring';
 import { FaHeart, FaStar, FaPlay } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { Info, Calendar, Clock } from 'lucide-react';
-import { CombinedContent } from '../../types';
+import { CombinedContent, Movie } from '../../types';
 
 interface MovieCardProps {
   movie: CombinedContent;
