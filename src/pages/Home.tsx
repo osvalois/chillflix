@@ -16,7 +16,6 @@ import { ParallaxProvider } from 'react-scroll-parallax';
 import { useContentData } from '../hooks/useContentData';
 import { useDynamicBackground } from '../hooks/useDynamicBackground';
 import GlassmorphicBox from '../components/UI/GlassmorphicBox';
-import ContentCarousel from '../components/Home/ContentCarousel';
 import SimilarMoviesSection from '../components/Movie/SimilarMoviesSection';
 
 const FeaturedContent = lazy(() => import('../components/Home/FeaturedContent'));

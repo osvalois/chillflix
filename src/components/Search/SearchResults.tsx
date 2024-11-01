@@ -18,31 +18,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import { FaSearch, FaExclamationCircle } from 'react-icons/fa';
 import MovieCard from '../Movie/MovieCard';
-
-// Tipos mejorados
-interface Movie {
-  id: number;
-  title: string;
-  poster_path: string | null;
-  vote_average: number;
-  release_date?: string;
-  overview: string;
-  media_type: 'movie' | 'tv';
-  genres?: { id: number; name: string }[];
-  runtime?: number;
-  status?: string;
-}
+import { CombinedContent } from '../../types';
 
 interface SearchResultsProps {
-  content: Movie[];
+  content: CombinedContent[];
   isLoading: boolean;
   isError: boolean | null;
   errorMessage?: string;
   hasNextPage: boolean;
   isFetchingNextPage: boolean;
   onFetchNextPage: () => void;
-  onSelectMovie: (movie: Movie) => void;
-  onAddToFavorites: (movie: Movie) => void;
+  onSelectMovie: (movie: CombinedContent) => void;
+  onAddToFavorites: (movie: CombinedContent) => void;
   favorites?: Set<number>;
 }
 

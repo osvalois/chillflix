@@ -12,15 +12,13 @@ import {
   Flex,
   Image,
   Skeleton,
-  IconButton,
-  useDisclosure,
 } from '@chakra-ui/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSpring, animated } from 'react-spring';
 import { FaHeart, FaStar, FaPlay } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
-import { Info, Calendar, Clock } from 'lucide-react';
-import { CombinedContent, Movie } from '../../types';
+import { Calendar, Clock } from 'lucide-react';
+import { CombinedContent } from '../../types';
 
 interface MovieCardProps {
   movie: CombinedContent;
@@ -47,7 +45,6 @@ const MovieCard: React.FC<MovieCardProps> = React.memo(({
   const [isHovered, setIsHovered] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [isImageError, setIsImageError] = useState(false);
-  const { isOpen, onOpen, onClose } = useDisclosure();
   const navigate = useNavigate();
 
   // Enhanced color modes
@@ -288,17 +285,6 @@ const MovieCard: React.FC<MovieCardProps> = React.memo(({
                     >
                       Watch Now
                     </Button>
-                    <IconButton
-                      aria-label="More info"
-                      icon={<Info />}
-                      onClick={onOpen}
-                      size="sm"
-                      variant="ghost"
-                      color="white"
-                      _hover={{
-                        bg: colors.buttonHover
-                      }}
-                    />
                   </HStack>
                 </VStack>
               </MotionBox>

@@ -6,7 +6,7 @@ import { useSpring, animated } from 'react-spring';
 import MovieCard from './MovieCard';
 import OptimizedImage from '../UI/OptimizedImage';
 import { useNavigate } from 'react-router-dom';
-import { CombinedContent, Movie } from '../../types';
+import { CombinedContent } from '../../types';
 
 // Define los componentes motion
 const MotionBox = motion(Box as any);
