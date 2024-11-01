@@ -113,12 +113,9 @@ export const Home: React.FC = () => {
         <Suspense fallback={<FeaturedContentSkeleton />}>
           {featuredContent && <FeaturedContent content={{ ...featuredContent, backdrop_path: featuredContent.backdrop_path ?? '' }} genres={genres} />}
         </Suspense>
-
-         {trendingContent.length > 0 && (
-           <Suspense fallback={<Skeleton height="200px" />}>
+        <Suspense fallback={<Skeleton height="200px" />}>
            <SimilarMoviesSection movies={trendingContent} isLoading={trendingContent.length == 0} />
          </Suspense>
-        )}
       </Box>
     </ParallaxProvider>
   );
