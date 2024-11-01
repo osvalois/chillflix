@@ -177,41 +177,86 @@ const MoviePage: React.FC = () => {
     if (!mirrors) return {};
     
     return mirrors.reduce((acc, mirror) => {
+      // Usamos valores por defecto para language y quality si no existen
+      const language = mirror.language || 'unknown';
+      const quality = mirror.quality || 'unknown';
+      const seeds = mirror.seeds || 0; // Aseguramos que seeds tenga un valor por defecto
+      
       // Inicializamos las estructuras si no existen
-      if (!acc[mirror.language]) {
-        acc[mirror.language] = {};
+      if (!acc[language]) {
+        acc[language] = {};
       }
-      if (!acc[mirror.language][mirror.quality]) {
-        acc[mirror.language][mirror.quality] = [];
+      if (!acc[language][quality]) {
+        acc[language][quality] = [];
       }
       
       // Añadimos el mirror al array correspondiente
-      acc[mirror.language][mirror.quality].push(mirror);
+      acc[language][quality].push({
+        ...mirror,
+        language,
+        quality,
+        seeds
+      });
       
-      // Ordenamos el array por seeders de mayor a menor
-      acc[mirror.language][mirror.quality].sort((a, b) => b.seeds - a.seeds);
+      // Ordenamos el array por seeds de mayor a menor
+      acc[language][quality].sort((a, b) => (b.seeds || 0) - (a.seeds || 0));
       
       return acc;
     }, {} as GroupedMirrors);
+   
   }, [mirrors]);
-  
 
   const languages = useMemo(() => {
     return Object.keys(groupedMirrors);
   }, [groupedMirrors]);
-
+  
   const qualities = useMemo(() => {
-    if (selectedLanguage) {
-      return Object.keys(groupedMirrors[selectedLanguage] || {});
+    // Si hay un lenguaje seleccionado, retornamos las calidades de ese lenguaje
+    if (selectedLanguage && groupedMirrors[selectedLanguage]) {
+      return Object.keys(groupedMirrors[selectedLanguage]);
     }
-    return [];
+  
+    // Si no hay lenguaje seleccionado, obtenemos todas las calidades únicas
+    const allQualities = new Set<string>();
+    
+    Object.values(groupedMirrors).forEach(languageGroup => {
+      Object.keys(languageGroup).forEach(quality => {
+        allQualities.add(quality);
+      });
+    });
+  
+    return Array.from(allQualities);
   }, [groupedMirrors, selectedLanguage]);
-
+  
   const selectedMirror = useMemo(() => {
-    if (!selectedLanguage || !selectedQuality) return null;
-    return groupedMirrors[selectedLanguage]?.[selectedQuality]?.[0] ?? null;
-  }, [groupedMirrors, selectedLanguage, selectedQuality]);
-
+    // Si no hay mirrors agrupados, retornamos null
+    if (Object.keys(groupedMirrors).length === 0) return null;
+  
+    // Si no hay lenguaje seleccionado, tomamos el primer lenguaje disponible
+    const language = selectedLanguage || Object.keys(groupedMirrors)[0];
+    
+    // Si no hay calidad seleccionada, tomamos la primera calidad disponible
+    const quality = selectedQuality || qualities[0];
+  
+    // Si tenemos lenguaje y calidad, intentamos obtener el primer mirror
+    if (language && quality && groupedMirrors[language]?.[quality]?.length > 0) {
+      return groupedMirrors[language][quality][0];
+    }
+  
+    // Si no encontramos un mirror con la combinación específica,
+    // buscamos el primer mirror disponible en cualquier combinación
+    for (const lang of Object.keys(groupedMirrors)) {
+      for (const qual of qualities) {
+        if (groupedMirrors[lang][qual]?.length > 0) {
+          return groupedMirrors[lang][qual][0];
+        }
+      }
+    }
+  
+    return null;
+  }, [groupedMirrors, selectedLanguage, selectedQuality, qualities]);
+  console.log(selectedMirror)
+  console.log("selectedMirror")
   const { data: movieInfo, isLoading: isMovieInfoLoading } = useQuery<MovieInfo, Error>(
     ['movieInfo', selectedMirror?.infoHash],
     () => movieService.getMovieInfo(selectedMirror!.infoHash),

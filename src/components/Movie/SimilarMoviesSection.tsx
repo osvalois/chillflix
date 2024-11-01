@@ -6,25 +6,13 @@ import { useSpring, animated } from 'react-spring';
 import MovieCard from './MovieCard';
 import OptimizedImage from '../UI/OptimizedImage';
 import { useNavigate } from 'react-router-dom';
-
+import { CombinedContent } from '../../types';
 // Define los componentes motion
 const MotionBox = motion(Box as any);
 const AnimatedBox = animated(MotionBox);
 
-// Interfaces
-interface Movie {
-  id: number;
-  title: string;
-  poster_path: string | null;
-  poster_blurhash?: string;
-  vote_average: number;
-  release_date?: string;
-  overview: string;
-  media_type: 'movie' | 'tv';
-}
-
 interface SimilarMoviesSectionProps {
-  movies: Movie[];
+  movies: CombinedContent[];
   isLoading: boolean;
 }
 
@@ -51,6 +39,8 @@ const LoadingSkeleton = () => {
             src="/placeholder-poster.jpg"
             alt="Loading"
             objectFit="cover"
+            width="100%"
+            height="100%"
           />
         </Box>
       </MotionBox>
@@ -66,6 +56,7 @@ const SimilarMoviesSection: React.FC<SimilarMoviesSectionProps> = ({ movies, isL
     threshold: 0.1, 
     triggerOnce: true 
   });
+  const navigate = useNavigate();
 
   // Memoizamos los estilos y configuraciones
   const styles = useMemo(() => ({
@@ -91,13 +82,14 @@ const SimilarMoviesSection: React.FC<SimilarMoviesSectionProps> = ({ movies, isL
   const buttonBgColor = useColorModeValue('rgba(72, 187, 120, 0.7)', 'rgba(154, 230, 180, 0.7)');
   const buttonTextColor = useColorModeValue('white', 'gray.800');
   const columns = useBreakpointValue({ base: 1, sm: 2, md: 3, lg: 4, xl: 5 });
-  const navigate = useNavigate();
-  const handleSelectMovie = useCallback((movie: Movie) => {
+
+  const handleSelectMovie = useCallback((movie: CombinedContent) => {
     const route = movie.media_type === 'movie' ? `/movie/${movie.id}` : `/serie/${movie.id}`;
     navigate(route);
-  }, []);
+  }, [navigate]);
 
-  const handleAddToFavorites = useCallback((movie: Movie) => {
+  const handleAddToFavorites = useCallback((movie: CombinedContent) => {
+    // Implementa la lógica para agregar a favoritos
     console.log('Added to favorites:', movie);
   }, []);
 
@@ -124,7 +116,6 @@ const SimilarMoviesSection: React.FC<SimilarMoviesSectionProps> = ({ movies, isL
     )),
     [displayedMovies, handleSelectMovie, handleAddToFavorites]
   );
-
   return (
     <AnimatedBox 
       ref={ref}
@@ -136,7 +127,11 @@ const SimilarMoviesSection: React.FC<SimilarMoviesSectionProps> = ({ movies, isL
       mx="auto"
       p={{ base: 4, md: 6, lg: 8 }}
     >
-      <SimpleGrid columns={columns} spacing={{ base: 4, md: 6, lg: 8 }}>
+      <SimpleGrid 
+        columns={columns} 
+        spacing={{ base: 4, md: 6, lg: 8 }}
+        width="100%"
+      >
         {isLoading ? <LoadingSkeleton /> : movieCards}
       </SimpleGrid>
 

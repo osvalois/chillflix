@@ -115,7 +115,7 @@ export const Home: React.FC = () => {
         </Suspense>
          {trendingContent.length > 0 && (
            <Suspense fallback={<Skeleton height="200px" />}>
-           <SimilarMoviesSection movies={trendingContent} isLoading={trendingContent.length > 0} />
+           <SimilarMoviesSection movies={trendingContent} isLoading={trendingContent.length == 0} />
          </Suspense>
         )}
       </Box>

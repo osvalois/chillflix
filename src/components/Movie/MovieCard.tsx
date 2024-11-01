@@ -11,78 +11,80 @@ import {
   useColorModeValue,
   Flex,
   Image,
-  Skeleton
+  Skeleton,
+  IconButton,
+  useDisclosure,
 } from '@chakra-ui/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSpring, animated } from 'react-spring';
-import { FaHeart} from 'react-icons/fa';
+import { FaHeart, FaStar, FaPlay } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
-import { Play } from 'lucide-react';
-
-interface Movie {
-  id: number;
-  title: string;
-  poster_path: string | null;
-  vote_average: number;
-  release_date?: string;
-  overview: string;
-  media_type: 'movie' | 'tv';
-  genres?: { id: number; name: string }[];
-  runtime?: number;
-  status?: string;
-}
+import { Info, Calendar, Clock } from 'lucide-react';
+import { CombinedContent } from '../../types';
 
 interface MovieCardProps {
-  movie: Movie;
-  onSelect: (movie: Movie) => void;
-  onAddToFavorites: (movie: Movie) => void;
+  movie: CombinedContent;
+  onSelect: (movie: CombinedContent) => void;
+  onAddToFavorites: (movie: CombinedContent) => void;
   isFavorite?: boolean;
   isLoading?: boolean;
+  variant?: 'default' | 'compact' | 'featured';
 }
 
 const MotionBox = motion(Box as any);
 const AnimatedBox = animated(MotionBox);
+
+const POSTER_ASPECT_RATIO = 1.5;
 
 const MovieCard: React.FC<MovieCardProps> = React.memo(({
   movie,
   onSelect,
   onAddToFavorites,
   isFavorite = false,
-  isLoading = false
+  isLoading = false,
+  variant = 'default'
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [isImageError, setIsImageError] = useState(false);
+  const { isOpen, onOpen, onClose } = useDisclosure();
   const navigate = useNavigate();
 
-  // Mover los useColorModeValue fuera del useMemo
+  // Enhanced color modes
   const textColor = useColorModeValue('gray.800', 'white');
   const placeholderColor = useColorModeValue('gray.600', 'gray.300');
-  const glassBgColor = useColorModeValue('rgba(255, 255, 255, 0.7)', 'rgba(26, 32, 44, 0.7)');
+  const glassBgColor = useColorModeValue(
+    'rgba(255, 255, 255, 0.8)',
+    'rgba(26, 32, 44, 0.8)'
+  );
   const glassBoxShadowColor = useColorModeValue(
     '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
     '0 8px 32px 0 rgba(0, 0, 0, 0.37)'
   );
   const cardBgColor = useColorModeValue('white', 'gray.800');
   const hoverBgColor = useColorModeValue('gray.50', 'gray.700');
+  const buttonHoverBg = useColorModeValue('whiteAlpha.300', 'blackAlpha.300');
 
-  // Ahora useMemo solo usa los valores ya calculados
   const colors = useMemo(() => ({
     text: textColor,
     placeholder: placeholderColor,
     glassBg: glassBgColor,
     glassBoxShadow: glassBoxShadowColor,
     cardBg: cardBgColor,
-    hoverBg: hoverBgColor
-  }), [textColor, placeholderColor, glassBgColor, glassBoxShadowColor, cardBgColor, hoverBgColor]);
+    hoverBg: hoverBgColor,
+    buttonHover: buttonHoverBg,
+  }), [textColor, placeholderColor, glassBgColor, glassBoxShadowColor, cardBgColor, hoverBgColor, buttonHoverBg]);
 
+  // Enhanced animations
   const cardSpring = useSpring({
     scale: isHovered ? 1.05 : 1,
     boxShadow: isHovered
-      ? '0 20px 40px rgba(0,0,0,0.25), inset 0 0 0 1px rgba(255,255,255,0.2)'
+      ? '0 20px 40px rgba(0,0,0,0.3), inset 0 0 0 1px rgba(255,255,255,0.2)'
       : '0 4px 6px rgba(0,0,0,0.1), inset 0 0 0 1px rgba(255,255,255,0.1)',
     config: { mass: 1, tension: 300, friction: 20 }
   });
 
+  // Enhanced handlers
   const handleMouseEnter = useCallback(() => setIsHovered(true), []);
   const handleMouseLeave = useCallback(() => setIsHovered(false), []);
 
@@ -114,26 +116,48 @@ const MovieCard: React.FC<MovieCardProps> = React.memo(({
     setImageLoaded(true);
   }, []);
 
+  const handleImageError = useCallback(() => {
+    setIsImageError(true);
+    setImageLoaded(true);
+  }, []);
+
+  // Enhanced memoized values
   const posterUrl = useMemo(() => {
+    if (isImageError) return '/default-movie-poster.jpg';
     return movie.poster_path
       ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
       : '/default-movie-poster.jpg';
-  }, [movie.poster_path]);
+  }, [movie.poster_path, isImageError]);
+
+  const title = useMemo(() => movie.title || movie.name || 'Untitled', [movie]);
+
+  const year = useMemo(() => {
+    const date = movie.release_date || movie.first_air_date;
+    return date?.split('-')[0] || 'N/A';
+  }, [movie]);
 
   const ratingColor = useMemo(() => {
-    if (movie.vote_average >= 7) return 'green';
-    if (movie.vote_average >= 5) return 'yellow';
+    if (movie.vote_average >= 7.5) return 'green';
+    if (movie.vote_average >= 6) return 'yellow';
+    if (movie.vote_average >= 4) return 'orange';
     return 'red';
   }, [movie.vote_average]);
 
-  const year = useMemo(() => {
-    return movie.release_date?.split('-')[0] || 'N/A';
-  }, [movie.release_date]);
+  const formattedRating = useMemo(() => {
+    return movie.vote_average.toFixed(1);
+  }, [movie.vote_average]);
+
+  const runtimeDisplay = useMemo(() => {
+    if (!movie.runtime) return null;
+    const hours = Math.floor(movie.runtime / 60);
+    const minutes = movie.runtime % 60;
+    return `${hours}h ${minutes}m`;
+  }, [movie.runtime]);
 
   if (isLoading) {
     return (
       <Skeleton
-        height="400px"
+        height={variant === 'compact' ? "300px" : "400px"}
         borderRadius="16px"
         startColor={colors.cardBg}
         endColor={colors.hoverBg}
@@ -162,11 +186,16 @@ const MovieCard: React.FC<MovieCardProps> = React.memo(({
       cursor="pointer"
     >
       <VStack spacing={0} align="stretch" height="100%">
-        <Box position="relative" width="100%" paddingBottom="150%" overflow="hidden">
+        <Box 
+          position="relative" 
+          width="100%" 
+          paddingBottom={`${100 * POSTER_ASPECT_RATIO}%`} 
+          overflow="hidden"
+        >
           <Skeleton isLoaded={imageLoaded} height="100%" width="100%">
             <Image
               src={posterUrl}
-              alt={movie.title}
+              alt={title}
               objectFit="cover"
               position="absolute"
               top={0}
@@ -175,12 +204,11 @@ const MovieCard: React.FC<MovieCardProps> = React.memo(({
               height="100%"
               transition="transform 0.3s ease"
               onLoad={handleImageLoad}
-              onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                e.currentTarget.src = '/default-movie-poster.jpg';
-              }}
+              onError={handleImageError}
               _groupHover={{ transform: 'scale(1.05)' }}
             />
           </Skeleton>
+         
 
           <AnimatePresence>
             {isHovered && (
@@ -194,34 +222,85 @@ const MovieCard: React.FC<MovieCardProps> = React.memo(({
                 left={0}
                 right={0}
                 bottom={0}
-                bg="linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 50%, transparent 100%)"
+                bg="linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0.3) 100%)"
                 display="flex"
                 flexDirection="column"
-                justifyContent="flex-end"
+                justifyContent="space-between"
                 p={4}
               >
-                <HStack spacing={2} justify="center">
-                  <Button
-                    leftIcon={<Play />}
-                    onClick={handleDetailClick}
-                    size="sm"
-                    bg="rgba(255, 255, 255, 0.15)"
-                    backdropFilter="blur(10px)"
-                    border="1px solid rgba(255, 255, 255, 0.18)"
-                    color="white"
-                    _hover={{
-                      bg: "rgba(255, 255, 255, 0.25)",
-                      transform: 'translateY(-2px)',
-                      boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.37)"
-                    }}
-                    _active={{
-                      bg: "rgba(255, 255, 255, 0.2)"
-                    }}
-                    transition="all 0.3s ease"
+                <Flex justify="space-between" align="center">
+                  <Badge
+                    colorScheme={ratingColor}
+                    px={2}
+                    py={1}
+                    borderRadius="full"
+                    display="flex"
+                    alignItems="center"
+                    gap={1}
+                    backdropFilter="blur(4px)"
                   >
-                    watch
-                  </Button>
-                </HStack>
+                    <FaStar />
+                    {formattedRating}
+                  </Badge>
+                  {movie.runtime && (
+                    <Badge
+                      colorScheme="gray"
+                      px={2}
+                      py={1}
+                      borderRadius="full"
+                      display="flex"
+                      alignItems="center"
+                      gap={1}
+                      backdropFilter="blur(4px)"
+                    >
+                      <Clock size={12} />
+                      {runtimeDisplay}
+                    </Badge>
+                  )}
+                </Flex>
+
+                <VStack spacing={3} align="stretch">
+                  <Text
+                    color="white"
+                    fontSize="sm"
+                    noOfLines={3}
+                    textShadow="0 2px 4px rgba(0,0,0,0.5)"
+                  >
+                    {movie.overview}
+                  </Text>
+                  
+                  <HStack spacing={2} justify="center">
+                    <Button
+                      leftIcon={<FaPlay />}
+                      onClick={handleDetailClick}
+                      size="sm"
+                      bg="whiteAlpha.900"
+                      color="black"
+                      _hover={{
+                        bg: "white",
+                        transform: 'translateY(-2px)',
+                        boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.37)"
+                      }}
+                      _active={{
+                        bg: "whiteAlpha.800"
+                      }}
+                      transition="all 0.3s ease"
+                    >
+                      Watch Now
+                    </Button>
+                    <IconButton
+                      aria-label="More info"
+                      icon={<Info />}
+                      onClick={onOpen}
+                      size="sm"
+                      variant="ghost"
+                      color="white"
+                      _hover={{
+                        bg: colors.buttonHover
+                      }}
+                    />
+                  </HStack>
+                </VStack>
               </MotionBox>
             )}
           </AnimatePresence>
@@ -235,46 +314,37 @@ const MovieCard: React.FC<MovieCardProps> = React.memo(({
           bg={colors.glassBg}
           backdropFilter="blur(10px)"
         >
-          <Text
-            fontWeight="bold"
-            fontSize="lg"
-            color={colors.text}
-            noOfLines={1}
-            _groupHover={{ color: 'blue.500' }}
-          >
-            {movie.title}
-          </Text>
-
           <Flex justify="space-between" width="100%" align="center">
-            <Badge
-              colorScheme={ratingColor}
-              px={2}
-              py={1}
-              borderRadius="full"
-              variant="subtle"
+            <Text
+              fontWeight="bold"
+              fontSize="lg"
+              color={colors.text}
+              noOfLines={1}
+              flexGrow={1}
+              _groupHover={{ color: 'blue.500' }}
             >
-              ★ {movie.vote_average.toFixed(1)}
-            </Badge>
-            <Text fontSize="sm" color={colors.placeholder}>
-              {year}
+              {title}
             </Text>
+            <HStack spacing={1}>
+              <Badge
+                colorScheme="gray"
+                variant="subtle"
+                display="flex"
+                alignItems="center"
+                gap={1}
+              >
+                <Calendar size={12} />
+                {year}
+              </Badge>
+            </HStack>
           </Flex>
-
-          <Text
-            fontSize="sm"
-            color={colors.text}
-            noOfLines={2}
-            opacity={0.8}
-          >
-            {movie.overview || 'No description available.'}
-          </Text>
 
           {movie.genres && (
             <Flex gap={2} flexWrap="wrap">
               {movie.genres.slice(0, 2).map(genre => (
                 <Badge
                   key={genre.id}
-                  colorScheme="gray"
+                  colorScheme="blue"
                   variant="subtle"
                   fontSize="xs"
                 >
@@ -295,14 +365,15 @@ const MovieCard: React.FC<MovieCardProps> = React.memo(({
             top={2}
             right={2}
             onClick={handleAddToFavorites}
-            bg="rgba(0, 0, 0, 0.5)"
+            bg="rgba(0, 0, 0, 0.6)"
             p={2}
             borderRadius="full"
             _hover={{
-              bg: 'rgba(0, 0, 0, 0.7)',
+              bg: 'rgba(0, 0, 0, 0.8)',
               transform: 'scale(1.1)'
             }}
             transition="all 0.2s"
+            zIndex={2}
           >
             <Icon
               as={FaHeart}

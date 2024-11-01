@@ -185,9 +185,14 @@ export interface Movie {
   quality: string | null;
   fileType: string | null;
   sha256Hash: string | null;
-  poster_path: string;
   backdrop_path: string;
+  poster_path: string | null;
   vote_average: number;
+  release_date?: string;
+  media_type: 'movie' | 'tv';
+  genres?: { id: number; name: string }[];
+  runtime?: number;
+  status?: string;
 }
 
 export interface TMDBMovie extends BaseContent {
