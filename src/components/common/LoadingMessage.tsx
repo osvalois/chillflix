@@ -10,64 +10,9 @@ import {
   useBreakpointValue
 } from '@chakra-ui/react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaFilm, FaMusic, FaTv } from 'react-icons/fa';
-
-// Types
-interface Category {
-  icon: React.ElementType;
-  text: string;
-  gradient: string;
-  particleColor: string;
-  shadowColor: string;
-  accentColor: string;
-}
-
-// Constants
-const CATEGORIES: Category[] = [
-  { 
-    icon: FaFilm, 
-    text: 'Movies',
-    gradient: 'linear(to-r, pink.400, purple.500)',
-    particleColor: 'pink.400',
-    shadowColor: 'rgba(255, 102, 178, 0.3)',
-    accentColor: 'pink.200'
-  },
-  { 
-    icon: FaTv, 
-    text: 'Shows',
-    gradient: 'linear(to-r, purple.400, blue.500)',
-    particleColor: 'purple.400',
-    shadowColor: 'rgba(147, 112, 219, 0.3)',
-    accentColor: 'purple.200'
-  },
-  { 
-    icon: FaMusic, 
-    text: 'Music',
-    gradient: 'linear(to-r, blue.400, cyan.500)',
-    particleColor: 'blue.400',
-    shadowColor: 'rgba(82, 178, 255, 0.3)',
-    accentColor: 'blue.200'
-  }
-];
-
-const THEME_COLORS = {
-  light: {
-    primary: 'rgba(255,255,255,0.97)',
-    secondary: 'rgba(255,255,255,0.8)',
-    accent: 'rgba(255,255,255,0.95)',
-    highlight: 'rgba(255,255,255,0.85)',
-    subtle: 'rgba(255,255,255,0.75)',
-    glow: 'rgba(255,255,255,0.4)'
-  },
-  dark: {
-    primary: 'rgba(20,20,20,0.97)',
-    secondary: 'rgba(20,20,20,0.8)',
-    accent: 'rgba(25,25,25,0.95)',
-    highlight: 'rgba(30,30,30,0.85)',
-    subtle: 'rgba(15,15,15,0.75)',
-    glow: 'rgba(0,0,0,0.4)'
-  }
-};
+import { CATEGORIES } from '../../constants';
+import { Category } from '../../types';
+import { THEME_COLORS } from '../../theme';
 
 // Animations
 const MotionBox = motion(Box as any);

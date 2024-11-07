@@ -1,5 +1,23 @@
 import { extendTheme, theme as baseTheme, StyleFunctionProps } from "@chakra-ui/react";
 import { mode, transparentize } from "@chakra-ui/theme-tools";
+export const THEME_COLORS = {
+  light: {
+    primary: 'rgba(255,255,255,0.97)',
+    secondary: 'rgba(255,255,255,0.8)',
+    accent: 'rgba(255,255,255,0.95)',
+    highlight: 'rgba(255,255,255,0.85)',
+    subtle: 'rgba(255,255,255,0.75)',
+    glow: 'rgba(255,255,255,0.4)'
+  },
+  dark: {
+    primary: 'rgba(20,20,20,0.97)',
+    secondary: 'rgba(20,20,20,0.8)',
+    accent: 'rgba(25,25,25,0.95)',
+    highlight: 'rgba(30,30,30,0.85)',
+    subtle: 'rgba(15,15,15,0.75)',
+    glow: 'rgba(0,0,0,0.4)'
+  }
+};
 
 // Design tokens
 const tokens = {
