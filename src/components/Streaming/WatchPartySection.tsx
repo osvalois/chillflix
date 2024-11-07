@@ -1,7 +1,6 @@
-// src/pages/MoviePage/components/WatchPartySection/WatchPartySection.tsx
-import React from 'react';
+import React, { memo } from 'react';
 import { motion } from 'framer-motion';
-import { Box, Text, VStack } from '@chakra-ui/react';
+import { Box, Text, VStack, Flex, Spacer, useBreakpointValue } from '@chakra-ui/react';
 import { useQuery } from 'react-query';
 import LoadingSpinner from '../UI/LoadingSpinner';
 import ToggleWatchPartyButton from '../WatchParty/ToggleWatchPartyButton';
@@ -10,7 +9,6 @@ import JoinWatchParty from '../WatchParty/JoinWatchParty';
 import { InviteFriends } from '../WatchParty/InviteFriends';
 import { ChatRoom } from '../WatchParty/ChatRoom';
 import GlassmorphicButton from '../Button/GlassmorphicButton';
-
 
 interface WatchPartySectionProps {
   isVisible: boolean;
@@ -25,7 +23,7 @@ interface WatchPartySectionProps {
   onJoinParty: () => void;
 }
 
-const glassmorphismStyle = {
+const GLASSMORPHISM_STYLE = {
   background: "rgba(255, 255, 255, 0.05)",
   backdropFilter: "blur(10px)",
   borderRadius: "20px",
@@ -35,9 +33,126 @@ const glassmorphismStyle = {
     "inset 0 0 20px rgba(255, 255, 255, 0.05), " +
     "0 0 0 1px rgba(255, 255, 255, 0.1)",
   overflow: "hidden",
-};
+} as const;
 
-export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
+const ANIMATION_VARIANTS = {
+  container: {
+    hidden: { opacity: 0, y: 20 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: {
+        duration: 0.5,
+        staggerChildren: 0.1
+      }
+    }
+  },
+  item: {
+    hidden: { opacity: 0, y: 10 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: { duration: 0.3 }
+    }
+  }
+} as const;
+
+const SCROLL_STYLES = {
+  '&::-webkit-scrollbar': {
+    width: '4px',
+  },
+  '&::-webkit-scrollbar-track': {
+    background: 'rgba(255,255,255,0.1)',
+  },
+  '&::-webkit-scrollbar-thumb': {
+    background: 'rgba(255,255,255,0.3)',
+    borderRadius: '2px',
+  },
+} as const;
+
+const CreateJoinSection = memo(({ 
+  movieId, 
+  movieTitle, 
+  movieDuration, 
+  movieThumbnail, 
+  onWatchPartyCreated, 
+  onJoinParty 
+}: Pick<WatchPartySectionProps, 'movieId' | 'movieTitle' | 'movieDuration' | 'movieThumbnail' | 'onWatchPartyCreated' | 'onJoinParty'>) => (
+  <VStack spacing={2} align="stretch">
+    <Box
+      p={1}
+      borderRadius="lg"
+      bg="rgba(255,255,255,0.05)"
+      _hover={{ bg: "rgba(255,255,255,0.08)" }}
+      transition="background 0.3s ease"
+    >
+      <CreateWatchParty
+        movieId={movieId}
+        movieTitle={movieTitle}
+        movieDuration={movieDuration}
+        movieThumbnail={movieThumbnail}
+        onWatchPartyCreated={onWatchPartyCreated}
+        onCancel={() => {}}
+      />
+    </Box>
+    <Box
+      p={4}
+      borderRadius="lg"
+      bg="rgba(255,255,255,0.05)"
+      _hover={{ bg: "rgba(255,255,255,0.08)" }}
+      transition="background 0.3s ease"
+    >
+      <JoinWatchParty
+        partyId="example-party-123"
+        movieTitle={movieTitle}
+        hostName="Host Name"
+        startTime={new Date()}
+        maxParticipants={10}
+        currentParticipants={1}
+        onJoin={onJoinParty}
+        onCancel={() => {}}
+      />
+    </Box>
+  </VStack>
+));
+
+const ActivePartySection = memo(({ 
+  watchPartyId, 
+  hasJoined, 
+  userId 
+}: { 
+  watchPartyId: string; 
+  hasJoined: boolean; 
+  userId?: string;
+}) => (
+  <VStack spacing={4} align="stretch">
+    <Box p={1} borderRadius="lg" bg="rgba(255,255,255,0.05)" backdropFilter="blur(10px)">
+      <Flex align="center">
+        <Text fontSize="lg" fontWeight="bold">Active Watch Party</Text>
+        <Spacer />
+        <Text fontSize="md" color="whiteAlpha.800">Party ID: {watchPartyId}</Text>
+      </Flex>
+    </Box>
+    <Box p={1} borderRadius="lg" bg="rgba(255,255,255,0.05)" backdropFilter="blur(10px)">
+      <InviteFriends partyId={watchPartyId} />
+    </Box>
+    {hasJoined && userId && (
+      <Box
+        p={1}
+        borderRadius="lg"
+        bg="rgba(0,0,0,0.3)"
+        backdropFilter="blur(10px)"
+        maxH={{ base: '300px', md: '400px' }}
+        overflowY="auto"
+        css={SCROLL_STYLES}
+      >
+        <ChatRoom partyId={watchPartyId} userId={userId} />
+      </Box>
+    )}
+  </VStack>
+));
+
+const WatchPartySection: React.FC<WatchPartySectionProps> = ({
   isVisible,
   watchPartyId,
   hasJoined,
@@ -49,38 +164,15 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
   onWatchPartyCreated,
   onJoinParty,
 }) => {
-  // Query para obtener el ID del usuario actual
   const { data: userId, isLoading: isUserLoading } = useQuery('userId', () => 
-    // Aquí deberías implementar la lógica real para obtener el userId
     Promise.resolve("example-user-id")
   );
 
-  // Animación para el contenedor
-  const containerVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      transition: {
-        duration: 0.5,
-        staggerChildren: 0.1
-      }
-    }
-  };
-
-  // Animación para los elementos hijos
-  const itemVariants = {
-    hidden: { opacity: 0, y: 10 },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      transition: { duration: 0.3 }
-    }
-  };
+  const isMobile = useBreakpointValue({ base: true, md: false });
 
   if (isUserLoading) {
     return (
-      <Box {...glassmorphismStyle} p={6}>
+      <Box {...GLASSMORPHISM_STYLE} p={6}>
         <LoadingSpinner />
       </Box>
     );
@@ -90,11 +182,11 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
     <motion.div
       initial="hidden"
       animate="visible"
-      variants={containerVariants}
+      variants={ANIMATION_VARIANTS.container}
     >
       <Box
-        {...glassmorphismStyle}
-        p={6}
+        {...GLASSMORPHISM_STYLE}
+        p={2}
         position="relative"
         _before={{
           content: '""',
@@ -107,9 +199,8 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
           pointerEvents: "none",
         }}
       >
-        <VStack spacing={6} align="stretch">
-          {/* Toggle Button */}
-          <motion.div variants={itemVariants}>
+        <VStack spacing={2} align="stretch">
+          <motion.div variants={ANIMATION_VARIANTS.item}>
             <ToggleWatchPartyButton
               isVisible={isVisible}
               onToggle={onToggleVisibility}
@@ -118,131 +209,49 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
 
           {isVisible && (
             <>
-              {/* Create or Join Section */}
               {!watchPartyId && !hasJoined && (
-                <motion.div variants={itemVariants}>
-                  <VStack spacing={4} align="stretch">
-                    {/* Create Watch Party */}
-                    <Box
-                      p={4}
-                      borderRadius="lg"
-                      bg="rgba(255,255,255,0.05)"
-                      _hover={{ bg: "rgba(255,255,255,0.08)" }}
-                      transition="background 0.3s ease"
-                    >
-                      <CreateWatchParty
-                        movieId={movieId}
-                        movieTitle={movieTitle}
-                        movieDuration={movieDuration}
-                        movieThumbnail={movieThumbnail}
-                        onWatchPartyCreated={onWatchPartyCreated}
-                        onCancel={() => {}}
-                      />
-                    </Box>
-
-                    {/* Join Watch Party */}
-                    <Box
-                      p={4}
-                      borderRadius="lg"
-                      bg="rgba(255,255,255,0.05)"
-                      _hover={{ bg: "rgba(255,255,255,0.08)" }}
-                      transition="background 0.3s ease"
-                    >
-                      <JoinWatchParty
-                        partyId="example-party-123" // Este valor debería ser dinámico
-                        movieTitle={movieTitle}
-                        hostName="Host Name" // Este valor debería ser dinámico
-                        startTime={new Date()}
-                        maxParticipants={10}
-                        currentParticipants={1}
-                        onJoin={onJoinParty}
-                        onCancel={() => {}}
-                      />
-                    </Box>
-                  </VStack>
+                <motion.div variants={ANIMATION_VARIANTS.item}>
+                  <CreateJoinSection
+                    movieId={movieId}
+                    movieTitle={movieTitle}
+                    movieDuration={movieDuration}
+                    movieThumbnail={movieThumbnail}
+                    onWatchPartyCreated={onWatchPartyCreated}
+                    onJoinParty={onJoinParty}
+                  />
                 </motion.div>
               )}
 
-              {/* Active Watch Party Section */}
               {watchPartyId && (
-                <motion.div variants={itemVariants}>
-                  <VStack spacing={4} align="stretch">
-                    {/* Party Info */}
-                    <Box
-                      p={4}
-                      borderRadius="lg"
-                      bg="rgba(255,255,255,0.05)"
-                      backdropFilter="blur(10px)"
-                    >
-                      <Text fontSize="lg" fontWeight="bold" mb={2}>
-                        Active Watch Party
-                      </Text>
-                      <Text fontSize="md" color="whiteAlpha.800">
-                        Party ID: {watchPartyId}
-                      </Text>
-                    </Box>
-
-                    {/* Invite Friends */}
-                    <Box
-                      p={4}
-                      borderRadius="lg"
-                      bg="rgba(255,255,255,0.05)"
-                      backdropFilter="blur(10px)"
-                    >
-                      <InviteFriends partyId={watchPartyId} />
-                    </Box>
-
-                    {/* Chat Room */}
-                    {hasJoined && userId && (
-                      <Box
-                        p={4}
-                        borderRadius="lg"
-                        bg="rgba(0,0,0,0.3)"
-                        backdropFilter="blur(10px)"
-                        maxH="400px"
-                        overflowY="auto"
-                        css={{
-                          '&::-webkit-scrollbar': {
-                            width: '4px',
-                          },
-                          '&::-webkit-scrollbar-track': {
-                            background: 'rgba(255,255,255,0.1)',
-                          },
-                          '&::-webkit-scrollbar-thumb': {
-                            background: 'rgba(255,255,255,0.3)',
-                            borderRadius: '2px',
-                          },
-                        }}
-                      >
-                        <ChatRoom
-                          partyId={watchPartyId}
-                          userId={userId}
-                        />
-                      </Box>
-                    )}
-                  </VStack>
+                <motion.div variants={ANIMATION_VARIANTS.item}>
+                  <ActivePartySection
+                    watchPartyId={watchPartyId}
+                    hasJoined={hasJoined}
+                    userId={userId}
+                  />
                 </motion.div>
               )}
 
-              {/* Additional Features */}
-              <motion.div variants={itemVariants}>
-                <Box
-                  mt={4}
-                  p={4}
-                  borderRadius="lg"
-                  bg="rgba(255,255,255,0.05)"
-                  backdropFilter="blur(10px)"
-                >
-                  <GlassmorphicButton
-                    onClick={() => {}}
-                    variant="primary"
-                    size="sm"
-                    width="full"
+              {(isMobile || !watchPartyId) && (
+                <motion.div variants={ANIMATION_VARIANTS.item}>
+                  <Box
+                    mt={4}
+                    p={4}
+                    borderRadius="lg"
+                    bg="rgba(255,255,255,0.05)"
+                    backdropFilter="blur(10px)"
                   >
-                    Additional Features Coming Soon
-                  </GlassmorphicButton>
-                </Box>
-              </motion.div>
+                    <GlassmorphicButton
+                      onClick={() => {}}
+                      variant="primary"
+                      size="sm"
+                      width="full"
+                    >
+                      Additional Features Coming Soon
+                    </GlassmorphicButton>
+                  </Box>
+                </motion.div>
+              )}
             </>
           )}
         </VStack>
@@ -250,3 +259,5 @@ export const WatchPartySection: React.FC<WatchPartySectionProps> = ({
     </motion.div>
   );
 };
+
+export default memo(WatchPartySection);

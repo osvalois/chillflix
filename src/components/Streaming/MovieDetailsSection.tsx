@@ -99,7 +99,7 @@ export const MovieDetailsSection: React.FC<MovieDetailsSectionProps> = ({
       animate={headerInView ? "visible" : "hidden"}
       variants={itemVariants}
     >
-      <Box {...glassEffect} p={{ base: 4, md: 6 }} mb={6}>
+      <Box {...glassEffect} p={{ base: 1, md: 1 }} mb={1}>
         <MovieHeader movie={movieData} {...headerProps} />
       </Box>
     </motion.div>
@@ -163,13 +163,13 @@ export const MovieDetailsSection: React.FC<MovieDetailsSectionProps> = ({
 
   return (
     <ErrorBoundary>
-      <Container maxW="container.xl" px={{ base: 4, md: 6 }}>
+      <Container maxW="container.xl" px={{ base: 1, md: 1 }}>
         <motion.div
           initial="hidden"
           animate="visible"
           variants={containerVariants}
         >
-          <VStack spacing={{ base: 6, md: 8 }} align="stretch">
+          <VStack spacing={{ base: 1, md: 1 }} align="stretch">
             {HeaderSection}
             
             {/* Cast Section en su propia fila */}

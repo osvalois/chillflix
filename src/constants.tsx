@@ -6,7 +6,7 @@ import { mix, rgba, lighten, darken, transparentize } from 'polished';
 
 import { FaFilm, FaMusic, FaTv } from 'react-icons/fa';
 import { Category } from './types';
-
+export const APP_NAME = "Chillflix";
 export const CATEGORIES: Category[] = [
   { 
     icon: FaFilm, 

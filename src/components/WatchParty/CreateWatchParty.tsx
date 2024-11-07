@@ -134,7 +134,7 @@ const PartyUserInput = ({
           transform: 'translateY(-1px)'
         }}
       >
-        <HStack spacing={4}>
+        <HStack spacing={2}>
           <Avatar
             size="sm"
             name={user.name || user.id}
@@ -398,10 +398,10 @@ export const CreateWatchParty: React.FC<CreateWatchPartyProps> = ({
             />
             
             <Box p={1}>
-              <VStack spacing={6} align="stretch">
+              <VStack spacing={2} align="stretch">
                 {/* Header Section */}
                 <Flex justify="space-between" align="center">
-                  <HStack spacing={4}>
+                  <HStack spacing={2}>
                     <Box position="relative">
                       <Player
                         src={LOTTIE_PARTY_ANIMATION}
