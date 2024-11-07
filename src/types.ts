@@ -5,6 +5,14 @@ import { ANIMATION_PRESETS } from './constants';
 
 // Corregido: Definición correcta del tipo Player
 type Player = typeof VideoJS.players;
+export type Category = {
+  icon: React.ElementType;
+  text: string;
+  gradient: string;
+  particleColor: string;
+  shadowColor: string;
+  accentColor: string;
+};
 
 // Enums
 export enum ContentType {
@@ -598,4 +606,40 @@ export interface MovieHeaderProps {
   onOpenQualitySelector: () => void;
   isPlaying: boolean;
   currentQuality: VideoQuality;
+}
+
+export interface VideoSectionProps {
+  isVideoLoading: boolean;
+  streamUrl: string | null;
+  videoJsOptions: any;
+  movie: any;
+  qualities: string[];
+  languages: string[];
+  handleQualityChange: (quality: string) => void;
+  handleLanguageChange: (language: string) => void;
+  posterUrl: string;
+  hasTriedBackupApi: boolean;
+  isBackupApiLoading: boolean;
+  handleBackupApiCall: () => void;
+}
+
+export interface WatchPartyProps {
+  isVisible: boolean;
+  watchPartyId: string | null;
+  hasJoined: boolean;
+  movie: any;
+  userId: string;
+  onToggleVisibility: () => void;
+  onWatchPartyCreated: (partyId: string) => void;
+  onJoinParty: () => void;
+}
+
+export interface MovieDetailsSectionProps {
+  movie: any;
+  credits: any;
+  similarMovies: any[];
+  isCreditsLoading: boolean;
+  isSimilarMoviesLoading: boolean;
+  headerProps: any;
+  isMobile: boolean;
 }

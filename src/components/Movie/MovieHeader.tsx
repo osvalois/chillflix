@@ -4,23 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FaStar, FaCalendar, FaClock, FaDollarSign } from 'react-icons/fa';
 import { useInView } from 'react-intersection-observer';
 import { useSpring, animated, config } from 'react-spring';
-import { CombinedContent } from '../../types';
 import OptimizedImage from '../UI/OptimizedImage';
-import { VideoQuality } from '../../services/movieService';
+import { MovieHeaderProps } from '../../types';
 
-interface MovieHeaderProps {
-  movie: CombinedContent | undefined;
-  onTrailerPlay: () => void;
-  isMobile: boolean;
-  isLoading: boolean;
-  onChangeMirror: (totalMirrors: number) => void; // Add this line
-  isChangingMirror: boolean;
-  currentMirrorIndex: number;
-  totalMirrors: number;
-  onOpenQualitySelector: () => void;
-  isPlaying: boolean;
-  currentQuality: VideoQuality;
-}
 
 const GlassmorphicBox: React.FC<{ children: React.ReactNode; [key: string]: any }> = ({ children, ...props }) => {
   const glassEffect = useSpring({
@@ -165,6 +151,7 @@ const MovieHeader: React.FC<MovieHeaderProps> = ({ movie, isMobile, isLoading })
                           value={(movie?.budget || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
                         />
                     </HStack>
+                    
                   </VStack>
                 </motion.div>
               )}

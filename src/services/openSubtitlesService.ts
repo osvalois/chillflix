@@ -46,8 +46,6 @@ class OpenSubtitlesService {
       }
       // Crear un Blob con el contenido del subtítulo
       const subtitleBlob = new Blob([subtitleContent], { type: 'text/vtt' });
-      console.log(URL.createObjectURL(subtitleBlob))
-      console.log("URL.createObjectURL(subtitleBlob)")
       return URL.createObjectURL(subtitleBlob);
     } catch (error) {
       console.error('Error downloading subtitle:', error);

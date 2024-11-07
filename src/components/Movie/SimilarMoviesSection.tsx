@@ -95,8 +95,6 @@ const SimilarMoviesSection: React.FC<SimilarMoviesSectionProps> = ({ movies, isL
     showAll ? movies : movies.slice(0, 6),
     [showAll, movies]
   );
-  console.log(movies)
-  console.log("movies")
   const movieCards = useMemo(() => 
     displayedMovies.map((movie, index) => (
       <MotionBox

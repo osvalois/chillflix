@@ -3,6 +3,37 @@
 import { Variants } from 'framer-motion';
 import { mix, rgba, lighten, darken, transparentize } from 'polished';
 // Constants for better performance and maintainability
+
+import { FaFilm, FaMusic, FaTv } from 'react-icons/fa';
+import { Category } from './types';
+
+export const CATEGORIES: Category[] = [
+  { 
+    icon: FaFilm, 
+    text: 'Movies',
+    gradient: 'linear(to-r, pink.400, purple.500)',
+    particleColor: 'pink.400',
+    shadowColor: 'rgba(255, 102, 178, 0.3)',
+    accentColor: 'pink.200'
+  },
+  { 
+    icon: FaTv, 
+    text: 'Shows',
+    gradient: 'linear(to-r, purple.400, blue.500)',
+    particleColor: 'purple.400',
+    shadowColor: 'rgba(147, 112, 219, 0.3)',
+    accentColor: 'purple.200'
+  },
+  { 
+    icon: FaMusic, 
+    text: 'Music',
+    gradient: 'linear(to-r, blue.400, cyan.500)',
+    particleColor: 'blue.400', 
+    shadowColor: 'rgba(82, 178, 255, 0.3)',
+    accentColor: 'blue.200'
+  }
+];
+
 export const VIEWPORT_SIZES = {
   base: '70vw',
   sm: '85vw',

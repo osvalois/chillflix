@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback, useState } from "react";
+import React, { useEffect, useRef, useCallback, useState, useMemo } from "react";
 import videojs from "video.js";
 import Player from "video.js/dist/types/player";
 import {
@@ -19,6 +19,20 @@ import { PlayerOptions, Subtitle } from "../../types";
 import OpenSubtitlesService from "../../services/openSubtitlesService";
 import { useVideoPlayerState } from "../../hooks/useVideoPlayerState";
 import { AudioTrackCustom } from "./AudioSettingsMenu";
+import { debounce } from 'lodash';
+
+// Constants
+const CONSTANTS = {
+  MAX_RETRIES: 5,
+  RETRY_DELAY: 5000,
+  BUFFER_THRESHOLD: 500,
+  CONTROLS_HIDE_DELAY: 3000,
+  DOUBLE_CLICK_THRESHOLD: 300,
+  SEEK_SECONDS: 10,
+  ERROR_TOAST_DURATION: 5000,
+  MIN_VOLUME: 0,
+  MAX_VOLUME: 1,
+} as const;
 
 const initialOptions: PlayerOptions = {
   responsive: true,
@@ -28,14 +42,50 @@ const initialOptions: PlayerOptions = {
     nativeAudioTracks: true,
     nativeVideoTracks: true,
     nativeTextTracks: true,
+    vhs: {
+      overrideNative: true,
+      cacheEncryptionKeys: true,
+    }
   },
   preload: "auto",
-  sources: []
+  sources: [],
 };
 
-const MAX_RETRIES = 5;
-const RETRY_DELAY = 5000;
-const BUFFER_THRESHOLD = 500; // milliseconds
+// Custom hook for managing timeouts
+const useTimeout = () => {
+  const timeoutRefs = useRef<{ [key: string]: NodeJS.Timeout | null }>({});
+
+  const setCustomTimeout = useCallback((key: string, callback: () => void, delay: number) => {
+    if (timeoutRefs.current[key]) {
+      clearTimeout(timeoutRefs.current[key]!);
+    }
+    timeoutRefs.current[key] = setTimeout(callback, delay);
+  }, []);
+
+  const clearCustomTimeout = useCallback((key: string) => {
+    if (timeoutRefs.current[key]) {
+      clearTimeout(timeoutRefs.current[key]!);
+      timeoutRefs.current[key] = null;
+    }
+  }, []);
+
+  const clearAllTimeouts = useCallback(() => {
+    Object.keys(timeoutRefs.current).forEach(key => {
+      if (timeoutRefs.current[key]) {
+        clearTimeout(timeoutRefs.current[key]!);
+        timeoutRefs.current[key] = null;
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      clearAllTimeouts();
+    };
+  }, [clearAllTimeouts]);
+
+  return { setCustomTimeout, clearCustomTimeout, clearAllTimeouts };
+};
 
 const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
   ({
@@ -47,20 +97,26 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
     availableLanguages,
     imdbId,
   }) => {
+    // Refs
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const playerRef = useRef<Player | null>(null);
-    const containerRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement | null>(null);
+    const previousSourceRef = useRef<string | null>(null);
+
+    // State
     const [retryCount, setRetryCount] = useState(0);
-    const bgColor = useColorModeValue("gray.100", "gray.900");
-    const toast = useToast();
+    const [isBuffering, setIsBuffering] = useState(false);
+    const [isMouseMoving, setIsMouseMoving] = useState(false);
     const [lastClickTime, setLastClickTime] = useState(0);
     const [subtitles, setSubtitles] = useState<Subtitle[]>([]);
     const [selectedSubtitle, setSelectedSubtitle] = useState<Subtitle | null>(null);
-    const [isMouseMoving, setIsMouseMoving] = useState(false);
-    const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const [isBuffering, setIsBuffering] = useState(false);
-    const bufferingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const [isSourceChanging, setIsSourceChanging] = useState(false);
+
+    // Hooks
+    const bgColor = useColorModeValue("gray.100", "gray.900");
+    const toast = useToast();
     const { trackEvent } = useAnalytics();
+    const { setCustomTimeout, clearCustomTimeout, clearAllTimeouts } = useTimeout();
 
     const {
       isLoading,
@@ -91,137 +147,178 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
       saveCurrentState,
     } = useVideoPlayerState('USER-ID');
 
-    const handlePlayerReady = useCallback(
-      (player: Player) => {
-        playerRef.current = player;
+    // Memoized error handler
+    const handleError = useCallback((player: any, error: any) => {
+      console.error("Video player error:", error);
+      trackEvent('video_error', { 
+        code: error?.code,
+        message: error?.message,
+        type: error?.type,
+        retryCount
+      });
 
-        player.on("waiting", () => {
+      if (retryCount < CONSTANTS.MAX_RETRIES) {
+        setCustomTimeout('retry', () => {
+          setRetryCount(prev => prev + 1);
+          if (player && !isSourceChanging) {
+            player.load();
+            player.play()?.catch((e: { message: any; }) => {
+              console.error("Play error after retry:", e);
+              trackEvent('play_error_after_retry', { error: e.message });
+            });
+          }
+        }, CONSTANTS.RETRY_DELAY);
+      } else {
+        console.error("Maximum retry attempts reached. Playback failed.");
+        toast({
+          title: "Playback Error",
+          description: "We're having trouble playing this video. Please check your connection and try again later.",
+          status: "error",
+          duration: CONSTANTS.ERROR_TOAST_DURATION,
+          isClosable: true,
+        });
+      }
+    }, [retryCount, isSourceChanging, setCustomTimeout, toast, trackEvent]);
+
+    // Audio tracks handler
+    const checkAudioTracks = useCallback((player: any) => {
+      try {
+        const tracks = player.audioTracks();
+        const trackList: AudioTrack[] = [];
+
+        if (tracks?.length) {
+          for (let i = 0; i < tracks.length; i++) {
+            trackList.push(tracks[i]);
+          }
+          setAudioTracks(trackList);
+
+          const defaultTrack = trackList.find(track => track.enabled) || trackList[0];
+          if (defaultTrack) {
+            setSelectedAudioTrack((defaultTrack as unknown as AudioTrackCustom).label);
+            defaultTrack.enabled = true;
+          }
+        }
+      } catch (error) {
+        console.error('Error handling audio tracks:', error);
+        trackEvent('audio_tracks_error', { error: (error as Error).message });
+      }
+    }, [setAudioTracks, setSelectedAudioTrack, trackEvent]);
+
+    // Player event handlers
+    const handlePlayerReady = useCallback((player: Player) => {
+      playerRef.current = player;
+
+      const eventHandlers = {
+        waiting: () => {
           setIsLoading(true);
           setIsBuffering(true);
-          if (bufferingTimeoutRef.current) clearTimeout(bufferingTimeoutRef.current);
-          bufferingTimeoutRef.current = setTimeout(() => {
+          setCustomTimeout('buffer', () => {
             if (isBuffering) {
-              trackEvent('long_buffering', { duration: Date.now() - Number(bufferingTimeoutRef.current || 0) });
+              trackEvent('long_buffering', { 
+                duration: CONSTANTS.BUFFER_THRESHOLD,
+                currentTime: player.currentTime()
+              });
             }
-          }, BUFFER_THRESHOLD);
-        });
-
-        player.on("canplay", () => {
+          }, CONSTANTS.BUFFER_THRESHOLD);
+        },
+        canplay: () => {
           setIsLoading(false);
           setIsBuffering(false);
-          if (bufferingTimeoutRef.current) clearTimeout(bufferingTimeoutRef.current);
-        });
-
-        player.on("play", () => {
+          clearCustomTimeout('buffer');
+        },
+        play: () => {
           setIsPaused(false);
-          trackEvent('video_play', { title, currentTime: player.currentTime() });
-        });
-
-        player.on("pause", () => {
+          trackEvent('video_play', { 
+            title, 
+            currentTime: player.currentTime(),
+            quality: selectedQuality,
+            language: selectedLanguage
+          });
+        },
+        pause: () => {
           setIsPaused(true);
-          trackEvent('video_pause', { title, currentTime: player.currentTime() });
-        });
-
-        player.on("fullscreenchange", () => {
+          trackEvent('video_pause', { 
+            title, 
+            currentTime: player.currentTime() 
+          });
+        },
+        error: () => handleError(player, player.error()),
+        timeupdate: () => {
+          const time = player.currentTime();
+          if (typeof time === 'number') {
+            setCurrentTime(time);
+            saveCurrentState(player);
+          }
+        },
+        loadedmetadata: () => {
+          const dur = player.duration();
+          if (typeof dur === 'number') {
+            setDuration(dur);
+            checkAudioTracks(player);
+            trackEvent('video_loaded', { 
+              title, 
+              duration: dur,
+              quality: selectedQuality,
+              language: selectedLanguage
+            });
+          }
+        },
+        ended: () => {
+          trackEvent('video_ended', { 
+            title, 
+            duration: player.duration() 
+          });
+        },
+        volumechange: () => {
+          const newVolume = player.volume();
+          if (typeof newVolume === 'number') {
+            setVolume(newVolume);
+            setIsMuted(newVolume === 0);
+            saveCurrentState(player);
+          }
+        },
+        fullscreenchange: () => {
           const isFullscreen = player.isFullscreen();
           setIsFullscreen(isFullscreen ?? false);
           setControlsVisible(true);
           setIsMouseMoving(true);
-          
-          if (isFullscreen) {
-            if (controlsTimeoutRef.current) {
-              clearTimeout(controlsTimeoutRef.current);
-            }
-            controlsTimeoutRef.current = setTimeout(() => {
-              if (!player.paused()) {
-                setControlsVisible(false);
-                setIsMouseMoving(false);
-              }
-            }, 3000);
-          }
 
-          trackEvent('fullscreen_change', { isFullscreen });
-        });
-
-        player.on("timeupdate", () => {
-          setCurrentTime(player.currentTime() ?? 0);
-          saveCurrentState(player);
-        });
-
-        player.on("loadedmetadata", () => {
-          setDuration(player.duration() ?? 0);
-          checkAudioTracks(player);
-          trackEvent('video_loaded', { title, duration: player.duration() });
-        });
-
-        player.on("ended", () => {
-          trackEvent('video_ended', { title, duration: player.duration() });
-        });
-
-        player.on("error", () => {
-          const error = player.error();
-          if (error) {
-            console.error("Video player error:", error);
-            trackEvent('video_error', { error: error.code, message: error.message });
-          }
-
-          if (retryCount < MAX_RETRIES) {
-            setTimeout(() => {
-              setRetryCount((prev) => prev + 1);
-              player.load();
-              if (player) {
-               
-              }
-            }, RETRY_DELAY);
-          } else {
-            console.error("Maximum retry attempts reached. Playback failed.");
-            toast({
-              title: "Playback Error",
-              description: "We're having trouble playing this video. Please check your connection and try again later.",
-              status: "error",
-              duration: 5000,
-              isClosable: true,
-            });
-          }
-        });
-
-        player.on("progress", () => {
-          const buffered = player.buffered();
-          if (buffered.length > 0) {
-          }
-        });
-
-        loadSavedState(player);
-      },
-      [retryCount, setIsLoading, setIsPaused, setIsFullscreen, setCurrentTime, setDuration, loadSavedState, saveCurrentState, toast, setControlsVisible, trackEvent, title]
-    );
-
-    const checkAudioTracks = useCallback(
-      (player: any) => {
-        const tracks = player.audioTracks();
-        const trackList: AudioTrack[] = [];
-
-        if (tracks && tracks.length) {
-          for (let i = 0; i < tracks.length; i++) {
-            trackList.push(tracks[i]);
+          if (isFullscreen && !player.paused()) {
+            setCustomTimeout('controls', () => {
+              setControlsVisible(false);
+              setIsMouseMoving(false);
+            }, CONSTANTS.CONTROLS_HIDE_DELAY);
           }
         }
+      };
 
-        setAudioTracks(trackList);
+      // Attach event listeners
+      Object.entries(eventHandlers).forEach(([event, handler]) => {
+        player.on(event, handler);
+      });
 
-        if (trackList.length > 0) {
-          const defaultTrack = trackList.find((track) => track.enabled) || trackList[0];
-          setSelectedAudioTrack((defaultTrack as unknown as AudioTrackCustom).label);
-          defaultTrack.enabled = true;
-        }
-      },
-      [setAudioTracks, setSelectedAudioTrack]
-    );
+      // Load saved state
+      loadSavedState(player);
 
+      return () => {
+        // Remove event listeners
+        Object.entries(eventHandlers).forEach(([event, handler]) => {
+          player.off(event, handler);
+        });
+      };
+    }, [
+      setIsLoading, setIsBuffering, setIsPaused, setCurrentTime, 
+      setDuration, setVolume, setIsMuted, setIsFullscreen, 
+      setControlsVisible, loadSavedState, saveCurrentState, 
+      handleError, checkAudioTracks, trackEvent, title, 
+      selectedQuality, selectedLanguage, setCustomTimeout, 
+      clearCustomTimeout
+    ]);
+
+    // Initialize player
     useEffect(() => {
       if (!playerRef.current && videoRef.current) {
         const videoElement = videoRef.current;
-        if (!videoElement) return;
 
         const player = videojs(
           videoElement,
@@ -234,104 +331,163 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
           }
         );
 
-        player.src(options.sources || []);
-      }
-      return () => {
-        if (playerRef.current) {
-          playerRef.current.dispose();
-          playerRef.current = null;
+        // Set initial source
+        if (options.sources?.length) {
+          player.src(options.sources);
+          previousSourceRef.current = options.sources[0]?.src || null;
         }
-      };
-    }, [options, handlePlayerReady]);
 
-    useEffect(() => {
-      if (playerRef.current) {
-        const currentTime = playerRef.current.currentTime();
-        playerRef.current.src(options.sources || []);
-        playerRef.current.currentTime(currentTime);
-        if (!isPaused) {
+        return () => {
+          clearAllTimeouts();
           if (playerRef.current) {
-            (playerRef.current.play() ?? Promise.resolve()).catch((e) => {
-              console.error("Play error:", e);
-              trackEvent('play_error', { error: e.message });
-            });
+            playerRef.current.dispose();
+            playerRef.current = null;
           }
+        };
+      }
+    }, [options, handlePlayerReady, clearAllTimeouts]);
+
+    // Handle source changes
+    useEffect(() => {
+      if (playerRef.current && options.sources?.length) {
+        const newSource = options.sources[0]?.src;
+        if (newSource !== previousSourceRef.current) {
+          setIsSourceChanging(true);
+          const currentTime = playerRef.current.currentTime();
+          const wasPlaying = !playerRef.current.paused();
+
+          playerRef.current.src(options.sources);
+          if (typeof currentTime === 'number') {
+            playerRef.current.currentTime(currentTime);
+          }
+
+          if (wasPlaying) {
+            //playerRef.current!.play().catch(e => {
+            //  console.error("Play error after source change:", e);
+            //  trackEvent('play_error_source_change', { error: e.message });
+            // });
+          }
+
+          previousSourceRef.current = newSource;
+          setIsSourceChanging(false);
         }
       }
-    }, [selectedQuality, selectedLanguage, options.sources, isPaused, trackEvent]);
+    }, [selectedQuality, selectedLanguage, options.sources, trackEvent]);
 
+    // Mouse movement handler for controls
     useEffect(() => {
-      const showControls = () => {
+      const debouncedShowControls = debounce(() => {
         setControlsVisible(true);
         setIsMouseMoving(true);
-        if (controlsTimeoutRef.current) {
-          clearTimeout(controlsTimeoutRef.current);
-        }
+        
         if (isFullscreen && !isPaused) {
-          controlsTimeoutRef.current = setTimeout(() => {
+          setCustomTimeout('controls', () => {
             setControlsVisible(false);
             setIsMouseMoving(false);
-          }, 3000);
+          }, CONSTANTS.CONTROLS_HIDE_DELAY);
+        }
+      }, 150);
+
+      const handleMouseLeave = () => {
+        if (!isFullscreen) {
+          setControlsVisible(false);
+          setIsMouseMoving(false);
         }
       };
 
       const container = containerRef.current;
       if (container) {
-        container.addEventListener("mousemove", showControls);
-        container.addEventListener("mouseleave", () => {
-          if (!isFullscreen) {
-            setControlsVisible(false);
-            setIsMouseMoving(false);
-          }
-        });
+        container.addEventListener("mousemove", debouncedShowControls);
+        container.addEventListener("mouseleave", handleMouseLeave);
+
+        return () => {
+          container.removeEventListener("mousemove", debouncedShowControls);
+          container.removeEventListener("mouseleave", handleMouseLeave);
+          debouncedShowControls.cancel();
+        };
       }
+    }, [isFullscreen, isPaused, setControlsVisible, setCustomTimeout]);
 
-      return () => {
-        if (container) {
-          container.removeEventListener("mousemove", showControls);
-          container.removeEventListener("mouseleave", () => {
-            setControlsVisible(false);
-            setIsMouseMoving(false);
-          });
-        }
-        if (controlsTimeoutRef.current) {
-          clearTimeout(controlsTimeoutRef.current);
-        }
-      };
-    }, [setControlsVisible, isPaused, isFullscreen]);
-
+    // Subtitles loading
     useEffect(() => {
-      const fetchSubtitles = async () => {
+      const loadSubtitles = async () => {
         if (imdbId) {
           try {
             const fetchedSubtitles = await OpenSubtitlesService.searchSubtitles(imdbId);
             setSubtitles(fetchedSubtitles);
           } catch (error) {
             console.error('Error fetching subtitles:', error);
-            trackEvent('subtitle_fetch_error', { imdbId, error: (error as Error).message });
+            trackEvent('subtitle_fetch_error', { 
+              imdbId, 
+              error: (error as Error).message 
+            });
           }
         }
       };
 
-      fetchSubtitles();
+      loadSubtitles();
     }, [imdbId, trackEvent]);
 
-    const handleSubtitleChange = async (subtitle: Subtitle | null) => {
+    // Handlers
+    const handleVideoClick = useCallback((e: React.MouseEvent) => {
+      e.preventDefault();
+      const currentTime = Date.now();
+      const timeSinceLastClick = currentTime - lastClickTime;
+      
+      if (timeSinceLastClick < CONSTANTS.DOUBLE_CLICK_THRESHOLD) {
+        // Double click - toggle fullscreen
+        if (playerRef.current?.isFullscreen()) {
+          playerRef.current.exitFullscreen();
+        } else {
+          playerRef.current?.requestFullscreen();
+        }
+        trackEvent('double_click_fullscreen_toggle');
+      } else {
+        // Single click - toggle play/pause or controls
+        if (isFullscreen) {
+          setControlsVisible(!controlsVisible);
+          setIsMouseMoving(true);
+          if (!controlsVisible && !isPaused) {
+            setCustomTimeout('controls', () => {
+              setControlsVisible(false);
+              setIsMouseMoving(false);
+            }, CONSTANTS.CONTROLS_HIDE_DELAY);
+          }
+        } else if (playerRef.current) {
+          if (playerRef.current.paused()) {
+            //playerRef.current.play().catch(e => {
+            //  console.error("Play error on click:", e);
+            //  trackEvent('play_error_click', { error: e.message });
+            //});
+          } else {
+            playerRef.current.pause();
+          }
+        }
+        trackEvent('single_click_interaction', { 
+          action: isFullscreen ? 'toggle_controls' : 'toggle_playback',
+          currentTime: playerRef.current?.currentTime()
+        });
+      }
+      
+      setLastClickTime(currentTime);
+    }, [lastClickTime, isFullscreen, controlsVisible, isPaused, setControlsVisible, setCustomTimeout, trackEvent]);
+
+    const handleSubtitleChange = useCallback(async (subtitle: Subtitle | null) => {
       setSelectedSubtitle(subtitle);
 
       if (playerRef.current) {
         const player = playerRef.current;
         
-        // Remove existing text tracks
-        const existingTracks = (player as any).textTracks();
-        for (let i = existingTracks.length - 1; i >= 0; i--) {
-          player.removeRemoteTextTrack(existingTracks[i]);
-        }
-    
-        if (subtitle) {
-          try {
+        try {
+          // Remove existing text tracks
+          const existingTracks = (player as any).textTracks();
+
+          for (let i = existingTracks.length - 1; i >= 0; i--) {
+            player.removeRemoteTextTrack(existingTracks[i]);
+          }
+      
+          if (subtitle) {
             const subtitleUrl = await OpenSubtitlesService.downloadSubtitle(subtitle.SubDownloadLink);
-            // Create a new text track
             const track = player.addRemoteTextTrack({
               kind: 'subtitles',
               label: subtitle.LanguageName,
@@ -340,118 +496,153 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
               default: true
             }, false) as unknown as TextTrack;
             
-            // Ensure the track is shown
-            track.mode = 'showing';
-            trackEvent('subtitle_changed', { language: subtitle.LanguageName });
-          } catch (error) {
-            console.error('Error downloading subtitle:', error);
-            trackEvent('subtitle_download_error', { error: (error as Error).message });
-            toast({
-              title: "Subtitle Error",
-              description: "Failed to load subtitles. Please try again.",
-              status: "error",
-              duration: 5000,
-              isClosable: true,
+            if (track) {
+              track.mode = 'showing';
+              trackEvent('subtitle_changed', { 
+                language: subtitle.LanguageName,
+                currentTime: player.currentTime()
+              });
+            }
+          } else {
+            trackEvent('subtitles_disabled', {
+              currentTime: player.currentTime()
             });
           }
-        } else {
-          trackEvent('subtitles_disabled');
+        } catch (error) {
+          console.error('Error handling subtitles:', error);
+          trackEvent('subtitle_error', { error: (error as Error).message });
+          toast({
+            title: "Subtitle Error",
+            description: "Failed to load subtitles. Please try again.",
+            status: "error",
+            duration: CONSTANTS.ERROR_TOAST_DURATION,
+            isClosable: true,
+          });
         }
       }
-    };
-
-    const handleVideoClick = useCallback((e: React.MouseEvent) => {
-      const currentTime = new Date().getTime();
-      const timeSinceLastClick = currentTime - lastClickTime;
-      
-      if (timeSinceLastClick < 300) {
-        // Double click
-        if (playerRef.current?.isFullscreen()) {
-          playerRef.current.exitFullscreen();
-        } else {
-          playerRef.current?.requestFullscreen();
-        }
-        trackEvent('double_click_fullscreen_toggle');
-      } else {
-        // Single click
-        if (isFullscreen) {
-          setControlsVisible(!controlsVisible);
-          setIsMouseMoving(true);
-          if (controlsTimeoutRef.current) {
-            clearTimeout(controlsTimeoutRef.current);
-          }
-          if (!controlsVisible && !isPaused) {
-            controlsTimeoutRef.current = setTimeout(() => {
-              setControlsVisible(false);
-              setIsMouseMoving(false);
-            }, 3000);
-          }
-        } else {
-          if (playerRef.current?.paused()) {
-            playerRef.current.play();
-          } else {
-            playerRef.current?.pause();
-          }
-        }
-        trackEvent('single_click_play_pause_toggle');
-      }
-      
-      setLastClickTime(currentTime);
-      e.preventDefault();
-    }, [lastClickTime, isFullscreen, controlsVisible, isPaused, setControlsVisible, trackEvent]);
-
-    // Hotkeys
-    useHotkeys("space", () => {
-      playerRef.current?.paused() ? playerRef.current.play() : playerRef.current?.pause();
-      trackEvent('hotkey_play_pause');
-    }, [trackEvent]);
-    useHotkeys("m", () => {
-      setIsMuted(!isMuted);
-      trackEvent('hotkey_mute_toggle');
-    }, [isMuted, trackEvent]);
-    useHotkeys("f", () => {
-      playerRef.current?.isFullscreen() ? playerRef.current.exitFullscreen() : playerRef.current?.requestFullscreen();
-      trackEvent('hotkey_fullscreen_toggle');
-    }, [trackEvent]);
-    useHotkeys("arrowleft", () => {
-      if (playerRef.current) {
-        const newTime = Math.max(playerRef.current.currentTime() ?? 0 - 10, 0);
-        playerRef.current.currentTime(newTime);
-        trackEvent('hotkey_rewind', { amount: 10 });
-      }
-    }, [trackEvent]);
-    useHotkeys("arrowright", () => {
-      if (playerRef.current) {
-        const newTime = Math.min(playerRef.current.currentTime() ?? 0 + 10, playerRef.current.duration() ?? 0);
-        playerRef.current.currentTime(newTime);
-        trackEvent('hotkey_fast_forward', { amount: 10 });
-      }
-    }, [trackEvent]);
+    }, [trackEvent, toast]);
 
     const handleVolumeChange = useCallback((newVolume: number) => {
       if (playerRef.current) {
-        playerRef.current.volume(newVolume);
-        setVolume(newVolume);
-        setIsMuted(newVolume === 0);
+        const clampedVolume = Math.max(CONSTANTS.MIN_VOLUME, Math.min(CONSTANTS.MAX_VOLUME, newVolume));
+        playerRef.current.volume(clampedVolume);
+        setVolume(clampedVolume);
+        setIsMuted(clampedVolume === 0);
         saveCurrentState(playerRef.current);
-        trackEvent('volume_change', { newVolume });
+        trackEvent('volume_change', { 
+          newVolume: clampedVolume,
+          isMuted: clampedVolume === 0
+        });
       }
     }, [setVolume, setIsMuted, saveCurrentState, trackEvent]);
 
     const handleQualityChange = useCallback((newQuality: string) => {
       setSelectedQuality(newQuality);
       onQualityChange(newQuality);
-      trackEvent('quality_change', { newQuality });
-    }, [setSelectedQuality, onQualityChange, trackEvent]);
+      trackEvent('quality_change', { 
+        newQuality,
+        previousQuality: selectedQuality,
+        currentTime: playerRef.current?.currentTime()
+      });
+    }, [setSelectedQuality, onQualityChange, selectedQuality, trackEvent]);
 
     const handleLanguageChange = useCallback((newLanguage: string) => {
       setSelectedLanguage(newLanguage);
       onLanguageChange(newLanguage);
-      trackEvent('language_change', { newLanguage });
-    }, [setSelectedLanguage, onLanguageChange, trackEvent]);
+      trackEvent('language_change', { 
+        newLanguage,
+        previousLanguage: selectedLanguage,
+        currentTime: playerRef.current?.currentTime()
+      });
+    }, [setSelectedLanguage, onLanguageChange, selectedLanguage, trackEvent]);
+
+    // Hotkeys setup
+    useHotkeys("space", (e) => {
+      e.preventDefault();
+      if (playerRef.current) {
+        playerRef.current.paused() ? 
+        (playerRef.current as any).play().catch((err: any) => console.error(err)) : 
+          playerRef.current.pause();
+        trackEvent('hotkey_play_pause');
+      }
+    }, [trackEvent]);
+
+    useHotkeys("m", () => {
+      setIsMuted(!isMuted);
+      if (playerRef.current) {
+        playerRef.current.muted(!playerRef.current.muted());
+      }
+      trackEvent('hotkey_mute_toggle', { newState: !isMuted });
+    }, [isMuted, trackEvent]);
+
+    useHotkeys("f", () => {
+      if (playerRef.current) {
+        playerRef.current.isFullscreen() ? 
+          playerRef.current.exitFullscreen() : 
+          playerRef.current.requestFullscreen();
+        trackEvent('hotkey_fullscreen_toggle');
+      }
+    }, [trackEvent]);
+
+    useHotkeys("arrowleft", () => {
+      if (playerRef.current) {
+        const currentTime = playerRef.current.currentTime() || 0;
+        const newTime = Math.max(0, currentTime - CONSTANTS.SEEK_SECONDS);
+        playerRef.current.currentTime(newTime);
+        trackEvent('hotkey_rewind', { 
+          amount: CONSTANTS.SEEK_SECONDS,
+          fromTime: currentTime,
+          toTime: newTime
+        });
+      }
+    }, [trackEvent]);
+
+    useHotkeys("arrowright", () => {
+      if (playerRef.current) {
+        const currentTime = playerRef.current.currentTime() || 0;
+        const duration = playerRef.current.duration() || 0;
+        const newTime = Math.min(duration, currentTime + CONSTANTS.SEEK_SECONDS);
+        playerRef.current.currentTime(newTime);
+        trackEvent('hotkey_fast_forward', { 
+          amount: CONSTANTS.SEEK_SECONDS,
+          fromTime: currentTime,
+          toTime: newTime
+        });
+      }
+    }, [trackEvent]);
+
+    // Memoized styles
+    const containerStyles = useMemo(() => ({
+      '&:fullscreen, &:-webkit-full-screen, &:-moz-full-screen, &:-ms-fullscreen': {
+        width: '100vw',
+        height: '100vh',
+        borderRadius: 0,
+      },
+      cursor: isFullscreen && !isMouseMoving ? 'none' : 'auto',
+      '.video-js': {
+        width: '100%',
+        height: '100%',
+        minHeight: { base: '300px', md: '360px' },
+        maxHeight: { base: '70vh', md: '80vh' },
+        '@media (orientation: landscape) and (max-width: 768px)': {
+          minHeight: '85vh',
+        }
+      },
+      '.video-js video': {
+        objectFit: 'contain',
+        width: '100%',
+        height: '100%'
+      },
+      '.vjs-control-bar': {
+        display: 'none'
+      },
+      '.vjs-big-play-button': {
+        display: 'none'
+      }
+    }), [isFullscreen, isMouseMoving]);
 
     return (
-<Box
+      <Box
         position="relative"
         ref={containerRef}
         borderRadius={{ base: "none", md: "xl" }}
@@ -473,51 +664,31 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
           backdropFilter: "blur(10px)",
           zIndex: -1,
         }}
-        sx={{
-          '&:fullscreen, &:-webkit-full-screen, &:-moz-full-screen, &:-ms-fullscreen': {
-            width: '100vw',
-            height: '100vh',
-            borderRadius: 0,
-          },
-          cursor: isFullscreen && !isMouseMoving ? 'none' : 'auto',
-          // Estilos específicos para el contenedor de video
-          '.video-js': {
-            width: '100%',
-            height: '100%',
-            minHeight: { base: '300px', md: '360px' },
-            maxHeight: { base: '70vh', md: '80vh' },
-            '@media (orientation: landscape) and (max-width: 768px)': {
-              minHeight: '85vh',
-            }
-          },
-          // Asegurar que el video llene el contenedor manteniendo proporción
-          '.video-js video': {
-            objectFit: 'contain',
-            width: '100%',
-            height: '100%'
-          },
-          // Ajustes para controles en móvil
-          '.vjs-control-bar': {
-            padding: { base: '0.5rem', md: '0.25rem' },
-            fontSize: { base: '1.2rem', md: '1rem' }
-          },
-          // Ajuste del tamaño del botón de play central
-          '.vjs-big-play-button': {
-            scale: { base: '0.8', md: '1' }
-          }
-        }}
+        sx={containerStyles}
       >
-         <div data-vjs-player>
+        <div data-vjs-player>
           <video 
-            ref={videoRef} 
-            className="video-js vjs-big-play-centered" 
+            ref={videoRef}
+            className="video-js vjs-big-play-centered"
+            playsInline
             onClick={handleVideoClick}
             onContextMenu={(e) => e.preventDefault()}
           />
         </div>
-        <SubtitlesDisplay player={playerRef.current} parsedCues={null} />
-        <ErrorOverlay isVisible={retryCount >= MAX_RETRIES} />
-        <QualityIndicator quality={selectedQuality} />
+
+        <SubtitlesDisplay 
+          player={playerRef.current} 
+          parsedCues={null} 
+        />
+
+        <ErrorOverlay 
+          isVisible={retryCount >= CONSTANTS.MAX_RETRIES} 
+        />
+
+        <QualityIndicator 
+          quality={selectedQuality} 
+        />
+
         <AnimatePresence>
           {controlsVisible && (
             <motion.div

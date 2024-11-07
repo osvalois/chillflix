@@ -135,8 +135,6 @@ class MovieService {
 
     try {
       const response = await this.apiInstance.get<Mirror[]>(`/movies/tmdb/${tmdbId}`);
-      console.log(response.data)
-      console.log("searchMirrors")
       const mirrors = response.data.map(mirror => ({
         ...mirror,
         infoHash: this.extractInfoHash(mirror.magnet),
@@ -165,9 +163,6 @@ class MovieService {
 
   public findVideoFile(movieInfo: MovieInfo): { index: number; fileName: string; quality: VideoQuality; infoHash: string } | null {
     const videoFormats = new Set(['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv']);
-    
-    console.log("MovieInfo:", movieInfo);
-  
     let selectedFile: MovieFile | null = null;
     let selectedIndex = -1;
   

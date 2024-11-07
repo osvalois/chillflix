@@ -1,9 +1,9 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import {
-  Box, Text, Flex, Image, VStack, useColorModeValue, 
+  Box, Text, Flex, Image, VStack, useColorModeValue,
   Tooltip, useBreakpointValue, IconButton, Skeleton,
   Modal, ModalOverlay, ModalContent, ModalBody, ModalCloseButton,
-  SimpleGrid, Badge, useDisclosure, Button, HStack,
+  SimpleGrid, Badge, useDisclosure, HStack,
   Drawer, DrawerBody, DrawerOverlay, DrawerContent, DrawerCloseButton,
   useMediaQuery, Tabs, TabList, TabPanels, Tab, TabPanel, Collapse,
   Popover, PopoverTrigger, PopoverContent, PopoverHeader, PopoverBody, PopoverArrow, PopoverCloseButton
@@ -16,6 +16,7 @@ import { Blurhash } from 'react-blurhash';
 import axios from 'axios';
 import { format, parseISO, differenceInYears } from 'date-fns';
 import { ActorDetailsContentProps, CastCardProps, CastMember, CastSectionProps, FilmographyTimelineProps, MovieCredit } from '../../types';
+import GlassmorphicButton from '../Button/GlassmorphicButton';
 
 const TMDB_API_KEY = '466fcb69c820905983bdd53d3a80a842';
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
@@ -48,7 +49,7 @@ const CastSection: React.FC<CastSectionProps> = ({ cast, isLoading }) => {
   const glassBg = useColorModeValue('rgba(255, 255, 255, 0.7)', 'rgba(26, 32, 44, 0.7)');
   const handleNext = useCallback(() => {
     if (cast) {
-      setCurrentIndex((prevIndex) => 
+      setCurrentIndex((prevIndex) =>
         Math.min(prevIndex + itemsPerView, cast.length - itemsPerView)
       );
     }
@@ -119,8 +120,8 @@ const CastSection: React.FC<CastSectionProps> = ({ cast, isLoading }) => {
           px={4}
         >
           <AnimatePresence initial={false}>
-          <Flex>
-            {cast.slice(currentIndex, currentIndex + itemsPerView).map((member: CastMember) => (
+            <Flex>
+              {cast.slice(currentIndex, currentIndex + itemsPerView).map((member: CastMember) => (
                 <MotionBox
                   key={member.id}
                   initial={{ opacity: 0, x: 50 }}
@@ -317,176 +318,201 @@ const ActorDetailsContent: React.FC<ActorDetailsContentProps> = ({ actorDetails,
         <HStack spacing={4} width="100%" justifyContent="center">
           {actorDetails.imdb_id && (
             <IconButton as="a" href={`https://www.imdb.com/name/${actorDetails.imdb_id}`} target="_blank" icon={<FaImdb />} colorScheme="yellow" aria-label="IMDb" />)}
-            {actorDetails.instagram_id && (
-              <IconButton as="a" href={`https://www.instagram.com/${actorDetails.instagram_id}`} target="_blank" icon={<FaInstagram />} colorScheme="pink" aria-label="Instagram" />
-            )}
-            {actorDetails.twitter_id && (
-              <IconButton as="a" href={`https://twitter.com/${actorDetails.twitter_id}`} target="_blank" icon={<FaTwitter />} colorScheme="twitter" aria-label="Twitter" />
-            )}
-            {actorDetails.facebook_id && (
-              <IconButton as="a" href={`https://www.facebook.com/${actorDetails.facebook_id}`} target="_blank" icon={<FaFacebookF />} colorScheme="facebook" aria-label="Facebook" />
-            )}
-            <IconButton as="a" href={`https://en.wikipedia.org/wiki/${encodeURIComponent(actorDetails.name)}`} target="_blank" icon={<FaWikipediaW />} colorScheme="gray" aria-label="Wikipedia" />
-          </HStack>
-        </VStack>
-        <VStack align="start" spacing={4} flex={2}>
-          <Collapse startingHeight={100} in={showFullBio}>
-            <Text>{actorDetails.biography}</Text>
-          </Collapse>
-          <Button size="sm" onClick={() => setShowFullBio(!showFullBio)} mt={1}>
-            {showFullBio ? 'Show Less' : 'Read More'}
-          </Button>
-          <Tabs isFitted variant="enclosed" mt={6} width="100%">
-            <TabList mb="1em">
-              <Tab>Notable Performances</Tab>
-              <Tab>Filmography</Tab>
-              <Tab>Awards</Tab>
-            </TabList>
-            <TabPanels>
-              <TabPanel>
-                <SimpleGrid columns={{ base: 2, md: 3, lg: 4 }} spacing={4}>
+          {actorDetails.instagram_id && (
+            <IconButton as="a" href={`https://www.instagram.com/${actorDetails.instagram_id}`} target="_blank" icon={<FaInstagram />} colorScheme="pink" aria-label="Instagram" />
+          )}
+          {actorDetails.twitter_id && (
+            <IconButton as="a" href={`https://twitter.com/${actorDetails.twitter_id}`} target="_blank" icon={<FaTwitter />} colorScheme="twitter" aria-label="Twitter" />
+          )}
+          {actorDetails.facebook_id && (
+            <IconButton as="a" href={`https://www.facebook.com/${actorDetails.facebook_id}`} target="_blank" icon={<FaFacebookF />} colorScheme="facebook" aria-label="Facebook" />
+          )}
+          <IconButton as="a" href={`https://en.wikipedia.org/wiki/${encodeURIComponent(actorDetails.name)}`} target="_blank" icon={<FaWikipediaW />} colorScheme="gray" aria-label="Wikipedia" />
+        </HStack>
+      </VStack>
+      <VStack align="start" spacing={4} flex={2}>
+        <Collapse startingHeight={100} in={showFullBio}>
+          <Text>{actorDetails.biography}</Text>
+        </Collapse>
+        <GlassmorphicButton
+          onClick={() => setShowFullBio(!showFullBio)}
+          loadingText="Searching sources..."
+          variant="info"
+          glowIntensity="none"
+          pulseEffect={false}
+          size="md"
+          animated={true}
+          px={6}
+          py={4}
+          fontSize="md"
+          fontWeight="semibold"
+          backdropFilter="blur(8px)"
+          bg="rgba(255,255,255,0.1)"
+          color="white"
+          _hover={{
+            transform: 'translateY(-1px)',
+            bg: 'rgba(255,255,255,0.15)',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
+          }}
+          _active={{
+            transform: 'translateY(0)',
+            boxShadow: 'none'
+          }}
+        >
+          {showFullBio ? 'Show Less' : 'Read More'}
+        </GlassmorphicButton>
+
+        <Tabs isFitted variant="enclosed" mt={6} width="100%">
+          <TabList mb="1em">
+            <Tab>Notable Performances</Tab>
+            <Tab>Filmography</Tab>
+            <Tab>Awards</Tab>
+          </TabList>
+          <TabPanels>
+            <TabPanel>
+              <SimpleGrid columns={{ base: 2, md: 3, lg: 4 }} spacing={4}>
                 {actorCredits.map((credit: MovieCredit) => (
-                    <VStack 
-                      key={credit.id} 
-                      align="start" 
-                      p={3} 
-                      borderWidth={1} 
-                      borderRadius="xl" 
-                      bg={bgColor} 
-                      boxShadow="md" 
-                      transition="all 0.3s"
-                      _hover={{ transform: 'translateY(-5px)', boxShadow: 'xl' }}
-                    >
-                      <Box position="relative" width="100%" paddingBottom="150%" borderRadius="md" overflow="hidden">
-                        <Image
-                          src={credit.poster_path ? `https://image.tmdb.org/t/p/w185${credit.poster_path}` : '/placeholder-movie.jpg'}
-                          alt={credit.title || credit.name}
-                          position="absolute"
-                          top={0}
-                          left={0}
-                          width="100%"
-                          height="100%"
-                          objectFit="cover"
-                        />
-                      </Box>
-                      <Text fontWeight="bold" fontSize="sm" noOfLines={1}>
-                        {credit.title || credit.name}
-                      </Text>
-                      <Text fontSize="xs" color="gray.500" noOfLines={1}>
-                        {credit.character}
-                      </Text>
-                      <Flex align="center" width="100%" justifyContent="space-between">
-                        <Flex align="center">
-                          <FaStar color="gold" />
-                          <Text ml={1} fontSize="xs">{credit.vote_average.toFixed(1)}</Text>
-                        </Flex>
-                        <Badge colorScheme={credit.media_type === 'movie' ? 'blue' : 'green'}>
-                          {credit.media_type === 'movie' ? 'Movie' : 'TV'}
-                        </Badge>
+                  <VStack
+                    key={credit.id}
+                    align="start"
+                    p={3}
+                    borderWidth={1}
+                    borderRadius="xl"
+                    bg={bgColor}
+                    boxShadow="md"
+                    transition="all 0.3s"
+                    _hover={{ transform: 'translateY(-5px)', boxShadow: 'xl' }}
+                  >
+                    <Box position="relative" width="100%" paddingBottom="150%" borderRadius="md" overflow="hidden">
+                      <Image
+                        src={credit.poster_path ? `https://image.tmdb.org/t/p/w185${credit.poster_path}` : '/placeholder-movie.jpg'}
+                        alt={credit.title || credit.name}
+                        position="absolute"
+                        top={0}
+                        left={0}
+                        width="100%"
+                        height="100%"
+                        objectFit="cover"
+                      />
+                    </Box>
+                    <Text fontWeight="bold" fontSize="sm" noOfLines={1}>
+                      {credit.title || credit.name}
+                    </Text>
+                    <Text fontSize="xs" color="gray.500" noOfLines={1}>
+                      {credit.character}
+                    </Text>
+                    <Flex align="center" width="100%" justifyContent="space-between">
+                      <Flex align="center">
+                        <FaStar color="gold" />
+                        <Text ml={1} fontSize="xs">{credit.vote_average.toFixed(1)}</Text>
                       </Flex>
-                      <Popover>
-                        <PopoverTrigger>
-                          <IconButton icon={<FaInfoCircle />} size="sm" aria-label="More info" variant="ghost" />
-                        </PopoverTrigger>
-                        <PopoverContent>
-                          <PopoverArrow />
-                          <PopoverCloseButton />
-                          <PopoverHeader>Details</PopoverHeader>
-                          <PopoverBody>
-                            <Text fontSize="sm">{credit.overview}</Text>
-                            <Text fontSize="xs" mt={2}>Release Date: {credit.release_date || credit.first_air_date || 'Unknown'}</Text>
-                          </PopoverBody>
-                        </PopoverContent>
-                      </Popover>
-                    </VStack>
-                  ))}
-                </SimpleGrid>
-              </TabPanel>
-              <TabPanel>
-                <FilmographyTimeline credits={actorCredits} />
-              </TabPanel>
-              <TabPanel>
-                <AwardsSection actorName={actorDetails.name} />
-              </TabPanel>
-            </TabPanels>
-          </Tabs>
-        </VStack>
-      </Flex>
-    );
-  };
-  
-  const FilmographyTimeline: React.FC<FilmographyTimelineProps> = ({ credits }) => {
-    const lineColor = useColorModeValue('gray.200', 'gray.700');
-    const dotColor = useColorModeValue('blue.500', 'blue.300');
-  
-    const sortedCredits = [...credits].sort((a: MovieCredit, b: MovieCredit) => {
-      const dateA = a.release_date || a.first_air_date || '0000';
-      const dateB = b.release_date || b.first_air_date || '0000';
-      return dateB.localeCompare(dateA);
-    });
-  
-    return (
-      <VStack align="stretch" spacing={4}>
-        {sortedCredits.map((credit: MovieCredit) => (
-          <Flex key={credit.id} align="center">
-            <Box width="100px" textAlign="right" fontSize="sm" fontWeight="bold">
-              {credit.release_date || credit.first_air_date || 'Unknown'}
-            </Box>
-            <Flex ml={4} mr={4} direction="column" align="center">
-              <Box width="2px" height="20px" bg={lineColor} />
-              <Box width="10px" height="10px" borderRadius="full" bg={dotColor} />
-              <Box width="2px" height="20px" bg={lineColor} />
-            </Flex>
-            <Box flex={1}>
-              <Text fontWeight="bold">{credit.title || credit.name}</Text>
-              <Text fontSize="sm" color="gray.500">{credit.character}</Text>
-            </Box>
-          </Flex>
-        ))}
+                      <Badge colorScheme={credit.media_type === 'movie' ? 'blue' : 'green'}>
+                        {credit.media_type === 'movie' ? 'Movie' : 'TV'}
+                      </Badge>
+                    </Flex>
+                    <Popover>
+                      <PopoverTrigger>
+                        <IconButton icon={<FaInfoCircle />} size="sm" aria-label="More info" variant="ghost" />
+                      </PopoverTrigger>
+                      <PopoverContent>
+                        <PopoverArrow />
+                        <PopoverCloseButton />
+                        <PopoverHeader>Details</PopoverHeader>
+                        <PopoverBody>
+                          <Text fontSize="sm">{credit.overview}</Text>
+                          <Text fontSize="xs" mt={2}>Release Date: {credit.release_date || credit.first_air_date || 'Unknown'}</Text>
+                        </PopoverBody>
+                      </PopoverContent>
+                    </Popover>
+                  </VStack>
+                ))}
+              </SimpleGrid>
+            </TabPanel>
+            <TabPanel>
+              <FilmographyTimeline credits={actorCredits} />
+            </TabPanel>
+            <TabPanel>
+              <AwardsSection actorName={actorDetails.name} />
+            </TabPanel>
+          </TabPanels>
+        </Tabs>
       </VStack>
-    );
-  };
-  
-  
-  const AwardsSection: React.FC<AwardsSectionProps> = ({ actorName }) => {
-    const awards = [
-      { name: 'Academy Award', year: 2020, category: 'Best Actor' },
-      { name: 'Golden Globe', year: 2019, category: 'Best Actor in a Drama' },
-      { name: 'BAFTA', year: 2018, category: 'Best Supporting Actor' },
-    ];
-  
-    return (
-      <VStack align="stretch" spacing={4}>
-        <Text fontSize="xl" fontWeight="bold">Awards and Nominations for {actorName}</Text>
-        {awards.map((award, index) => (
-          <Box key={index} p={4} borderWidth={1} borderRadius="md" boxShadow="sm">
-            <Flex justify="space-between" align="center">
-              <VStack align="start" spacing={1}>
-                <Text fontWeight="bold">{award.name}</Text>
-                <Text fontSize="sm">{award.category}</Text>
-              </VStack>
-              <Badge colorScheme="green">{award.year}</Badge>
-            </Flex>
+    </Flex>
+  );
+};
+
+const FilmographyTimeline: React.FC<FilmographyTimelineProps> = ({ credits }) => {
+  const lineColor = useColorModeValue('gray.200', 'gray.700');
+  const dotColor = useColorModeValue('blue.500', 'blue.300');
+
+  const sortedCredits = [...credits].sort((a: MovieCredit, b: MovieCredit) => {
+    const dateA = a.release_date || a.first_air_date || '0000';
+    const dateB = b.release_date || b.first_air_date || '0000';
+    return dateB.localeCompare(dateA);
+  });
+
+  return (
+    <VStack align="stretch" spacing={4}>
+      {sortedCredits.map((credit: MovieCredit) => (
+        <Flex key={credit.id} align="center">
+          <Box width="100px" textAlign="right" fontSize="sm" fontWeight="bold">
+            {credit.release_date || credit.first_air_date || 'Unknown'}
           </Box>
-        ))}
-        <Text fontSize="sm" color="gray.500" mt={4}>
-          Note: This is a partial list of awards. For a complete list, please check official sources.
-        </Text>
-      </VStack>
-    );
-  };
-  const SkeletonCastCard = () => (
-    <VStack spacing={2} align="center" width={`${100 / 6}%`} px={2}>
-      <Skeleton
-        height="0"
-        paddingBottom="100%"
-        borderRadius="full"
-        startColor="gray.100"
-        endColor="gray.300"
-      />
-      <Skeleton height="12px" width="80%" />
-      <Skeleton height="8px" width="60%" />
+          <Flex ml={4} mr={4} direction="column" align="center">
+            <Box width="2px" height="20px" bg={lineColor} />
+            <Box width="10px" height="10px" borderRadius="full" bg={dotColor} />
+            <Box width="2px" height="20px" bg={lineColor} />
+          </Flex>
+          <Box flex={1}>
+            <Text fontWeight="bold">{credit.title || credit.name}</Text>
+            <Text fontSize="sm" color="gray.500">{credit.character}</Text>
+          </Box>
+        </Flex>
+      ))}
     </VStack>
   );
-  
-  export default CastSection;
+};
+
+
+const AwardsSection: React.FC<AwardsSectionProps> = ({ actorName }) => {
+  const awards = [
+    { name: 'Academy Award', year: 2020, category: 'Best Actor' },
+    { name: 'Golden Globe', year: 2019, category: 'Best Actor in a Drama' },
+    { name: 'BAFTA', year: 2018, category: 'Best Supporting Actor' },
+  ];
+
+  return (
+    <VStack align="stretch" spacing={4}>
+      <Text fontSize="xl" fontWeight="bold">Awards and Nominations for {actorName}</Text>
+      {awards.map((award, index) => (
+        <Box key={index} p={4} borderWidth={1} borderRadius="md" boxShadow="sm">
+          <Flex justify="space-between" align="center">
+            <VStack align="start" spacing={1}>
+              <Text fontWeight="bold">{award.name}</Text>
+              <Text fontSize="sm">{award.category}</Text>
+            </VStack>
+            <Badge colorScheme="green">{award.year}</Badge>
+          </Flex>
+        </Box>
+      ))}
+      <Text fontSize="sm" color="gray.500" mt={4}>
+        Note: This is a partial list of awards. For a complete list, please check official sources.
+      </Text>
+    </VStack>
+  );
+};
+const SkeletonCastCard = () => (
+  <VStack spacing={2} align="center" width={`${100 / 6}%`} px={2}>
+    <Skeleton
+      height="0"
+      paddingBottom="100%"
+      borderRadius="full"
+      startColor="gray.100"
+      endColor="gray.300"
+    />
+    <Skeleton height="12px" width="80%" />
+    <Skeleton height="8px" width="60%" />
+  </VStack>
+);
+
+export default CastSection;
