@@ -353,7 +353,7 @@ const LoadingMessage: React.FC = () => {
                   left="0"
                   top="0"
                   h="full"
-                  bg={useColorModeValue('blue.500', 'blue.400')}
+                  bg={useColorModeValue('#EEF0F7', '#8793c8')}
                   initial={{ width: '0%' }}
                   animate={{ 
                     width: `${loadingProgress}%`,

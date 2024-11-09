@@ -7,7 +7,6 @@ import {
   VStack,
   HStack,
   Tooltip,
-  Button,
   useColorModeValue,
   Flex,
   Image,
@@ -15,10 +14,11 @@ import {
 } from '@chakra-ui/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSpring, animated } from 'react-spring';
-import { FaHeart, FaStar, FaPlay } from 'react-icons/fa';
+import { FaHeart, FaStar } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Clock } from 'lucide-react';
+import { Calendar, Clock, Film } from 'lucide-react';
 import { CombinedContent } from '../../types';
+import WatchButton from '../WatchButton';
 
 interface MovieCardProps {
   movie: CombinedContent;
@@ -267,24 +267,18 @@ const MovieCard: React.FC<MovieCardProps> = React.memo(({
                   </Text>
                   
                   <HStack spacing={2} justify="center">
-                    <Button
-                      leftIcon={<FaPlay />}
-                      onClick={handleDetailClick}
-                      size="sm"
-                      bg="whiteAlpha.900"
-                      color="black"
-                      _hover={{
-                        bg: "white",
-                        transform: 'translateY(-2px)',
-                        boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.37)"
-                      }}
-                      _active={{
-                        bg: "whiteAlpha.800"
-                      }}
-                      transition="all 0.3s ease"
-                    >
-                      Watch Now
-                    </Button>
+                  <WatchButton
+  onClick={handleDetailClick}
+  isLoading={false}
+  size="md"
+  variant="gradient"
+  accentColor="blue"
+  animated={true}
+  showRipple={true}
+  withSound={true}
+  customText="Watch" // opcional
+  icon={<Film size={20} />} // opcional
+/>
                   </HStack>
                 </VStack>
               </MotionBox>
