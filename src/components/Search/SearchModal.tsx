@@ -16,13 +16,11 @@ import {
   Spinner,
   useDisclosure,
   Fade,
-  useColorMode,
-  IconButton,
   Tooltip,
 } from '@chakra-ui/react';
 import { animated } from 'react-spring';
 import { useInView } from 'react-intersection-observer';
-import { Film, Tv, Moon, Sun, AlertCircle } from 'lucide-react';
+import { Film, Tv, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDebounce } from 'use-debounce';
 import SearchInput from './SearchInput';
@@ -51,7 +49,6 @@ const SearchModal: React.FC<SearchModalProps> = ({
   
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const { colorMode, toggleColorMode } = useColorMode();
   // Theme-aware styles
   const theme = useTheme();
   const bgColor = useColorModeValue('rgba(255, 255, 255, 0.1)', 'rgba(26, 32, 44, 0.1)');
@@ -247,14 +244,7 @@ const SearchModal: React.FC<SearchModalProps> = ({
                     onHistoryDelete={() => {}}
                     onHistoryClear={() => {}}
                   />
-                  <IconButton
-                    aria-label="Toggle color mode"
-                    icon={colorMode === 'light' ? <Moon size={20} /> : <Sun size={20} />}
-                    onClick={toggleColorMode}
-                    variant="ghost"
-                    ml={2}
-                  />
-                </Box>
+                 </Box>
                 
                 <Box 
                   flex={1} 

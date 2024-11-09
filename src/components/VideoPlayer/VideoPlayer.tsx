@@ -42,6 +42,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
     const [retryCount, setRetryCount] = useState(0);
     const [isBuffering, setIsBuffering] = useState(false);
     const [isMouseMoving, setIsMouseMoving] = useState(false);
+    console.log(setIsMouseMoving)
     const [lastClickTime, setLastClickTime] = useState(0);
     const [subtitles, setSubtitles] = useState<Subtitle[]>([]);
     const [selectedSubtitle, setSelectedSubtitle] = useState<Subtitle | null>(null);
@@ -216,12 +217,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
           const isFullscreen = player.isFullscreen();
           setIsFullscreen(isFullscreen ?? false);
           setControlsVisible(true);
-          setIsMouseMoving(true);
+          //setIsMouseMoving(true);
 
           if (isFullscreen && !player.paused()) {
             setCustomTimeout('controls', () => {
               setControlsVisible(false);
-              setIsMouseMoving(false);
+              //setIsMouseMoving(false);
             }, CONSTANTS.CONTROLS_HIDE_DELAY);
           }
         }
@@ -313,12 +314,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
     useEffect(() => {
       const debouncedShowControls = debounce(() => {
         setControlsVisible(true);
-        setIsMouseMoving(true);
+        //setIsMouseMoving(true);
         
         if (isFullscreen && !isPaused) {
           setCustomTimeout('controls', () => {
             setControlsVisible(false);
-            setIsMouseMoving(false);
+            //setIsMouseMoving(false);
           }, CONSTANTS.CONTROLS_HIDE_DELAY);
         }
       }, 150);
@@ -326,7 +327,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
       const handleMouseLeave = () => {
         if (!isFullscreen) {
           setControlsVisible(false);
-          setIsMouseMoving(false);
+          //setIsMouseMoving(false);
         }
       };
 
@@ -381,11 +382,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
         // Single click - toggle play/pause or controls
         if (isFullscreen) {
           setControlsVisible(!controlsVisible);
-          setIsMouseMoving(true);
+          //setIsMouseMoving(true);
           if (!controlsVisible && !isPaused) {
             setCustomTimeout('controls', () => {
               setControlsVisible(false);
-              setIsMouseMoving(false);
+              //setIsMouseMoving(false);
             }, CONSTANTS.CONTROLS_HIDE_DELAY);
           }
         } else if (playerRef.current) {
@@ -619,6 +620,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
         <ErrorOverlay 
           isVisible={retryCount >= CONSTANTS.MAX_RETRIES} 
         />
+
 
         <AnimatePresence>
           {controlsVisible && (

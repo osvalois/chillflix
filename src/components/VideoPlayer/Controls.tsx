@@ -230,7 +230,7 @@ const Controls: React.FC<ControlsProps> = ({
                     p={2}
                     zIndex={1000}
                 >
-                    <Flex flexDirection="column" {...glassmorphismStyle} p={3}>
+                    <Flex flexDirection="column" {...glassmorphismStyle} p={2}>
                         <TitleDisplay title={title} />
                         <SeekBar currentTime={currentTime} duration={duration} onSeek={handleSeek} />
                         <Flex alignItems="center" justifyContent="space-between" flexWrap={["wrap", "nowrap"]}>
