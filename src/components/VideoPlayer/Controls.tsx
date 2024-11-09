@@ -207,7 +207,7 @@ const Controls: React.FC<ControlsProps> = ({
     useEffect(() => {
         if (localQuality !== selectedQuality) onQualityChange(localQuality);
         if (localLanguage !== selectedLanguage) onLanguageChange(localLanguage);
-        if (localSubtitle.subtitle !== selectedSubtitle) onSubtitleChange(localSubtitle.subtitle);
+        if (localSubtitle.subtitle !== selectedSubtitle) onSubtitleChange(localSubtitle.subtitle, player);
         if (localAudioTrack !== selectedAudioTrack) {
             const audioTracks = (player as any).audioTracks();
             if (audioTracks) {
@@ -285,6 +285,7 @@ const Controls: React.FC<ControlsProps> = ({
                                             selectedQuality={localQuality}
                                             availableQualities={availableQualities}
                                             onQualityChange={handleQualityChange}
+                                            
                                         />
                                         <LanguageSelector
                                             selectedLanguage={localLanguage}

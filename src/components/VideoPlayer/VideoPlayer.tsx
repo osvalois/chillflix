@@ -10,82 +10,17 @@ import "video.js/dist/video-js.css";
 import { AudioTrack, VideoPlayerProps } from "./types";
 import Controls from "./Controls";
 import { ErrorOverlay } from "./ErrorOverlay";
-import { QualityIndicator } from "./QualityIndicator";
 import { useHotkeys } from "react-hotkeys-hook";
 import { motion, AnimatePresence } from "framer-motion";
 import { SubtitlesDisplay } from "./SubtitlesDisplay";
 import { useAnalytics } from "../../hooks/useAnalytics";
-import { PlayerOptions, Subtitle } from "../../types";
 import OpenSubtitlesService from "../../services/openSubtitlesService";
 import { useVideoPlayerState } from "../../hooks/useVideoPlayerState";
 import { AudioTrackCustom } from "./AudioSettingsMenu";
 import { debounce } from 'lodash';
-
-// Constants
-const CONSTANTS = {
-  MAX_RETRIES: 5,
-  RETRY_DELAY: 5000,
-  BUFFER_THRESHOLD: 500,
-  CONTROLS_HIDE_DELAY: 3000,
-  DOUBLE_CLICK_THRESHOLD: 300,
-  SEEK_SECONDS: 10,
-  ERROR_TOAST_DURATION: 5000,
-  MIN_VOLUME: 0,
-  MAX_VOLUME: 1,
-} as const;
-
-const initialOptions: PlayerOptions = {
-  responsive: true,
-  fluid: true,
-  playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
-  html5: {
-    nativeAudioTracks: true,
-    nativeVideoTracks: true,
-    nativeTextTracks: true,
-    vhs: {
-      overrideNative: true,
-      cacheEncryptionKeys: true,
-    }
-  },
-  preload: "auto",
-  sources: [],
-};
-
-// Custom hook for managing timeouts
-const useTimeout = () => {
-  const timeoutRefs = useRef<{ [key: string]: NodeJS.Timeout | null }>({});
-
-  const setCustomTimeout = useCallback((key: string, callback: () => void, delay: number) => {
-    if (timeoutRefs.current[key]) {
-      clearTimeout(timeoutRefs.current[key]!);
-    }
-    timeoutRefs.current[key] = setTimeout(callback, delay);
-  }, []);
-
-  const clearCustomTimeout = useCallback((key: string) => {
-    if (timeoutRefs.current[key]) {
-      clearTimeout(timeoutRefs.current[key]!);
-      timeoutRefs.current[key] = null;
-    }
-  }, []);
-
-  const clearAllTimeouts = useCallback(() => {
-    Object.keys(timeoutRefs.current).forEach(key => {
-      if (timeoutRefs.current[key]) {
-        clearTimeout(timeoutRefs.current[key]!);
-        timeoutRefs.current[key] = null;
-      }
-    });
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      clearAllTimeouts();
-    };
-  }, [clearAllTimeouts]);
-
-  return { setCustomTimeout, clearCustomTimeout, clearAllTimeouts };
-};
+import { Subtitle } from "../../types";
+import { CONSTANTS, initialOptions } from "./constants";
+import { useTimeout } from "../../hooks/useTimeout";
 
 const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
   ({
@@ -683,10 +618,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
 
         <ErrorOverlay 
           isVisible={retryCount >= CONSTANTS.MAX_RETRIES} 
-        />
-
-        <QualityIndicator 
-          quality={selectedQuality} 
         />
 
         <AnimatePresence>

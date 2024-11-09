@@ -480,8 +480,17 @@ export interface ControlsProps {
   title: string;
   onQualityChange: (quality: string) => void;
   onLanguageChange: (language: string) => void;
-  onSubtitleChange: (subtitle: Subtitle | null) => void;
+  onSubtitleChange: (subtitle: Subtitle | null, player: any) => Promise<void>;
   onVolumeChange: (volume: number) => void;
+}
+export interface VideoPlayerHookReturn {
+  playerRef: React.MutableRefObject<Player | null>;
+  previousSourceRef: React.MutableRefObject<string | null>;
+  retryCount: number;
+  isSourceChanging: boolean;
+  setIsSourceChanging: React.Dispatch<React.SetStateAction<boolean>>;
+  handleError: (player: Player, error: any) => void;
+  resetPlayer: () => void;  // Agregamos el tipo para resetPlayer
 }
 
 // Service interfaces
@@ -642,4 +651,30 @@ export interface MovieDetailsSectionProps {
   isSimilarMoviesLoading: boolean;
   headerProps: any;
   isMobile: boolean;
+}
+
+// Types that should be in types.ts
+export interface VideoPlayerState {
+  retryCount: number;
+  isSourceChanging: boolean;
+  isBuffering: boolean;
+  selectedQuality: string;
+  selectedLanguage: string;
+}
+
+export interface PlayerEventHandlers {
+  setIsLoading: (isLoading: boolean) => void;
+  setIsBuffering: (isBuffering: boolean) => void;
+  setIsPaused: (isPaused: boolean) => void;
+  setCurrentTime: (time: number) => void;
+  setDuration: (duration: number) => void;
+  setVolume: (volume: number) => void;
+  setIsMuted: (isMuted: boolean) => void;
+  setIsFullscreen: (isFullscreen: boolean) => void;
+  setControlsVisible: (visible: boolean) => void;
+  setIsMouseMoving: (isMoving: boolean) => void;
+  setRetryCount: (callback: (prev: number) => number) => void;
+  setAudioTracks: (tracks: AudioTrackCustom[]) => void;
+  setSelectedAudioTrack: (track: string) => void;
+  showErrorToast: () => void;
 }

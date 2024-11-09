@@ -1,9 +1,10 @@
 import { memo, useMemo } from 'react';
 import { Box, Flex, Text, VStack, HStack, Icon, Tag, Tooltip, Skeleton } from '@chakra-ui/react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaStar, FaCalendar, FaClock, FaDollarSign, FaBuilding } from 'react-icons/fa';
+import { FaStar, FaCalendar, FaClock, FaDollarSign } from 'react-icons/fa';
 import { useInView } from 'react-intersection-observer';
 import { useSpring, animated } from 'react-spring';
+import ProductionCompaniesSection from '../VideoPlayer/ProductionCompaniesSection';
 
 // Types
 interface ProductionCompany {
@@ -38,7 +39,7 @@ interface MovieHeaderProps {
 }
 
 // Optimized image component with lazy loading and blur effect
-const OptimizedImage = memo(({ src, alt, ...props }: { src: string; alt: string; [key: string]: any }) => {
+const OptimizedImage = memo(({ src, alt, ...props }: { src: string; alt: string;[key: string]: any }) => {
   return (
     <Box
       as="img"
@@ -58,7 +59,7 @@ const OptimizedImage = memo(({ src, alt, ...props }: { src: string; alt: string;
 OptimizedImage.displayName = 'OptimizedImage';
 
 // Memoized sub-components
-const GlassmorphicBox = memo(({ children, ...props }: { children: React.ReactNode; [key: string]: any }) => {
+const GlassmorphicBox = memo(({ children, ...props }: { children: React.ReactNode;[key: string]: any }) => {
   const glassEffect = useSpring({
     from: { opacity: 0, transform: 'scale(0.95)' },
     to: { opacity: 1, transform: 'scale(1)' },
@@ -183,31 +184,31 @@ const MovieHeader = memo(({ movie, isLoading }: MovieHeaderProps) => {
 
   return (
     <animated.div ref={headerRef} style={fadeIn}>
-      <GlassmorphicBox 
-        maxWidth="1200px" 
+      <GlassmorphicBox
+        maxWidth="1200px"
         width="100%"
         mx="auto"
       >
-        <Flex 
-          direction={{ base: 'column', md: 'row' }} 
-          align={{ base: 'center', md: 'flex-start' }} 
+        <Flex
+          direction={{ base: 'column', md: 'row' }}
+          align={{ base: 'center', md: 'flex-start' }}
           justify="space-between"
           gap={{ base: 6, md: 8 }}
         >
           {/* Poster Section */}
-          <Box 
+          <Box
             position="relative"
             width={{ base: "280px", md: "300px" }}
             height={{ base: "420px", md: "450px" }}
             flexShrink={0}
           >
             {isLoading ? (
-              <Skeleton 
-                width="100%" 
-                height="100%" 
-                startColor="rgba(255, 255, 255, 0.1)" 
-                endColor="rgba(255, 255, 255, 0.2)" 
-                borderRadius="xl" 
+              <Skeleton
+                width="100%"
+                height="100%"
+                startColor="rgba(255, 255, 255, 0.1)"
+                endColor="rgba(255, 255, 255, 0.2)"
+                borderRadius="xl"
               />
             ) : movie?.poster_path && (
               <OptimizedImage
@@ -226,9 +227,9 @@ const MovieHeader = memo(({ movie, isLoading }: MovieHeaderProps) => {
           </Box>
 
           {/* Content Section */}
-          <VStack 
-            align="flex-start" 
-            spacing={{ base: 4, md: 6 }} 
+          <VStack
+            align="flex-start"
+            spacing={{ base: 4, md: 6 }}
             flex={1}
           >
             <AnimatePresence mode="wait">
@@ -280,9 +281,9 @@ const MovieHeader = memo(({ movie, isLoading }: MovieHeaderProps) => {
                       </Text>
                     </HStack>
 
-                    <Text 
-                      fontSize={{ base: "sm", md: "md" }} 
-                      color="gray.300" 
+                    <Text
+                      fontSize={{ base: "sm", md: "md" }}
+                      color="gray.300"
                       lineHeight="tall"
                     >
                       {movie.overview}
@@ -303,20 +304,20 @@ const MovieHeader = memo(({ movie, isLoading }: MovieHeaderProps) => {
                         ))}
                       </HStack>
 
-                      <HStack 
-                        spacing={{ base: 2, md: 4 }} 
+                      <HStack
+                        spacing={{ base: 2, md: 4 }}
                         flexWrap="wrap"
                         gap={2}
                       >
-                        <MovieInfoItem 
-                          icon={FaCalendar} 
-                          label="Release Date" 
-                          value={formattedData.releaseDate} 
+                        <MovieInfoItem
+                          icon={FaCalendar}
+                          label="Release Date"
+                          value={formattedData.releaseDate}
                         />
-                        <MovieInfoItem 
-                          icon={FaClock} 
-                          label="Runtime" 
-                          value={formattedData.runtime} 
+                        <MovieInfoItem
+                          icon={FaClock}
+                          label="Runtime"
+                          value={formattedData.runtime}
                         />
                         <MovieInfoItem
                           icon={FaDollarSign}
@@ -327,27 +328,10 @@ const MovieHeader = memo(({ movie, isLoading }: MovieHeaderProps) => {
                     </Box>
 
                     {movie.production_companies?.length > 0 && (
-                      <VStack align="flex-start" spacing={4} width="100%" mt={4}>
-                        <HStack spacing={2}>
-                          <Icon as={FaBuilding} color="gray.300" />
-                          <Text color="gray.300" fontSize="lg" fontWeight="medium">
-                            Production Companies
-                          </Text>
-                        </HStack>
-                        <Flex 
-                          flexWrap="wrap" 
-                          gap={4} 
-                          justify={{ base: "center", md: "flex-start" }}
-                          width="100%"
-                        >
-                          {movie.production_companies.map((company) => (
-                            <ProductionCompanyLogo 
-                              key={company.id} 
-                              company={company} 
-                            />
-                          ))}
-                        </Flex>
-                      </VStack>
+                      <ProductionCompaniesSection
+                        companies={movie.production_companies}
+                        isLoading={isLoading}
+                      />
                     )}
                   </VStack>
                 </motion.div>

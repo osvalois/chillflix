@@ -114,7 +114,6 @@ export const MovieDetailsSection: React.FC<MovieDetailsSectionProps> = ({
       className="w-full"
     >
       <Box {...glassEffect} p={{ base: 4, md: 6 }} mb={6}>
-        <SectionTitle>Cast</SectionTitle>
         <Box maxW="full" overflowX="auto" pb={4}>
           {isCreditsLoading ? (
             <LoadingSpinner />
@@ -155,7 +154,6 @@ export const MovieDetailsSection: React.FC<MovieDetailsSectionProps> = ({
       variants={itemVariants}
     >
       <Box {...glassEffect} p={{ base: 4, md: 6 }} w="full">
-        <SectionTitle>Reviews</SectionTitle>
         <ReviewSection movieId={movie.id} />
       </Box>
     </motion.div>

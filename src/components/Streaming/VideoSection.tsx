@@ -1,5 +1,4 @@
-// src/components/VideoSection/VideoSection.tsx
-import React, { Suspense } from 'react';
+import React, { Suspense, useMemo, memo } from 'react';
 import { motion } from 'framer-motion';
 import { Box, Text, VStack } from '@chakra-ui/react';
 import { FiSearch } from 'react-icons/fi';
@@ -8,7 +7,6 @@ import LoadingMessage from '../common/LoadingMessage';
 import VideoPlayer from '../VideoPlayer/VideoPlayer';
 import GlassmorphicButton from '../Button/GlassmorphicButton';
 import ErrorFallback from '../UI/ErrorFallback';
-
 
 interface VideoSectionProps {
   isVideoLoading: boolean;
@@ -43,7 +41,22 @@ const glassmorphismStyle = {
   overflow: "hidden",
 };
 
-export const VideoSection: React.FC<VideoSectionProps> = ({
+const containerVariants = {
+  hidden: { 
+    opacity: 0,
+    y: 20 
+  },
+  visible: { 
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.5,
+      ease: "easeOut"
+    }
+  }
+};
+
+export const VideoSection: React.FC<VideoSectionProps> = memo(({
   isVideoLoading,
   streamUrl,
   videoJsOptions,
@@ -58,24 +71,7 @@ export const VideoSection: React.FC<VideoSectionProps> = ({
   handleBackupApiCall,
   onError
 }) => {
-
-  // Animaciones
-  const containerVariants = {
-    hidden: { 
-      opacity: 0,
-      y: 20 
-    },
-    visible: { 
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.5,
-        ease: "easeOut"
-      }
-    }
-  };
-
-  const renderVideoPlayer = () => {
+  const renderVideoPlayer = useMemo(() => {
     if (!streamUrl) return null;
 
     return (
@@ -92,15 +88,18 @@ export const VideoSection: React.FC<VideoSectionProps> = ({
         />
       </Suspense>
     );
-  };
+  }, [
+    streamUrl, videoJsOptions, movie.title, handleQualityChange, handleLanguageChange, 
+    qualities, languages, movie.imdb_id, posterUrl
+  ]);
 
-  const renderLoadingState = () => (
+  const renderLoadingState = useMemo(() => (
     <Box height="400px" width="100%" display="flex" justifyContent="center" alignItems="center">
       <LoadingMessage />
     </Box>
-  );
+  ), []);
 
-  const renderNoSourceState = () => (
+  const renderNoSourceState = useMemo(() => (
     <Box
       height="400px"
       width="100%"
@@ -203,18 +202,7 @@ export const VideoSection: React.FC<VideoSectionProps> = ({
         )}
       </VStack>
     </Box>
-  );
-
-  const renderControls = () => {
-    if (!streamUrl) return null;
-
-    return (
-      <VideoControls children={undefined}>
-
-        
-      </VideoControls>
-    );
-  };
+  ), [posterUrl, hasTriedBackupApi, isBackupApiLoading, handleBackupApiCall]);
 
   return (
     <ErrorBoundary
@@ -230,32 +218,13 @@ export const VideoSection: React.FC<VideoSectionProps> = ({
         variants={containerVariants}
       >
         <Box {...glassmorphismStyle}>
-          {isVideoLoading && renderLoadingState()}
-          {!isVideoLoading && streamUrl && renderVideoPlayer()}
-          {!isVideoLoading && !streamUrl && renderNoSourceState()}
-          {renderControls()}
+          {isVideoLoading && renderLoadingState}
+          {!isVideoLoading && streamUrl && renderVideoPlayer}
+          {!isVideoLoading && !streamUrl && renderNoSourceState}
         </Box>
       </motion.div>
     </ErrorBoundary>
   );
-};
-
-const VideoControls: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  return (
-    <Box
-      className="video-controls"
-      position="absolute"
-      bottom={4}
-      right={4}
-      zIndex={2}
-      bg="rgba(0,0,0,0.8)"
-      borderRadius="lg"
-      backdropFilter="blur(8px)"
-      p={2}
-    >
-      {children}
-    </Box>
-  );
-};
+});
 
 export default VideoSection;

@@ -88,18 +88,18 @@ export const VolumeControls: React.FC<VolumeControlsProps> = ({ isMuted, volume,
             onMouseLeave={() => setIsHovered(false)}
           >
             <SliderTrack 
-              bg="rgba(255, 255, 255, 0.1)"
-              h="6px"
+             bg="#F5F6FA"
+              h="3px"
               borderRadius="full"
             >
-              <SliderFilledTrack bg="linear-gradient(90deg, #4299E1 0%, #63B3ED 100%)" />
+              <SliderFilledTrack bg="#8793c8" />
             </SliderTrack>
             <Tooltip label={`Volume: ${Math.round(localVolume * 100)}%`} placement="top" hasArrow isOpen={isHovered}>
               <SliderThumb 
-                boxSize={5} 
-                bg="white" 
-                borderColor="blue.500"
-                borderWidth={2}
+                boxSize={4} 
+                bg="#5C669E"
+                borderColor="#8793c8"
+                borderWidth={1}
                 _focus={{ boxShadow: "0 0 0 3px rgba(66, 153, 225, 0.6)" }}
                 transition="all 0.2s"
                 _hover={{ transform: "scale(1.1)" }}
