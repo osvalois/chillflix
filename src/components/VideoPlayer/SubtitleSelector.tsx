@@ -268,7 +268,7 @@ export const SubtitleSelector: React.FC<SubtitleSelectorProps> = ({
           exit={{ opacity: 0, y: 4, scale: 0.95 }}
           transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
           style={{
-            position: 'absolute',
+            position: 'relative',
             top: 'calc(100% + 8px)',
             left: '50%',
             transform: 'translateX(-50%)',
