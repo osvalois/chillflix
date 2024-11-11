@@ -61,7 +61,7 @@ export const Discover: React.FC = () => {
             <Suspense fallback={<Spinner size="xl" color={textColor} />}>
               {topRated.length > 0 && (
                 <GlassmorphicBox>
-                  <ContentCarousel title="Top Rated" content={topRated} icon="FaStar" />
+                  <ContentCarousel title="Top Rated" content={topRated} />
                 </GlassmorphicBox>
               )}
               {genres.length > 0 && <GenreExplorer genres={genres} />}

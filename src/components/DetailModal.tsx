@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, memo } from 'react';
 import {
   Modal,
   ModalOverlay,
@@ -19,18 +19,106 @@ import {
   AspectRatio,
   useColorModeValue,
 } from '@chakra-ui/react';
-import { FaStar, FaPlay } from 'react-icons/fa';
 import { CombinedContent, MovieCredits } from '../types';
 import tmdbService from '../services/tmdbService';
+import { DynamicIcon } from './Movie/Icons';
 import RecommendationCard from './RecommendationCard';
 
+// Types
 interface DetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   content: CombinedContent;
 }
 
-const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, content }) => {
+interface ActorCardProps {
+  name: string;
+  character: string;
+  profilePath: string | null;
+}
+
+// Helper Components
+const ActorCard = memo(({ name, character, profilePath }: ActorCardProps) => {
+  const getImageUrl = (path: string | null): string => {
+    return path 
+      ? `https://image.tmdb.org/t/p/w200${path}`
+      : 'https://via.placeholder.com/100x150';
+  };
+
+  return (
+    <Box minW="100px" mr={4}>
+      <Image
+        src={getImageUrl(profilePath)}
+        alt={name}
+        borderRadius="md"
+        fallbackSrc="https://via.placeholder.com/100x150"
+      />
+      <Text fontSize="sm" fontWeight="bold" mt={1} noOfLines={1}>
+        {name}
+      </Text>
+      <Text fontSize="xs" color="gray.500" noOfLines={1}>
+        {character}
+      </Text>
+    </Box>
+  );
+});
+
+ActorCard.displayName = 'ActorCard';
+
+const ContentHeader = memo(({ 
+  type,
+  releaseDate,
+  voteAverage 
+}: { 
+  type: string;
+  releaseDate?: string;
+  voteAverage?: number;
+}) => {
+  const formatReleaseYear = (dateString?: string): string => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return isNaN(date.getTime()) ? 'N/A' : date.getFullYear().toString();
+  };
+
+  return (
+    <>
+      <HStack>
+        <Badge colorScheme="teal">
+          {type === 'movie' ? 'Movie' : 'TV Series'}
+        </Badge>
+        <Text fontSize="sm">{formatReleaseYear(releaseDate)}</Text>
+      </HStack>
+      <HStack>
+        <DynamicIcon name="Star" color="gold" size={16} />
+        <Text>{voteAverage?.toFixed(1) || 'N/A'}/10</Text>
+      </HStack>
+    </>
+  );
+});
+
+ContentHeader.displayName = 'ContentHeader';
+
+const TrailerSection = memo(({ trailerKey }: { trailerKey?: string }) => {
+  if (!trailerKey) return null;
+
+  return (
+    <Box mt={6}>
+      <Heading size="md" mb={2}>Trailer</Heading>
+      <AspectRatio ratio={16 / 9}>
+        <iframe
+          title="Trailer"
+          src={`https://www.youtube.com/embed/${trailerKey}`}
+          allowFullScreen
+        />
+      </AspectRatio>
+    </Box>
+  );
+});
+
+TrailerSection.displayName = 'TrailerSection';
+
+// Main Component
+const DetailModal: React.FC<DetailModalProps> = memo(({ isOpen, onClose, content }) => {
   const [credits, setCredits] = useState<MovieCredits | null>(null);
   const [similarContent, setSimilarContent] = useState<CombinedContent[]>([]);
   const bgColor = useColorModeValue('white', 'gray.800');
@@ -44,7 +132,7 @@ const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, content }) =
           tmdbService.getSimilarMovies(content.id),
         ]);
         setCredits(creditsData);
-        setSimilarContent(similarData.slice(0, 4)); // Limit to 4 similar items
+        setSimilarContent(similarData.slice(0, 4));
       } catch (error) {
         console.error('Error fetching additional data:', error);
       }
@@ -55,27 +143,19 @@ const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, content }) =
     }
   }, [isOpen, content.id]);
 
-  const trailerKey = content.videos?.results.find(
+  const trailerKey = useMemo(() => content.videos?.results.find(
     (video) => video.type === 'Trailer' && video.site === 'YouTube'
-  )?.key;
+  )?.key, [content.videos]);
 
-  // Función auxiliar para formatear la fecha
-  const formatReleaseYear = (dateString: string | undefined): string => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return isNaN(date.getTime()) ? 'N/A' : date.getFullYear().toString();
-  };
-
-  // Función auxiliar para obtener la URL de la imagen con fallback
-  const getImageUrl = (path: string | undefined, size: string = 'w500'): string => {
-    return path 
-      ? `https://image.tmdb.org/t/p/${size}${path}`
+  const posterUrl = useMemo(() => {
+    return content.poster_path 
+      ? `https://image.tmdb.org/t/p/w500${content.poster_path}`
       : 'https://via.placeholder.com/500x750';
-  };
+  }, [content.poster_path]);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="xl" scrollBehavior="inside">
-      <ModalOverlay />
+      <ModalOverlay backdropFilter="blur(10px)" />
       <ModalContent bg={bgColor} color={textColor}>
         <ModalHeader>{content.title || content.name}</ModalHeader>
         <ModalCloseButton />
@@ -83,7 +163,7 @@ const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, content }) =
           <Flex direction={{ base: 'column', md: 'row' }} gap={4}>
             <Box flexShrink={0}>
               <Image
-                src={getImageUrl(content.poster_path ?? '')}
+                src={posterUrl}
                 alt={content.title || content.name}
                 borderRadius="lg"
                 maxW="200px"
@@ -91,54 +171,28 @@ const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, content }) =
               />
             </Box>
             <VStack align="start" spacing={3}>
-              <HStack>
-                <Badge colorScheme="teal">
-                  {content.type === 'movie' ? 'Movie' : 'TV Series'}
-                </Badge>
-                <Text fontSize="sm">
-                  {formatReleaseYear(content.release_date || content.first_air_date)}
-                </Text>
-              </HStack>
-              <HStack>
-                <FaStar color="gold" />
-                <Text>{content.vote_average?.toFixed(1) || 'N/A'}/10</Text>
-              </HStack>
+              <ContentHeader 
+                type={content.type}
+                releaseDate={content.release_date || content.first_air_date}
+                voteAverage={content.vote_average}
+              />
               <Text fontSize="sm">{content.overview || 'No description available.'}</Text>
             </VStack>
           </Flex>
 
-          {trailerKey && (
-            <Box mt={6}>
-              <Heading size="md" mb={2}>Trailer</Heading>
-              <AspectRatio ratio={16 / 9}>
-                <iframe
-                  title="Trailer"
-                  src={`https://www.youtube.com/embed/${trailerKey}`}
-                  allowFullScreen
-                />
-              </AspectRatio>
-            </Box>
-          )}
+          <TrailerSection trailerKey={trailerKey} />
 
-          {credits && credits.cast && credits.cast.length > 0 && (
+          {credits?.cast && credits.cast.length > 0 && (
             <Box mt={6}>
               <Heading size="md" mb={2}>Cast</Heading>
               <Flex overflowX="auto" py={2}>
                 {credits.cast.slice(0, 10).map((actor) => (
-                  <Box key={actor.id} minW="100px" mr={4}>
-                    <Image
-                      src={getImageUrl(actor.profile_path ?? '', 'w200')}
-                      alt={actor.name}
-                      borderRadius="md"
-                      fallbackSrc="https://via.placeholder.com/100x150"
-                    />
-                    <Text fontSize="sm" fontWeight="bold" mt={1} noOfLines={1}>
-                      {actor.name}
-                    </Text>
-                    <Text fontSize="xs" color="gray.500" noOfLines={1}>
-                      {actor.character}
-                    </Text>
-                  </Box>
+                  <ActorCard
+                    key={actor.id}
+                    name={actor.name}
+                    character={actor.character}
+                    profilePath={actor.profile_path}
+                  />
                 ))}
               </Flex>
             </Box>
@@ -159,7 +213,11 @@ const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, content }) =
         </ModalBody>
 
         <ModalFooter>
-          <Button leftIcon={<FaPlay />} colorScheme="blue" mr={3}>
+          <Button 
+            leftIcon={<DynamicIcon name="Play" size={16} />} 
+            colorScheme="blue" 
+            mr={3}
+          >
             Watch Now
           </Button>
           <Button variant="ghost" onClick={onClose}>Close</Button>
@@ -167,6 +225,8 @@ const DetailModal: React.FC<DetailModalProps> = ({ isOpen, onClose, content }) =
       </ModalContent>
     </Modal>
   );
-};
+});
+
+DetailModal.displayName = 'DetailModal';
 
 export default DetailModal;

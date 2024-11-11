@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Box, VStack, Text, Flex, Avatar, Button, Select, useColorModeValue, Spinner, Tooltip, Icon } from '@chakra-ui/react';
-import { FaThumbsUp, FaStar, FaSort } from 'react-icons/fa';
+import { Box, VStack, Text, Flex, Avatar, Button, Select, useColorModeValue, Spinner, Tooltip } from '@chakra-ui/react';
+
 import { useInView } from 'react-intersection-observer';
 import { useSpring, animated } from 'react-spring';
 import { useQuery } from 'react-query';
 import { format } from 'date-fns';
 import { getMovieReviews } from '../../services/tmdbService';
 import { Review } from '../../types';
+import { DynamicIcon } from '../Movie/Icons';
 
 interface ReviewSectionProps {
   movieId: string;
@@ -116,7 +117,7 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ movieId }) => {
                     {review.author_details.rating && (
                       <Tooltip label={`Rating: ${review.author_details.rating}/10`}>
                         <Flex alignItems="center" mr={2}>
-                          <Icon as={FaStar} color="yellow.400" mr={1} />
+                        <DynamicIcon name="Star" size={20} style="default" />
                           <Text fontWeight="bold">{review.author_details.rating}</Text>
                         </Flex>
                       </Tooltip>
@@ -124,7 +125,7 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ movieId }) => {
                     <Tooltip label="Helpful">
                       <Button
                         size="sm"
-                        leftIcon={<FaThumbsUp />}
+                        leftIcon={<DynamicIcon name="ThumbsUp" size={20} style="default" />}
                         onClick={() => handleVote(review.id, 'up')}
                         mr={2}
                       >
@@ -160,7 +161,7 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ movieId }) => {
             <Button
               onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
               isDisabled={page === 1}
-              leftIcon={<Icon as={FaSort} transform="rotate(90deg)" />}
+              leftIcon={<DynamicIcon name="Sort" size={20} style="default" />}
             >
               Previous
             </Button>
@@ -170,7 +171,7 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ movieId }) => {
             <Button
               onClick={() => setPage((prev) => Math.min(prev + 1, data.total_pages))}
               isDisabled={page === data.total_pages}
-              rightIcon={<Icon as={FaSort} transform="rotate(-90deg)" />}
+              rightIcon={<DynamicIcon name="Sort" size={20} style="default" />}
             >
               Next
             </Button>

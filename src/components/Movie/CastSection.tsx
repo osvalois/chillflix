@@ -10,13 +10,13 @@ import {
 } from '@chakra-ui/react';
 import { motion, AnimatePresence, useViewportScroll, useTransform } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
-import { FaChevronLeft, FaChevronRight, FaStar, FaImdb, FaInstagram, FaTwitter, FaFacebookF, FaWikipediaW, FaInfoCircle } from 'react-icons/fa';
 import { useSpring, animated, config } from 'react-spring';
 import { Blurhash } from 'react-blurhash';
 import axios from 'axios';
 import { format, parseISO, differenceInYears } from 'date-fns';
 import { ActorDetailsContentProps, CastCardProps, CastMember, CastSectionProps, FilmographyTimelineProps, MovieCredit } from '../../types';
 import GlassmorphicButton from '../Button/GlassmorphicButton';
+import { DynamicIcon } from './Icons';
 
 const TMDB_API_KEY = '466fcb69c820905983bdd53d3a80a842';
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
@@ -99,7 +99,7 @@ const CastSection: React.FC<CastSectionProps> = ({ cast, isLoading }) => {
       </Text>
       <Flex position="relative" alignItems="center">
         <IconButton
-          icon={<FaChevronLeft />}
+          icon={  <DynamicIcon name="ChevronLeft" color="black" size={16} />}
           aria-label="Previous cast members"
           onClick={handlePrev}
           isDisabled={currentIndex === 0}
@@ -138,7 +138,7 @@ const CastSection: React.FC<CastSectionProps> = ({ cast, isLoading }) => {
           </AnimatePresence>
         </Flex>
         <IconButton
-          icon={<FaChevronRight />}
+          icon={<DynamicIcon name="ChevronRight" color="black" size={16} />}
           aria-label="Next cast members"
           onClick={handleNext}
           isDisabled={currentIndex + itemsPerView >= cast.length}
@@ -317,17 +317,17 @@ const ActorDetailsContent: React.FC<ActorDetailsContentProps> = ({ actorDetails,
         </Box>
         <HStack spacing={4} width="100%" justifyContent="center">
           {actorDetails.imdb_id && (
-            <IconButton as="a" href={`https://www.imdb.com/name/${actorDetails.imdb_id}`} target="_blank" icon={<FaImdb />} colorScheme="yellow" aria-label="IMDb" />)}
+            <IconButton as="a" href={`https://www.imdb.com/name/${actorDetails.imdb_id}`} target="_blank" icon={<DynamicIcon name="Imdb" color="black" size={16} />} colorScheme="yellow" aria-label="IMDb" />)}
           {actorDetails.instagram_id && (
-            <IconButton as="a" href={`https://www.instagram.com/${actorDetails.instagram_id}`} target="_blank" icon={<FaInstagram />} colorScheme="pink" aria-label="Instagram" />
+            <IconButton as="a" href={`https://www.instagram.com/${actorDetails.instagram_id}`} target="_blank" icon={<DynamicIcon name="Instagram" color="black" size={16} />} colorScheme="pink" aria-label="Instagram" />
           )}
           {actorDetails.twitter_id && (
-            <IconButton as="a" href={`https://twitter.com/${actorDetails.twitter_id}`} target="_blank" icon={<FaTwitter />} colorScheme="twitter" aria-label="Twitter" />
+            <IconButton as="a" href={`https://twitter.com/${actorDetails.twitter_id}`} target="_blank" icon={<DynamicIcon name="Twitter" color="black" size={16} />} colorScheme="twitter" aria-label="Twitter" />
           )}
           {actorDetails.facebook_id && (
-            <IconButton as="a" href={`https://www.facebook.com/${actorDetails.facebook_id}`} target="_blank" icon={<FaFacebookF />} colorScheme="facebook" aria-label="Facebook" />
+            <IconButton as="a" href={`https://www.facebook.com/${actorDetails.facebook_id}`} target="_blank" icon={<DynamicIcon name="Facebook" color="black" size={16} />} colorScheme="facebook" aria-label="Facebook" />
           )}
-          <IconButton as="a" href={`https://en.wikipedia.org/wiki/${encodeURIComponent(actorDetails.name)}`} target="_blank" icon={<FaWikipediaW />} colorScheme="gray" aria-label="Wikipedia" />
+          <IconButton as="a" href={`https://en.wikipedia.org/wiki/${encodeURIComponent(actorDetails.name)}`} target="_blank" icon={<DynamicIcon name="Wikipedia" color="black" size={16} />} colorScheme="gray" aria-label="Wikipedia" />
         </HStack>
       </VStack>
       <VStack align="start" spacing={4} flex={2}>
@@ -403,7 +403,7 @@ const ActorDetailsContent: React.FC<ActorDetailsContentProps> = ({ actorDetails,
                     </Text>
                     <Flex align="center" width="100%" justifyContent="space-between">
                       <Flex align="center">
-                        <FaStar color="gold" />
+                      <DynamicIcon name="Star" color="black" size={16} />
                         <Text ml={1} fontSize="xs">{credit.vote_average.toFixed(1)}</Text>
                       </Flex>
                       <Badge colorScheme={credit.media_type === 'movie' ? 'blue' : 'green'}>
@@ -412,7 +412,7 @@ const ActorDetailsContent: React.FC<ActorDetailsContentProps> = ({ actorDetails,
                     </Flex>
                     <Popover>
                       <PopoverTrigger>
-                        <IconButton icon={<FaInfoCircle />} size="sm" aria-label="More info" variant="ghost" />
+                        <IconButton icon={<DynamicIcon name="Info" color="black" size={16} />} size="sm" aria-label="More info" variant="ghost" />
                       </PopoverTrigger>
                       <PopoverContent>
                         <PopoverArrow />

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Box, Text, Flex, Badge, IconButton, Tooltip, useDisclosure } from '@chakra-ui/react';
 import { motion } from 'framer-motion';
-import { FaStar, FaPlayCircle } from 'react-icons/fa';
+
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import { CombinedContent } from '../types';
 import DetailModal from './DetailModal';
+import { DynamicIcon } from './Movie/Icons';
 
 interface RecommendationCardProps {
   movie: CombinedContent;
@@ -78,7 +79,7 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({ movie, onPlay }
             {movie.title || movie.name}
           </Text>
           <Flex mt="2" align="center">
-            <FaStar color="gold" />
+          <DynamicIcon name="Star" color="gold" size={16} />
             <Text ml={1} fontSize="sm">
               {movie.vote_average.toFixed(1)}
             </Text>
@@ -98,7 +99,7 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({ movie, onPlay }
             <Tooltip label="Play">
               <IconButton
                 aria-label="Play"
-                icon={<FaPlayCircle />}
+                icon={ <DynamicIcon name="Play" color="black" size={16} />}
                 size="lg"
                 variant="ghost"
                 colorScheme="white"

@@ -5,7 +5,6 @@ import {
   Flex, 
   Text, 
   Image, 
-  Icon, 
   Button, 
   useColorModeValue, 
   Spinner, 
@@ -15,11 +14,12 @@ import {
   useBreakpointValue
 } from '@chakra-ui/react';
 import { motion } from 'framer-motion';
-import { FaStar, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+
 import { useQuery } from 'react-query';
 import { useNavigate } from 'react-router-dom';
 import tmdbService from '../services/tmdbService';
 import { CombinedContent } from '../types';
+import { DynamicIcon } from './Movie/Icons';
 
 const MotionBox = motion(Box as any);
 
@@ -75,7 +75,7 @@ const RecommendationList: React.FC<RecommendationListProps> = ({ tmdbId }) => {
         </Heading>
         <Flex justifyContent="space-between" alignItems="center">
           <Button
-            leftIcon={<FaChevronLeft />}
+            leftIcon={<DynamicIcon name="ChevronLeft" color="black" size={16} />}
             onClick={handlePrevPage}
             isDisabled={currentPage === 0}
             variant="ghost"
@@ -86,7 +86,7 @@ const RecommendationList: React.FC<RecommendationListProps> = ({ tmdbId }) => {
             Page {currentPage + 1} of {totalPages}
           </Text>
           <Button
-            rightIcon={<FaChevronRight />}
+            rightIcon={<DynamicIcon name="ChevronRight" color="black" size={16} />}
             onClick={handleNextPage}
             isDisabled={currentPage === totalPages - 1}
             variant="ghost"
@@ -127,7 +127,7 @@ const RecommendationList: React.FC<RecommendationListProps> = ({ tmdbId }) => {
                     {movie.release_date}
                   </Text>
                   <Flex align="center">
-                    <Icon as={FaStar} color="yellow.400" mr={1} />
+                  <DynamicIcon name="Star" color="gold" size={16} />
                     <Text fontSize="sm" fontWeight="bold" color={textColor}>
                       {movie.vote_average}
                     </Text>

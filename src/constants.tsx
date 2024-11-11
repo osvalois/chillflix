@@ -4,12 +4,13 @@ import { Variants } from 'framer-motion';
 import { mix, rgba, lighten, darken, transparentize } from 'polished';
 // Constants for better performance and maintainability
 
-import { FaFilm, FaMusic, FaTv } from 'react-icons/fa';
+
 import { Category } from './types';
+import { DynamicIcon } from './components/Movie/Icons';
 export const APP_NAME = "Chillflix";
 export const CATEGORIES: Category[] = [
   { 
-    icon: FaFilm, 
+    icon: () => <DynamicIcon name="Film" size={24} />,
     text: 'Movies',
     gradient: 'linear(to-r, pink.400, purple.500)',
     particleColor: 'pink.400',
@@ -17,7 +18,7 @@ export const CATEGORIES: Category[] = [
     accentColor: 'pink.200'
   },
   { 
-    icon: FaTv, 
+    icon: () => <DynamicIcon name="Tv" size={24} />,
     text: 'Shows',
     gradient: 'linear(to-r, purple.400, blue.500)',
     particleColor: 'purple.400',
@@ -25,10 +26,10 @@ export const CATEGORIES: Category[] = [
     accentColor: 'purple.200'
   },
   { 
-    icon: FaMusic, 
+    icon: () => <DynamicIcon name="Music" size={24} />,
     text: 'Music',
     gradient: 'linear(to-r, blue.400, cyan.500)',
-    particleColor: 'blue.400', 
+    particleColor: 'blue.400',
     shadowColor: 'rgba(82, 178, 255, 0.3)',
     accentColor: 'blue.200'
   }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Box, Flex, IconButton, Slider, SliderTrack, SliderFilledTrack, SliderThumb, Tooltip, keyframes } from "@chakra-ui/react";
-import { FaVolumeUp, FaVolumeMute } from "react-icons/fa";
+import { DynamicIcon } from '../Movie/Icons';
 
 const pulseAnimation = keyframes`
   0% { box-shadow: 0 0 0 0 rgba(66, 153, 225, 0.4); }
@@ -63,7 +63,7 @@ export const VolumeControls: React.FC<VolumeControlsProps> = ({ isMuted, volume,
         <Tooltip label={isMuted ? "Unmute" : "Mute"} placement="top" hasArrow>
           <IconButton
             aria-label={isMuted ? "Unmute" : "Mute"}
-            icon={isMuted ? <FaVolumeMute /> : <FaVolumeUp />}
+            icon={isMuted ?   <DynamicIcon name="Mute" color="#FFFFFF" size={16} /> :   <DynamicIcon name="VolumeUp" color="#FFFFFF" size={16} />}
             onClick={onMute}
             size="sm"
             variant="unstyled"

@@ -5,7 +5,7 @@ import type { Swiper as SwiperType } from 'swiper';
 import { Navigation, EffectCoverflow, Autoplay, Parallax } from 'swiper/modules';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
-import { FaFire, FaStar, FaHeart, FaCalendar, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+
 import useSound from 'use-sound';
 import { useBreakpointValue } from '@chakra-ui/react';
 import { useDebounce } from 'use-debounce';
@@ -15,6 +15,7 @@ import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/effect-coverflow';
 import 'swiper/css/parallax';
+import { DynamicIcon } from '../Movie/Icons';
 
 // Types with stricter definitions
 interface ContentBase {
@@ -40,7 +41,6 @@ export type CombinedContent = ContentBase;
 interface ContentCarouselProps {
   title: string;
   content: CombinedContent[];
-  icon: keyof typeof iconMap;
   autoplay?: boolean;
   interval?: number;
   onSlideChange?: (index: number) => void;
@@ -59,13 +59,6 @@ interface CarouselState {
 const ANIMATION_DURATION = 0.3;
 const HOVER_DEBOUNCE_TIME = 100;
 const TRANSITION_LOCK_TIME = 300;
-
-const iconMap = {
-  FaFire,
-  FaStar,
-  FaHeart,
-  FaCalendar,
-} as const;
 
 // Enhanced animations configuration
 const animations = {
@@ -124,7 +117,6 @@ const ErrorBoundary: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
 const ContentCarousel: React.FC<ContentCarouselProps> = ({
   title,
-  icon,
   content,
   autoplay = false,
   interval = 3000,
@@ -282,7 +274,7 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
         >
           <IconButton
             aria-label={`${direction} slide`}
-            icon={direction === 'prev' ? <FaChevronLeft /> : <FaChevronRight />}
+            icon={direction === 'prev' ?    <DynamicIcon name="ChevronLeft" size={20} style="default" />: <DynamicIcon name="ChevronRight" size={20} style="default" />}
             position="absolute"
             top="50%"
             transform="translateY(-50%)"
@@ -394,7 +386,6 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
                 }}
               >
                 <Box
-                  as={iconMap[icon]}
                   color="white"
                   fontSize="2xl"
                 />
@@ -553,7 +544,6 @@ export default React.memo(ContentCarousel, (prevProps, nextProps) => {
   // Custom comparison function to prevent unnecessary re-renders
   return (
     prevProps.title === nextProps.title &&
-    prevProps.icon === nextProps.icon &&
     prevProps.content === nextProps.content &&
     prevProps.autoplay === nextProps.autoplay &&
     prevProps.interval === nextProps.interval

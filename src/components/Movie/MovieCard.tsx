@@ -1,9 +1,11 @@
 import React, { useState, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useSpring, animated } from 'react-spring';
 import {
   Box,
   Text,
   Badge,
-  Icon,
   VStack,
   HStack,
   Tooltip,
@@ -11,15 +13,16 @@ import {
   Flex,
   Image,
   Skeleton,
+  chakra,
 } from '@chakra-ui/react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useSpring, animated } from 'react-spring';
-import { FaHeart, FaStar } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom';
-import { Calendar, Clock, Film } from 'lucide-react';
 import { CombinedContent } from '../../types';
 import WatchButton from '../WatchButton';
+import { DynamicIcon } from './Icons';
 
+// Constants
+const POSTER_ASPECT_RATIO = 1.5;
+
+// Types
 interface MovieCardProps {
   movie: CombinedContent;
   onSelect: (movie: CombinedContent) => void;
@@ -29,25 +32,106 @@ interface MovieCardProps {
   variant?: 'default' | 'compact' | 'featured';
 }
 
+// Styled Components
 const MotionBox = motion(Box as any);
 const AnimatedBox = animated(MotionBox);
 
-const POSTER_ASPECT_RATIO = 1.5;
+// Helper Components
+const RatingBadge = React.memo(({ rating }: { rating: number }) => {
+  const ratingColor = useMemo(() => {
+    if (rating >= 7.5) return 'green';
+    if (rating >= 6) return 'yellow';
+    if (rating >= 4) return 'orange';
+    return 'red';
+  }, [rating]);
 
-const MovieCard: React.FC<MovieCardProps> = React.memo(({
-  movie,
-  onSelect,
-  onAddToFavorites,
-  isFavorite = false,
-  isLoading = false,
-  variant = 'default'
-}) => {
-  const [isHovered, setIsHovered] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [isImageError, setIsImageError] = useState(false);
-  const navigate = useNavigate();
+  return (
+    <Badge
+      colorScheme={ratingColor}
+      px={2}
+      py={1}
+      borderRadius="full"
+      display="flex"
+      alignItems="center"
+      gap={1}
+      backdropFilter="blur(4px)"
+    >
+      <DynamicIcon name="Star" size={12} />
+      {rating.toFixed(1)}
+    </Badge>
+  );
+});
 
-  // Enhanced color modes
+RatingBadge.displayName = 'RatingBadge';
+
+const RuntimeBadge = React.memo(({ runtime }: { runtime: number }) => {
+  const runtimeDisplay = useMemo(() => {
+    const hours = Math.floor(runtime / 60);
+    const minutes = runtime % 60;
+    return `${hours}h ${minutes}m`;
+  }, [runtime]);
+
+  return (
+    <Badge
+      colorScheme="gray"
+      px={2}
+      py={1}
+      borderRadius="full"
+      display="flex"
+      alignItems="center"
+      gap={1}
+      backdropFilter="blur(4px)"
+    >
+      <DynamicIcon name="Clock" size={12} />
+      {runtimeDisplay}
+    </Badge>
+  );
+});
+
+RuntimeBadge.displayName = 'RuntimeBadge';
+
+const FavoriteButton = React.memo(({ 
+  isFavorite, 
+  onClick,
+}: { 
+  isFavorite: boolean;
+  onClick: (e: React.MouseEvent) => void;
+  isHovered: boolean;
+}) => (
+  <Tooltip
+    label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+    placement="top"
+  >
+    <chakra.button
+      position="absolute"
+      top={2}
+      right={2}
+      onClick={onClick}
+      bg="rgba(0, 0, 0, 0.6)"
+      p={2}
+      borderRadius="full"
+      _hover={{
+        bg: 'rgba(0, 0, 0, 0.8)',
+        transform: 'scale(1.1)'
+      }}
+      transition="all 0.2s"
+      zIndex={2}
+    >
+      <DynamicIcon 
+        name="Heart" 
+        size={20}
+        color={isFavorite ? "red.500" : "white"}
+        style={isFavorite ? "error" : "default"}
+        variant={isFavorite ? "solid" : "outline"}
+      />
+    </chakra.button>
+  </Tooltip>
+));
+
+FavoriteButton.displayName = 'FavoriteButton';
+
+// Custom Hooks
+const useMovieCardColors = () => {
   const textColor = useColorModeValue('gray.800', 'white');
   const placeholderColor = useColorModeValue('gray.600', 'gray.300');
   const glassBgColor = useColorModeValue(
@@ -62,7 +146,7 @@ const MovieCard: React.FC<MovieCardProps> = React.memo(({
   const hoverBgColor = useColorModeValue('gray.50', 'gray.700');
   const buttonHoverBg = useColorModeValue('whiteAlpha.300', 'blackAlpha.300');
 
-  const colors = useMemo(() => ({
+  return useMemo(() => ({
     text: textColor,
     placeholder: placeholderColor,
     glassBg: glassBgColor,
@@ -71,8 +155,34 @@ const MovieCard: React.FC<MovieCardProps> = React.memo(({
     hoverBg: hoverBgColor,
     buttonHover: buttonHoverBg,
   }), [textColor, placeholderColor, glassBgColor, glassBoxShadowColor, cardBgColor, hoverBgColor, buttonHoverBg]);
+};
 
-  // Enhanced animations
+const useMovieDetails = (movie: CombinedContent) => {
+  return useMemo(() => ({
+    title: movie.title || movie.name || 'Untitled',
+    year: (movie.release_date || movie.first_air_date)?.split('-')[0] || 'N/A',
+    overview: movie.overview,
+    genres: movie.genres || [],
+  }), [movie]);
+};
+
+// Main Component
+const MovieCard: React.FC<MovieCardProps> = React.memo(({
+  movie,
+  onSelect,
+  onAddToFavorites,
+  isFavorite = false,
+  isLoading = false,
+  variant = 'default'
+}) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [isImageError, setIsImageError] = useState(false);
+  const navigate = useNavigate();
+  const colors = useMovieCardColors();
+  const { title, year, overview, genres } = useMovieDetails(movie);
+
+  // Animations
   const cardSpring = useSpring({
     scale: isHovered ? 1.05 : 1,
     boxShadow: isHovered
@@ -81,23 +191,19 @@ const MovieCard: React.FC<MovieCardProps> = React.memo(({
     config: { mass: 1, tension: 300, friction: 20 }
   });
 
-  // Enhanced handlers
+  // Event Handlers
   const handleMouseEnter = useCallback(() => setIsHovered(true), []);
   const handleMouseLeave = useCallback(() => setIsHovered(false), []);
 
   const handleClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    if (!isLoading) {
-      onSelect(movie);
-    }
+    if (!isLoading) onSelect(movie);
   }, [movie, onSelect, isLoading]);
 
   const handleAddToFavorites = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    if (!isLoading) {
-      onAddToFavorites(movie);
-    }
+    if (!isLoading) onAddToFavorites(movie);
   }, [movie, onAddToFavorites, isLoading]);
 
   const handleDetailClick = useCallback((e: React.MouseEvent) => {
@@ -109,47 +215,19 @@ const MovieCard: React.FC<MovieCardProps> = React.memo(({
     }
   }, [navigate, movie.id, movie.media_type, isLoading]);
 
-  const handleImageLoad = useCallback(() => {
-    setImageLoaded(true);
-  }, []);
-
+  const handleImageLoad = useCallback(() => setImageLoaded(true), []);
   const handleImageError = useCallback(() => {
     setIsImageError(true);
     setImageLoaded(true);
   }, []);
 
-  // Enhanced memoized values
+  // Memoized Values
   const posterUrl = useMemo(() => {
     if (isImageError) return '/default-movie-poster.jpg';
     return movie.poster_path
       ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
       : '/default-movie-poster.jpg';
   }, [movie.poster_path, isImageError]);
-
-  const title = useMemo(() => movie.title || movie.name || 'Untitled', [movie]);
-
-  const year = useMemo(() => {
-    const date = movie.release_date || movie.first_air_date;
-    return date?.split('-')[0] || 'N/A';
-  }, [movie]);
-
-  const ratingColor = useMemo(() => {
-    if (movie.vote_average >= 7.5) return 'green';
-    if (movie.vote_average >= 6) return 'yellow';
-    if (movie.vote_average >= 4) return 'orange';
-    return 'red';
-  }, [movie.vote_average]);
-
-  const formattedRating = useMemo(() => {
-    return movie.vote_average.toFixed(1);
-  }, [movie.vote_average]);
-
-  const runtimeDisplay = useMemo(() => {
-    if (!movie.runtime) return null;
-    const hours = Math.floor(movie.runtime / 60);
-    const minutes = movie.runtime % 60;
-    return `${hours}h ${minutes}m`;
-  }, [movie.runtime]);
 
   if (isLoading) {
     return (
@@ -205,7 +283,6 @@ const MovieCard: React.FC<MovieCardProps> = React.memo(({
               _groupHover={{ transform: 'scale(1.05)' }}
             />
           </Skeleton>
-         
 
           <AnimatePresence>
             {isHovered && (
@@ -226,34 +303,8 @@ const MovieCard: React.FC<MovieCardProps> = React.memo(({
                 p={4}
               >
                 <Flex justify="space-between" align="center">
-                  <Badge
-                    colorScheme={ratingColor}
-                    px={2}
-                    py={1}
-                    borderRadius="full"
-                    display="flex"
-                    alignItems="center"
-                    gap={1}
-                    backdropFilter="blur(4px)"
-                  >
-                    <FaStar />
-                    {formattedRating}
-                  </Badge>
-                  {movie.runtime && (
-                    <Badge
-                      colorScheme="gray"
-                      px={2}
-                      py={1}
-                      borderRadius="full"
-                      display="flex"
-                      alignItems="center"
-                      gap={1}
-                      backdropFilter="blur(4px)"
-                    >
-                      <Clock size={12} />
-                      {runtimeDisplay}
-                    </Badge>
-                  )}
+                  <RatingBadge rating={movie.vote_average} />
+                  {movie.runtime && <RuntimeBadge runtime={movie.runtime} />}
                 </Flex>
 
                 <VStack spacing={3} align="stretch">
@@ -263,22 +314,21 @@ const MovieCard: React.FC<MovieCardProps> = React.memo(({
                     noOfLines={3}
                     textShadow="0 2px 4px rgba(0,0,0,0.5)"
                   >
-                    {movie.overview}
+                    {overview}
                   </Text>
                   
                   <HStack spacing={2} justify="center">
-                  <WatchButton
-  onClick={handleDetailClick}
-  isLoading={false}
-  size="md"
-  variant="gradient"
-  accentColor="blue"
-  animated={true}
-  showRipple={true}
-  withSound={true}
-  customText="Watch" // opcional
-  icon={<Film size={20} />} // opcional
-/>
+                    <WatchButton
+                      onClick={handleDetailClick}
+                      isLoading={false}
+                      size="md"
+                      variant="gradient"
+                      accentColor="blue"
+                      animated={true}
+                      showRipple={true}
+                      withSound={true}
+                      icon={<DynamicIcon name="Play" size={20} />}
+                    />
                   </HStack>
                 </VStack>
               </MotionBox>
@@ -313,15 +363,15 @@ const MovieCard: React.FC<MovieCardProps> = React.memo(({
                 alignItems="center"
                 gap={1}
               >
-                <Calendar size={12} />
+                <DynamicIcon name="Calendar" size={12} />
                 {year}
               </Badge>
             </HStack>
           </Flex>
 
-          {movie.genres && (
+          {genres.length > 0 && (
             <Flex gap={2} flexWrap="wrap">
-              {movie.genres.slice(0, 2).map(genre => (
+              {genres.slice(0, 2).map(genre => (
                 <Badge
                   key={genre.id}
                   colorScheme="blue"
@@ -335,38 +385,11 @@ const MovieCard: React.FC<MovieCardProps> = React.memo(({
           )}
         </VStack>
 
-        <Tooltip
-          label={isFavorite ? "Remove from favorites" : "Add to favorites"}
-          placement="top"
-        >
-          <Box
-            as="button"
-            position="absolute"
-            top={2}
-            right={2}
-            onClick={handleAddToFavorites}
-            bg="rgba(0, 0, 0, 0.6)"
-            p={2}
-            borderRadius="full"
-            _hover={{
-              bg: 'rgba(0, 0, 0, 0.8)',
-              transform: 'scale(1.1)'
-            }}
-            transition="all 0.2s"
-            zIndex={2}
-          >
-            <Icon
-              as={FaHeart}
-              color={isFavorite ? "red.500" : "white"}
-              opacity={isHovered || isFavorite ? 1 : 0.7}
-              transition="all 0.3s"
-              _groupHover={{
-                opacity: 1,
-                transform: 'scale(1.1)'
-              }}
-            />
-          </Box>
-        </Tooltip>
+        <FavoriteButton 
+          isFavorite={isFavorite}
+          onClick={handleAddToFavorites}
+          isHovered={isHovered}
+        />
       </VStack>
     </AnimatedBox>
   );

@@ -1,17 +1,25 @@
 import React, { useState, useMemo, memo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Box, Container, VStack, HStack, Heading, Text, Button, Icon, Tag } from '@chakra-ui/react';
-import { FaPlay, FaStar, FaCalendarAlt, FaClock } from 'react-icons/fa';
+
 import { Link as RouterLink } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { Blurhash } from "react-blurhash";
 import useWindowSize from '../../hooks/useWindowSize'; // Asumiendo que existe este hook
+import Icons, { DynamicIcon } from '../Movie/Icons';
 
 // Types
 interface Genre {
   id: number;
   name: string;
 }
+
+interface MetaTagProps {
+  iconName: keyof typeof Icons;
+  value: string | number;
+  color?: string;
+}
+
 
 interface CombinedContent {
   id: number;
@@ -64,25 +72,25 @@ const BackdropImage = memo(({
 ));
 
 const MetaTag = memo(({ 
-  icon, 
+  iconName, 
   value, 
   color = "yellow.400" 
-}: { 
-  icon: React.ComponentType; 
-  value: string | number; 
-  color?: string;
-}) => (
-  <Tag
-    borderRadius="full"
-    size={{ base: "sm", md: "md" }}
-    bg="rgba(255, 255, 255, 0.2)"
-    color="white"
-    boxShadow="0 4px 6px rgba(0, 0, 0, 0.1)"
-  >
-    <Icon as={icon} mr={1} color={color} />
-    {value}
-  </Tag>
-));
+}: MetaTagProps) => {
+  const IconComponent = Icons[iconName];
+  
+  return (
+    <Tag
+      borderRadius="full"
+      size={{ base: "sm", md: "md" }}
+      bg="rgba(255, 255, 255, 0.2)"
+      color="white"
+      boxShadow="0 4px 6px rgba(0, 0, 0, 0.1)"
+    >
+      <Icon as={IconComponent} mr={1} color={color} boxSize="16px" />
+      {value}
+    </Tag>
+  );
+});
 
 const GenreTag = memo(({ name }: { name: string }) => (
   <Tag
@@ -242,18 +250,18 @@ const FeaturedContent: React.FC<FeaturedContentProps> = memo(({ content, genres 
               {/* Meta Tags */}
               <HStack spacing={4} flexWrap="wrap">
                 <MetaTag
-                  icon={FaStar}
+                  iconName="Star"
                   value={content.vote_average.toFixed(1)}
                   color="yellow.400"
                 />
                 <MetaTag
-                  icon={FaCalendarAlt}
+                  iconName="Calendar"
                   value={content.release_date?.split('-')[0] ?? ''}
                   color="blue.400"
                 />
                 {content.runtime && (
                   <MetaTag
-                    icon={FaClock}
+                    iconName="Clock"
                     value={`${content.runtime} min`}
                     color="green.400"
                   />
@@ -282,7 +290,7 @@ const FeaturedContent: React.FC<FeaturedContentProps> = memo(({ content, genres 
               <Button
                 as={RouterLink}
                 to={`/${contentType}/${content.id}`}
-                leftIcon={<FaPlay />}
+                leftIcon={<DynamicIcon name="Play" color="#FFFFFF" size={16} />}
                 bg="rgba(255, 255, 255, 0.2)"
                 color="white"
                 size={{ base: "md", md: "lg" }}

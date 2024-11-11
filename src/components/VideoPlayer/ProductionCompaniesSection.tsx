@@ -1,10 +1,11 @@
 import { memo, useState, useCallback } from 'react';
-import { Box, Flex, Text, VStack, HStack, Icon, Skeleton, useBreakpointValue, useToken } from '@chakra-ui/react';
+import { Box, Flex, Text, VStack, HStack, Skeleton, useBreakpointValue, useToken } from '@chakra-ui/react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaBuilding } from 'react-icons/fa';
+
 import { useInView } from 'react-intersection-observer';
 import { useSpring, animated, config } from 'react-spring';
 import debounce from 'lodash/debounce';
+import { DynamicIcon } from '../Movie/Icons';
 
 // Types
 interface ProductionCompany {
@@ -264,12 +265,7 @@ const ProductionCompaniesSection = memo(({ companies, isLoading = false }: Produ
           pb={3}
           px={1}
         >
-          <Icon 
-            as={FaBuilding} 
-            color="gray.300" 
-            fontSize={{ base: "lg", md: "xl" }}
-            opacity={0.9}
-          />
+          <DynamicIcon name="Building" color="black" size={16} />
           <Text
             bgGradient="linear(to-r, red.400, pink.500)"
             bgClip="text"

@@ -10,16 +10,10 @@ import {
 } from '@chakra-ui/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import {
-  FaStar,
-  FaCalendar,
-  FaUsers,
-  FaPlay,
-  FaHeart,
-  FaShare
-} from 'react-icons/fa';
+
 import { useParallax } from 'react-scroll-parallax';
 import { rgba } from 'polished';
+import { DynamicIcon } from '../Movie/Icons';
 
 const pulse = keyframes`
   0% { transform: scale(1); opacity: 0.8; }
@@ -231,7 +225,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
                     backdropFilter: 'blur(4px)',
                   }}
                 >
-                  <FaStar color="#FFD700" style={{ marginRight: '0.5rem' }} />
+                   <DynamicIcon name="Star" color="#FFD700" size={16} />
                   <Text color="white" fontWeight="bold">
                     {content.vote_average.toFixed(1)}
                   </Text>
@@ -243,7 +237,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
             <Flex gap={2}>
               <IconButton
                 aria-label="Favorite"
-                icon={<FaHeart />}
+                icon={  <DynamicIcon name="Heart" color="#FFD700" size={16} />}
                 variant="ghost"
                 colorScheme={isFavorited ? 'red' : 'gray'}
                 onClick={handleFavorite}
@@ -255,7 +249,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
               />
               <IconButton
                 aria-label="Share"
-                icon={<FaShare />}
+                icon={<DynamicIcon name="Share" color="#FFD700" size={16} />}
                 variant="ghost"
                 onClick={handleShare}
                 style={{
@@ -314,7 +308,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
                 cursor: 'pointer',
               }}
             >
-              <FaPlay />
+              <DynamicIcon name="Play" color="#FFD700" size={16} />
               Watch Now
             </motion.button>
           </Flex>
@@ -350,7 +344,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
                         borderRadius: '9999px',
                       }}
                     >
-                      <FaCalendar color="white" />
+                     <DynamicIcon name="Calendar" color="#FFD700" size={16} />
                       <Text color="white">
                         {new Date(content.release_date || content.first_air_date || '').getFullYear()}
                       </Text>
@@ -368,7 +362,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
                         borderRadius: '9999px',
                       }}
                     >
-                      <FaUsers color="white" />
+                      <DynamicIcon name="User" color="#FFFFFF" size={16} />
                       <Text color="white">
                         {Math.round(content.popularity).toLocaleString()} views
                       </Text>

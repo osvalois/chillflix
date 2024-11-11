@@ -36,10 +36,7 @@ import {
   FormLabel,
   Switch,
 } from '@chakra-ui/react';
-import {
-  AddIcon,
-  CloseIcon,
-} from '@chakra-ui/icons';
+
 import {
   Users,
   PartyPopper,
@@ -55,6 +52,7 @@ import { useHotkeys } from 'react-hotkeys-hook';
 import { useSound } from 'use-sound';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { DynamicIcon } from '../Movie/Icons';
 
 dayjs.extend(relativeTime);
 
@@ -172,7 +170,7 @@ const PartyUserInput = ({
               <Tooltip label="Remove user">
                 <IconButton
                   aria-label="Remove user"
-                  icon={<CloseIcon />}
+                  icon={  <DynamicIcon name="Close" color="#FFFFFF" size={16} />}
                   onClick={onRemove}
                   variant="ghost"
                   colorScheme="red"
@@ -543,7 +541,7 @@ export const CreateWatchParty: React.FC<CreateWatchPartyProps> = ({
 
                   {users.length < maxParticipants && (
                     <Button
-                      leftIcon={<AddIcon />}
+                      leftIcon={ <DynamicIcon name="Add" color="#FFFFFF" size={16} />}
                       variant="ghost"
                       colorScheme="purple"
                       onClick={handleAddUser}

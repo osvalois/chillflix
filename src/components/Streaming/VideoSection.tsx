@@ -1,13 +1,22 @@
-import React, { Suspense, useMemo, memo } from 'react';
-import { motion } from 'framer-motion';
+import React, { Suspense, useMemo, memo, useState, useCallback } from 'react';
 import { Box, Text, VStack } from '@chakra-ui/react';
-import { FiSearch } from 'react-icons/fi';
 import { ErrorBoundary } from 'react-error-boundary';
-import LoadingMessage from '../common/LoadingMessage';
-import VideoPlayer from '../VideoPlayer/VideoPlayer';
-import GlassmorphicButton from '../Button/GlassmorphicButton';
-import ErrorFallback from '../UI/ErrorFallback';
+import { motion, AnimatePresence } from 'framer-motion';
+import dynamic from 'next/dynamic';
+import { useInView } from 'react-intersection-observer';
+import { Search } from 'lucide-react';
 
+// Dynamic imports para reducir el tamaño del bundle inicial
+const VideoPlayer = dynamic(() => import('../VideoPlayer/VideoPlayer'), {
+  ssr: false,
+  loading: () => <LoadingMessage />
+});
+
+const LoadingMessage = dynamic(() => import('../common/LoadingMessage'));
+const GlassmorphicButton = dynamic(() => import('../Button/GlassmorphicButton'));
+const ErrorFallback = dynamic(() => import('../UI/ErrorFallback'));
+
+// Types
 interface VideoSectionProps {
   isVideoLoading: boolean;
   streamUrl: string | null;
@@ -29,33 +38,129 @@ interface VideoSectionProps {
   onError?: (error: Error) => void;
 }
 
+// Styles extraídos para evitar re-renderizados
 const glassmorphismStyle = {
   background: "rgba(255, 255, 255, 0.05)",
   backdropFilter: "blur(10px)",
   borderRadius: "20px",
   border: "1px solid rgba(255, 255, 255, 0.1)",
-  boxShadow:
-    "0 4px 30px rgba(0, 0, 0, 0.1), " +
-    "inset 0 0 20px rgba(255, 255, 255, 0.05), " +
-    "0 0 0 1px rgba(255, 255, 255, 0.1)",
+  boxShadow: "0 4px 30px rgba(0, 0, 0, 0.1), inset 0 0 20px rgba(255, 255, 255, 0.05), 0 0 0 1px rgba(255, 255, 255, 0.1)",
   overflow: "hidden",
-};
+} as const;
 
 const containerVariants = {
-  hidden: { 
-    opacity: 0,
-    y: 20 
-  },
+  hidden: { opacity: 0, y: 20 },
   visible: { 
     opacity: 1,
     y: 0,
-    transition: {
-      duration: 0.5,
-      ease: "easeOut"
-    }
+    transition: { duration: 0.5, ease: "easeOut" }
+  },
+  exit: { 
+    opacity: 0,
+    y: -20,
+    transition: { duration: 0.3 }
   }
-};
+} as const;
 
+// Componentes Memoizados
+const PosterBackground = memo(({ url }: { url: string }) => (
+  <>
+    <Box
+      position="absolute"
+      top={0}
+      left={0}
+      right={0}
+      bottom={0}
+      bgImage={`url(${url})`}
+      bgSize="cover"
+      bgPosition="center"
+      filter="blur(2px)"
+      transform="scale(1.05)"
+      opacity={0.7}
+    />
+    <Box
+      position="absolute"
+      top={0}
+      left={0}
+      right={0}
+      bottom={0}
+      bg="linear-gradient(to bottom, rgba(0,0,0,0.4), rgba(0,0,0,0.8))"
+    />
+  </>
+));
+
+PosterBackground.displayName = 'PosterBackground';
+
+const NoSourceMessage = memo(({ 
+  hasTriedBackupApi,
+  isBackupApiLoading,
+  handleBackupApiCall 
+}: { 
+  hasTriedBackupApi: boolean;
+  isBackupApiLoading: boolean;
+  handleBackupApiCall: () => Promise<void>;
+}) => (
+  <VStack position="relative" height="100%" justify="center" align="center" spacing={6} px={4}>
+    {!hasTriedBackupApi && (
+      <>
+        <Text
+          fontSize={{ base: "lg", md: "xl" }}
+          fontWeight="bold"
+          color="white"
+          bg="rgba(0,0,0,0.5)"
+          p={4}
+          borderRadius="lg"
+          backdropFilter="blur(8px)"
+          maxW="md"
+          textAlign="center"
+          letterSpacing="wide"
+        >
+          No playback options available at this moment
+        </Text>
+
+        <GlassmorphicButton
+          onClick={handleBackupApiCall}
+          isLoading={isBackupApiLoading}
+          loadingText="Searching sources..."
+          icon={<Search size={16} />}
+          variant="info"
+          glowIntensity="none"
+          pulseEffect={false}
+          size="md"
+          animated={true}
+          px={6}
+          py={4}
+          fontSize="md"
+          fontWeight="semibold"
+          backdropFilter="blur(8px)"
+          bg="rgba(255,255,255,0.1)"
+          color="white"
+          _hover={{
+            transform: 'translateY(-1px)',
+            bg: 'rgba(255,255,255,0.15)',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
+          }}
+          _active={{
+            transform: 'translateY(0)',
+            boxShadow: 'none'
+          }}
+        >
+          Try Alternative Source
+        </GlassmorphicButton>
+      </>
+    )}
+
+    {isBackupApiLoading && (
+      <Text fontSize="sm" color="gray.300" mt={2} fontStyle="italic">
+        This may take a few moments...
+      </Text>
+    )}
+  </VStack>
+));
+
+NoSourceMessage.displayName = 'NoSourceMessage';
+
+// Componente Principal
 export const VideoSection: React.FC<VideoSectionProps> = memo(({
   isVideoLoading,
   streamUrl,
@@ -71,8 +176,23 @@ export const VideoSection: React.FC<VideoSectionProps> = memo(({
   handleBackupApiCall,
   onError
 }) => {
+  // Intersection Observer para lazy loading
+  const [ref, inView] = useInView({
+    threshold: 0.1,
+    triggerOnce: true
+  });
+
+  // Error tracking
+  const [hasError, setHasError] = useState(false);
+  const handleError = useCallback((error: Error) => {
+    setHasError(true);
+    console.error('Video section error:', error);
+    onError?.(error);
+  }, [onError]);
+
+  // Memoized components
   const renderVideoPlayer = useMemo(() => {
-    if (!streamUrl) return null;
+    if (!streamUrl || !inView) return null;
 
     return (
       <Suspense fallback={<LoadingMessage />}>
@@ -89,8 +209,16 @@ export const VideoSection: React.FC<VideoSectionProps> = memo(({
       </Suspense>
     );
   }, [
-    streamUrl, videoJsOptions, movie.title, handleQualityChange, handleLanguageChange, 
-    qualities, languages, movie.imdb_id, posterUrl
+    streamUrl,
+    inView,
+    videoJsOptions,
+    movie.title,
+    handleQualityChange,
+    handleLanguageChange,
+    qualities,
+    languages,
+    movie.imdb_id,
+    posterUrl
   ]);
 
   const renderLoadingState = useMemo(() => (
@@ -107,124 +235,40 @@ export const VideoSection: React.FC<VideoSectionProps> = memo(({
       overflow="hidden"
       borderRadius="xl"
     >
-      {/* Fondo con efecto de desenfoque */}
-      <Box
-        position="absolute"
-        top={0}
-        left={0}
-        right={0}
-        bottom={0}
-        bgImage={`url(${posterUrl})`}
-        bgSize="cover"
-        bgPosition="center"
-        filter="blur(2px)"
-        transform="scale(1.05)"
-        opacity={0.7}
+      <PosterBackground url={posterUrl} />
+      <NoSourceMessage
+        hasTriedBackupApi={hasTriedBackupApi}
+        isBackupApiLoading={isBackupApiLoading}
+        handleBackupApiCall={handleBackupApiCall}
       />
-
-      {/* Overlay gradiente */}
-      <Box
-        position="absolute"
-        top={0}
-        left={0}
-        right={0}
-        bottom={0}
-        bg="linear-gradient(to bottom, rgba(0,0,0,0.4), rgba(0,0,0,0.8))"
-      />
-
-      {/* Contenido */}
-      <VStack
-        position="relative"
-        height="100%"
-        justify="center"
-        align="center"
-        spacing={6}
-        px={4}
-      >
-        {!hasTriedBackupApi && (
-          <>
-            <Text
-              fontSize={{ base: "lg", md: "xl" }}
-              fontWeight="bold"
-              color="white"
-              bg="rgba(0,0,0,0.5)"
-              p={4}
-              borderRadius="lg"
-              backdropFilter="blur(8px)"
-              maxW="md"
-              textAlign="center"
-              letterSpacing="wide"
-            >
-              No playback options available at this moment
-            </Text>
-
-            <GlassmorphicButton
-              onClick={handleBackupApiCall}
-              isLoading={isBackupApiLoading}
-              loadingText="Searching sources..."
-              icon={<FiSearch size={16} />}
-              variant="info"
-              glowIntensity="none"
-              pulseEffect={false}
-              size="md"
-              animated={true}
-              px={6}
-              py={4}
-              fontSize="md"
-              fontWeight="semibold"
-              backdropFilter="blur(8px)"
-              bg="rgba(255,255,255,0.1)"
-              color="white"
-              _hover={{
-                transform: 'translateY(-1px)',
-                bg: 'rgba(255,255,255,0.15)',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
-              }}
-              _active={{
-                transform: 'translateY(0)',
-                boxShadow: 'none'
-              }}
-            >
-              Try Alternative Source
-            </GlassmorphicButton>
-          </>
-        )}
-
-        {isBackupApiLoading && (
-          <Text
-            fontSize="sm"
-            color="gray.300"
-            mt={2}
-            fontStyle="italic"
-          >
-            This may take a few moments...
-          </Text>
-        )}
-      </VStack>
     </Box>
   ), [posterUrl, hasTriedBackupApi, isBackupApiLoading, handleBackupApiCall]);
 
   return (
     <ErrorBoundary
       FallbackComponent={ErrorFallback}
-      onError={(error) => {
-        console.error('Video section error:', error);
-        onError?.(error);
-      }}
+      onError={handleError}
+      resetKeys={[streamUrl]}
     >
       <motion.div
+        ref={ref}
         initial="hidden"
         animate="visible"
+        exit="exit"
         variants={containerVariants}
       >
-        <Box {...glassmorphismStyle}>
-          {isVideoLoading && renderLoadingState}
-          {!isVideoLoading && streamUrl && renderVideoPlayer}
-          {!isVideoLoading && !streamUrl && renderNoSourceState}
-        </Box>
+        <AnimatePresence mode="wait">
+          <Box {...glassmorphismStyle}>
+            {isVideoLoading && renderLoadingState}
+            {!isVideoLoading && streamUrl && !hasError && renderVideoPlayer}
+            {!isVideoLoading && !streamUrl && !hasError && renderNoSourceState}
+          </Box>
+        </AnimatePresence>
       </motion.div>
     </ErrorBoundary>
   );
 });
+
+VideoSection.displayName = 'VideoSection';
 
 export default VideoSection;

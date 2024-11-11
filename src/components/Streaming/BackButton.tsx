@@ -1,15 +1,17 @@
-// src/components/BackButton/BackButton.tsx
-import React from 'react';
-import { Button, ButtonProps, Box, Text, keyframes } from '@chakra-ui/react';
-import { FaChevronLeft } from 'react-icons/fa';
+import React, { useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Button,
+  ButtonProps,
+  Box,
+  Text,
+  keyframes,
+  useColorModeValue,
+  chakra
+} from '@chakra-ui/react';
+import { DynamicIcon } from '../Movie/Icons';
 
-const glowAnimation = keyframes`
-  0% { box-shadow: 0 0 5px rgba(255, 255, 255, 0.3); }
-  50% { box-shadow: 0 0 15px rgba(255, 255, 255, 0.5); }
-  100% { box-shadow: 0 0 5px rgba(255, 255, 255, 0.3); }
-`;
-
+// Types
 interface BackButtonProps extends Omit<ButtonProps, 'onClick'> {
   onBack: () => void;
   showLabel?: boolean;
@@ -20,7 +22,14 @@ interface BackButtonProps extends Omit<ButtonProps, 'onClick'> {
   size?: 'sm' | 'md' | 'lg';
 }
 
-const variants = {
+// Constants and Styles
+const glowAnimation = keyframes`
+  0% { box-shadow: 0 0 5px rgba(255, 255, 255, 0.3); }
+  50% { box-shadow: 0 0 15px rgba(255, 255, 255, 0.5); }
+  100% { box-shadow: 0 0 5px rgba(255, 255, 255, 0.3); }
+`;
+
+const VARIANTS = {
   default: {
     bg: "rgba(255, 255, 255, 0.1)",
     backdropFilter: "blur(5px)",
@@ -56,9 +65,9 @@ const variants = {
       transform: "translateY(0)"
     }
   }
-};
+} as const;
 
-const sizeStyles = {
+const SIZE_STYLES = {
   sm: {
     padding: "0.5rem",
     fontSize: "sm",
@@ -74,9 +83,68 @@ const sizeStyles = {
     fontSize: "lg",
     iconSize: 16
   }
+} as const;
+
+// Animation variants
+const MOTION_VARIANTS = {
+  initial: { 
+    opacity: 0,
+    x: -20 
+  },
+  animate: { 
+    opacity: 1,
+    x: 0,
+    transition: {
+      duration: 0.3,
+      ease: "easeOut"
+    }
+  },
+  exit: { 
+    opacity: 0,
+    x: -20,
+    transition: {
+      duration: 0.2,
+      ease: "easeIn"
+    }
+  }
+} as const;
+
+// Helper Components
+const AnimatedBox = chakra(motion(Box as any));
+const AnimatedButton = chakra(motion(Button as any));
+const AnimatedText = chakra(motion(Text as any));
+
+const ButtonLabel: React.FC<{ label: string }> = React.memo(({ label }) => (
+  <AnimatedText
+    as="span"
+    initial={{ opacity: 0, x: -5 }}
+    animate={{ opacity: 1, x: 0 }}
+    ml={1}
+  >
+    {label}
+  </AnimatedText>
+));
+
+ButtonLabel.displayName = 'ButtonLabel';
+
+// Custom Hooks
+const useBackButtonStyles = (
+  variant: keyof typeof VARIANTS,
+  size: keyof typeof SIZE_STYLES,
+  showGlow: boolean
+) => {
+  const textColor = useColorModeValue('gray.800', 'white');
+
+  return useMemo(() => ({
+    variant: VARIANTS[variant],
+    size: SIZE_STYLES[size],
+    animation: showGlow ? `${glowAnimation} 2s infinite` : undefined,
+    color: textColor,
+  }), [variant, size, showGlow, textColor]);
 };
 
-export const BackButton: React.FC<BackButtonProps> = ({
+// Main Component
+export const BackButton: React.FC<BackButtonProps> = React.memo(({
   onBack,
   showLabel = true,
   label = "Back",
@@ -86,48 +154,22 @@ export const BackButton: React.FC<BackButtonProps> = ({
   size = "md",
   ...props
 }) => {
-  const buttonVariants = {
-    initial: { 
-      opacity: 0,
-      x: -20 
-    },
-    animate: { 
-      opacity: 1,
-      x: 0,
-      transition: {
-        duration: 0.3,
-        ease: "easeOut"
-      }
-    },
-    exit: { 
-      opacity: 0,
-      x: -20,
-      transition: {
-        duration: 0.2,
-        ease: "easeIn"
-      }
-    },
+  const styles = useBackButtonStyles(variant, size, showGlow);
+
+  const buttonHoverVariants = useMemo(() => ({
     hover: {
       scale: variant === 'minimal' ? 1 : 1.05,
-      transition: {
-        duration: 0.2
-      }
+      transition: { duration: 0.2 }
     },
     tap: {
       scale: 0.95,
-      transition: {
-        duration: 0.1
-      }
+      transition: { duration: 0.1 }
     }
-  };
-
-  const currentVariant = variants[variant];
-  const currentSize = sizeStyles[size];
+  }), [variant]);
 
   return (
     <AnimatePresence>
-      <Box
-        as={motion.div}
+      <AnimatedBox
         position={position}
         top={position === 'fixed' ? 12 : undefined}
         left={position === 'fixed' ? 4 : undefined}
@@ -135,69 +177,61 @@ export const BackButton: React.FC<BackButtonProps> = ({
         initial="initial"
         animate="animate"
         exit="exit"
-        variants={buttonVariants}
+        variants={MOTION_VARIANTS}
         {...props}
       >
-        <Button
-          as={motion.button}
-          leftIcon={<FaChevronLeft size={currentSize.iconSize} />}
+        <AnimatedButton
+          leftIcon={<DynamicIcon name="ChevronDown" size={styles.size.iconSize} style="default" />}
           onClick={onBack}
           display="flex"
           alignItems="center"
           justifyContent="center"
-          padding={currentSize.padding}
-          fontSize={currentSize.fontSize}
+          padding={styles.size.padding}
+          fontSize={styles.size.fontSize}
           borderRadius="lg"
-          color="white"
+          color={styles.color}
           transition="all 0.3s ease"
           whileHover="hover"
           whileTap="tap"
-          animation={showGlow ? `${glowAnimation} 2s infinite` : undefined}
-          {...currentVariant}
+          animation={styles.animation}
+          variants={buttonHoverVariants}
+          {...styles.variant}
           {...props}
         >
-          {showLabel && (
-            <Text
-              as={motion.span}
-              initial={{ opacity: 0, x: -5 }}
-              animate={{ opacity: 1, x: 0 }}
-              ml={1}
-            >
-              {label}
-            </Text>
-          )}
-        </Button>
-      </Box>
+          {showLabel && <ButtonLabel label={label} />}
+        </AnimatedButton>
+      </AnimatedBox>
     </AnimatePresence>
   );
-};
+});
 
-// HOC para manejar estados de error
-export const BackButtonWithErrorHandling: React.FC<BackButtonProps> = (props) => {
+BackButton.displayName = 'BackButton';
+
+// Error Boundary HOC
+export const BackButtonWithErrorHandling: React.FC<BackButtonProps> = React.memo((props) => {
   const handleClick = () => {
     try {
       props.onBack();
     } catch (error) {
       console.error('Error navigating back:', error);
-      // Aquí podrías mostrar un toast o alguna notificación de error
     }
   };
 
   return <BackButton {...props} onBack={handleClick} />;
-};
+});
 
-// Componente de pruebas para documentación y desarrollo
-export const BackButtonStory: React.FC = () => {
-  return (
-    <Box p={4} bg="gray.900" minH="100vh">
-      <BackButton
-        onBack={() => console.log('Navigating back...')}
-        variant="glassmorphic"
-        showGlow
-        size="lg"
-      />
-    </Box>
-  );
-};
+BackButtonWithErrorHandling.displayName = 'BackButtonWithErrorHandling';
+
+// Development/Testing Component
+export const BackButtonStory: React.FC = () => (
+  <Box p={4} bg="gray.900" minH="100vh">
+    <BackButton
+      onBack={() => console.log('Navigating back...')}
+      variant="glassmorphic"
+      showGlow
+      size="lg"
+    />
+  </Box>
+);
 
 export default BackButtonWithErrorHandling;

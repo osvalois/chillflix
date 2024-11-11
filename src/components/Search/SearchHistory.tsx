@@ -14,8 +14,7 @@ import {
   ScaleFade,
 } from '@chakra-ui/react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaHistory, FaSearch, FaTimes, FaTrash } from 'react-icons/fa';
-
+import { DynamicIcon } from '../Movie/Icons';
 interface SearchHistoryProps {
   searchHistory: string[];
   onHistorySelect: (term: string) => void;
@@ -73,7 +72,7 @@ const SearchHistory: React.FC<SearchHistoryProps> = ({
           <Tooltip label={isExpanded ? "Collapse" : "Expand"} placement="top">
             <IconButton
               aria-label={isExpanded ? "Collapse search history" : "Expand search history"}
-              icon={isExpanded ? <FaSearch /> : <FaHistory />}
+              icon={isExpanded ? <DynamicIcon name="Search" color="black" size={16} />:<DynamicIcon name="History" color="black" size={16} />}
               onClick={toggleExpand}
               variant="ghost"
               colorScheme="blue"
@@ -83,7 +82,7 @@ const SearchHistory: React.FC<SearchHistoryProps> = ({
           <Tooltip label="Clear all history" placement="top">
             <IconButton
               aria-label="Clear all search history"
-              icon={<FaTrash />}
+              icon={<DynamicIcon name="Trash" color="black" size={16} />}
               onClick={onClearAllHistory}
               variant="ghost"
               colorScheme="red"
@@ -146,13 +145,13 @@ const SearchHistory: React.FC<SearchHistoryProps> = ({
                     boxShadow={hoveredIndex === index ? `0 0 0 1px ${theme.colors.blue[300]}` : 'none'}
                   >
                     <HStack spacing={2}>
-                      <FaHistory />
+                    <DynamicIcon name="History" color="black" size={16} />
                       <Text>{term}</Text>
                     </HStack>
                     <ScaleFade in={hoveredIndex === index}>
                       <IconButton
                         aria-label="Delete search term"
-                        icon={<FaTimes />}
+                        icon={<DynamicIcon name="Times" color="black" size={16} />}
                         size="xs"
                         position="absolute"
                         right={-2}

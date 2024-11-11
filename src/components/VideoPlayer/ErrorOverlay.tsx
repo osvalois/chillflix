@@ -1,22 +1,16 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, memo } from 'react';
 import { 
   Box,
   Center, 
   Text, 
   VStack, 
-  Icon, 
-  Button,
   Flex,
   Spinner,
-  useToken
+  useToken,
+  Button
 } from "@chakra-ui/react";
-import { 
-  WarningIcon, 
-  RepeatIcon, 
-  InfoIcon, 
-  CloseIcon 
-} from '@chakra-ui/icons';
 import { motion, AnimatePresence } from 'framer-motion';
+import { DynamicIcon } from '../Movie/Icons';
 
 interface ErrorOverlayProps {
   isVisible: boolean;
@@ -25,7 +19,6 @@ interface ErrorOverlayProps {
   errorCode?: string;
   errorDetails?: string;
   customMessage?: string;
-  showSpinner?: boolean;
   retryCount?: number;
   maxRetries?: number;
 }
@@ -33,7 +26,7 @@ interface ErrorOverlayProps {
 const MotionBox = motion(Box as any);
 const MotionFlex = motion(Flex  as any);
 
-export const ErrorOverlay: React.FC<ErrorOverlayProps> = ({
+export const ErrorOverlay: React.FC<ErrorOverlayProps> = memo(({
   isVisible,
   onRetry,
   onClose,
@@ -134,7 +127,7 @@ export const ErrorOverlay: React.FC<ErrorOverlayProps> = ({
                   _hover={{ opacity: 1 }}
                   transition="opacity 0.2s"
                 >
-                  <Icon as={CloseIcon} w={3} h={3} color="white" />
+                  <DynamicIcon name="Close" color="white" size={12} />
                 </Box>
               )}
 
@@ -147,11 +140,10 @@ export const ErrorOverlay: React.FC<ErrorOverlayProps> = ({
                   bg={`linear-gradient(135deg, ${red500}, ${red600})`}
                   boxShadow={`0 0 20px ${red500}40`}
                 >
-                  <Icon 
-                    as={WarningIcon} 
-                    w={8} 
-                    h={8} 
+                  <DynamicIcon 
+                    name="Warning" 
                     color="white" 
+                    size={16} 
                   />
                 </Box>
 
@@ -183,7 +175,7 @@ export const ErrorOverlay: React.FC<ErrorOverlayProps> = ({
                       width="100%"
                       variant="solid"
                       colorScheme="blue"
-                      leftIcon={isRetrying ? <Spinner size="sm" /> : <RepeatIcon />}
+                      leftIcon={isRetrying ? <Spinner size="sm" /> : <DynamicIcon name="Repeat" color="white" size={12} />}
                       onClick={handleRetry}
                       isDisabled={isRetrying}
                       _hover={{
@@ -202,7 +194,7 @@ export const ErrorOverlay: React.FC<ErrorOverlayProps> = ({
                       width="100%"
                       variant="ghost"
                       size="sm"
-                      leftIcon={<InfoIcon />}
+                      leftIcon={<DynamicIcon name="Info" color="gray.300" size={12} />}
                       onClick={() => setShowDetails(!showDetails)}
                       color="gray.300"
                       _hover={{
@@ -262,10 +254,10 @@ export const ErrorOverlay: React.FC<ErrorOverlayProps> = ({
       </MotionBox>
     </AnimatePresence>
   );
-};
+});
 
 // Componente para errores temporales
-export const TemporaryErrorOverlay: React.FC<ErrorOverlayProps & { duration?: number }> = ({
+export const TemporaryErrorOverlay: React.FC<ErrorOverlayProps & { duration?: number }> = memo(({
   duration = 5000,
   ...props
 }) => {
@@ -280,4 +272,4 @@ export const TemporaryErrorOverlay: React.FC<ErrorOverlayProps & { duration?: nu
   }, [duration]);
 
   return <ErrorOverlay {...props} isVisible={isVisible} />;
-};
+});

@@ -12,10 +12,10 @@ import {
   Box,
   Tag,
   Flex,
-  Icon,
 } from '@chakra-ui/react';
-import { FaStar } from 'react-icons/fa';
+
 import { CombinedContent, Genre } from '../../types';
+import { DynamicIcon } from '../Movie/Icons';
 
 interface ContentInfoModalProps {
   content: CombinedContent;
@@ -55,7 +55,7 @@ const ContentInfoModal: React.FC<ContentInfoModalProps> = ({ content, genres, is
             <Box>
               <Text fontWeight="bold">Rating:</Text>
               <Flex align="center">
-                <Icon as={FaStar} color="yellow.400" mr={1} />
+              <DynamicIcon name="Star" color="#FFFFFF" size={16} />
                 <Text>{content.vote_average.toFixed(1)} / 10</Text>
               </Flex>
             </Box>

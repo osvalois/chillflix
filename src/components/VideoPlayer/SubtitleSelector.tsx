@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useMediaQuery } from 'react-responsive';
-import { Box, useToast, Text, Icon, Spinner } from "@chakra-ui/react";
+import { Box, useToast, Text, Spinner } from "@chakra-ui/react";
 import { AnimatePresence, motion } from 'framer-motion';
-import { FaClosedCaptioning, FaCheck } from 'react-icons/fa';
 import pako from 'pako';
 import { Subtitle } from '../../types';
+import { DynamicIcon } from '../Movie/Icons';
 
 interface SubtitleSelectorProps {
   subtitles: Subtitle[] | undefined;
@@ -247,7 +247,7 @@ export const SubtitleSelector: React.FC<SubtitleSelectorProps> = ({
           <Spinner size="sm" color="white" speed="0.8s" />
         ) : (
           <>
-            <Icon as={FaClosedCaptioning} fontSize="12px" />
+             <DynamicIcon name="Captions" color="#FFFFFF" size={16} />
             {!isMobile && (
               <Text as="span">
                 {selectedSubtitle ? selectedSubtitle.LanguageName : 'Subtitles'}
@@ -326,7 +326,7 @@ export const SubtitleSelector: React.FC<SubtitleSelectorProps> = ({
               }}
             >
               <span>Off</span>
-              {!selectedSubtitle && <Icon as={FaCheck} fontSize="10px" />}
+              {!selectedSubtitle &&  <DynamicIcon name="Check" color="back" size={16} />}
             </motion.li>
 
             {filteredSubtitles.map((subtitle) => (
@@ -363,7 +363,7 @@ export const SubtitleSelector: React.FC<SubtitleSelectorProps> = ({
               >
                 <span>{subtitle.LanguageName}</span>
                 {selectedSubtitle?.ISO639 === subtitle.ISO639 && (
-                  <Icon as={FaCheck} fontSize="10px" />
+                   <DynamicIcon name="Check" color="black" size={16} />
                 )}
               </motion.li>
             ))}

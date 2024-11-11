@@ -2,7 +2,8 @@
 // FullscreenButton.tsx
 import React from 'react';
 import { IconButton } from "@chakra-ui/react";
-import { FaExpand, FaCompress } from "react-icons/fa";
+import { DynamicIcon } from '../Movie/Icons';
+
 
 interface FullscreenButtonProps {
   isFullscreen: boolean;
@@ -12,7 +13,7 @@ interface FullscreenButtonProps {
 export const FullscreenButton: React.FC<FullscreenButtonProps> = ({ isFullscreen, onFullscreenToggle }) => (
     <IconButton
       aria-label="Fullscreen"
-      icon={isFullscreen ? <FaCompress /> : <FaExpand />}
+      icon={isFullscreen ? <DynamicIcon name="Compress" color="#FFFFFF" size={16} /> : <DynamicIcon name="Expand" color="#FFFFFF" size={16} />}
       onClick={onFullscreenToggle}
       size="sm"
       variant="ghost"

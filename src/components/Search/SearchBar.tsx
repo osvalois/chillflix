@@ -4,54 +4,91 @@ import { useNavigate } from 'react-router-dom';
 import { useInfiniteQuery } from 'react-query';
 import debounce from 'lodash/debounce';
 import {
-  IconButton,
+  Box,
   useColorModeValue,
   useDisclosure,
   Tooltip,
   Portal,
   useToast,
   Button,
-  Icon,
+  chakra,
 } from '@chakra-ui/react';
-import { SearchIcon } from '@chakra-ui/icons';
-import { FaKeyboard } from 'react-icons/fa';
 import tmdbService from '../../services/tmdbService';
 import SearchModal from './SearchModal';
 import { CombinedContent, ContentType } from '../../types';
+import { DynamicIcon } from '../Movie/Icons';
 
-const KeyboardShortcutButton: React.FC = () => {
+// Componente optimizado para el botón de atajo de teclado
+const KeyboardShortcutButton = React.memo(() => {
   const bgColor = useColorModeValue('gray.100', 'gray.700');
   const textColor = useColorModeValue('gray.600', 'gray.200');
 
   return (
     <Tooltip label="Atajo de teclado: Ctrl + /" placement="bottom">
       <Button
-        leftIcon={<Icon as={FaKeyboard} />}
+        leftIcon={<DynamicIcon name="Keyboard" size={20} style="default" />}
         size="sm"
         variant="ghost"
         display={{ base: 'none', md: 'flex' }}
         alignItems="center"
         color={textColor}
         _hover={{ bg: bgColor }}
+        aria-label="Keyboard shortcut"
       >
         Ctrl + /
       </Button>
     </Tooltip>
   );
-};
+});
 
-const SearchBar: React.FC = () => {
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const [searchTerm, setSearchTerm] = useState('');
+KeyboardShortcutButton.displayName = 'KeyboardShortcutButton';
+
+// Componente para el botón de búsqueda
+const SearchButton = React.memo(({ onClick, hoverBgColor }: { 
+  onClick: () => void;
+  hoverBgColor: string;
+}) => (
+  <Tooltip label="Buscar (Ctrl + /)" placement="bottom">
+    <chakra.button
+      aria-label="Search"
+      onClick={onClick}
+      display="flex"
+      alignItems="center"
+      justifyContent="center"
+      p={2}
+      borderRadius="full"
+      bg="transparent"
+      transition="all 0.2s"
+      _hover={{ bg: hoverBgColor, transform: 'scale(1.05)' }}
+    >
+      <DynamicIcon name="Search" size={20} style="default" />
+    </chakra.button>
+  </Tooltip>
+));
+
+SearchButton.displayName = 'SearchButton';
+
+// Hook personalizado para el historial de búsqueda
+const useSearchHistory = () => {
   const [searchHistory, setSearchHistory] = useState<string[]>(() => {
     const savedHistory = localStorage.getItem('searchHistory');
     return savedHistory ? JSON.parse(savedHistory) : [];
   });
-  const navigate = useNavigate();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const toast = useToast();
 
-  const hoverBgColor = useColorModeValue('gray.100', 'gray.700');
+  const updateSearchHistory = useCallback((term: string) => {
+    if (term && !searchHistory.includes(term)) {
+      const newHistory = [term, ...searchHistory].slice(0, 5);
+      setSearchHistory(newHistory);
+      localStorage.setItem('searchHistory', JSON.stringify(newHistory));
+    }
+  }, [searchHistory]);
+
+  return { searchHistory, updateSearchHistory };
+};
+
+// Hook personalizado para la búsqueda
+const useSearch = (isOpen: boolean, onError: () => void) => {
+  const [searchTerm, setSearchTerm] = useState('');
 
   const {
     data,
@@ -71,15 +108,7 @@ const SearchBar: React.FC = () => {
       },
       enabled: searchTerm.length >= 2 && isOpen,
       retry: 3,
-      onError: () => {
-        toast({
-          title: "Error de búsqueda",
-          description: "No se pudieron cargar los resultados. Por favor, intenta de nuevo.",
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-        });
-      },
+      onError,
     }
   );
 
@@ -88,7 +117,7 @@ const SearchBar: React.FC = () => {
       ? data.pages.flatMap(page =>
           page.map(content => ({
             ...content,
-            primary_color: '#000000', // Default primary color
+            primary_color: '#000000',
             genre_ids: content.genre_ids || [],
             type: content.media_type === 'movie' ? ContentType.Movie : ContentType.TVSeries,
             year: content.release_date 
@@ -109,8 +138,8 @@ const SearchBar: React.FC = () => {
     [data]
   );
 
-  const debouncedSearch = useCallback(
-    debounce((term: string) => {
+  const debouncedSearch = useMemo(
+    () => debounce((term: string) => {
       setSearchTerm(term);
       if (term.length >= 2) {
         refetch();
@@ -118,6 +147,49 @@ const SearchBar: React.FC = () => {
     }, 300),
     [refetch]
   );
+
+  return {
+    searchTerm,
+    allContent,
+    debouncedSearch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    isError,
+  };
+};
+
+// Componente principal SearchBar
+const SearchBar: React.FC = () => {
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const navigate = useNavigate();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const toast = useToast();
+  const hoverBgColor = useColorModeValue('gray.100', 'gray.700');
+
+  const { searchHistory, updateSearchHistory } = useSearchHistory();
+
+  const handleError = useCallback(() => {
+    toast({
+      title: "Error de búsqueda",
+      description: "No se pudieron cargar los resultados. Por favor, intenta de nuevo.",
+      status: "error",
+      duration: 5000,
+      isClosable: true,
+    });
+  }, [toast]);
+
+  const {
+    searchTerm,
+    allContent,
+    debouncedSearch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    isError,
+  } = useSearch(isOpen, handleError);
 
   const handleSearchChange = useCallback((term: string) => {
     debouncedSearch(term);
@@ -128,18 +200,9 @@ const SearchBar: React.FC = () => {
     navigate(`/${contentType}/${content.id}`);
     onClose();
     updateSearchHistory(searchTerm);
-  }, [navigate, onClose, searchTerm]);
-
-  const updateSearchHistory = useCallback((term: string) => {
-    if (term && !searchHistory.includes(term)) {
-      const newHistory = [term, ...searchHistory].slice(0, 5);
-      setSearchHistory(newHistory);
-      localStorage.setItem('searchHistory', JSON.stringify(newHistory));
-    }
-  }, [searchHistory]);
+  }, [navigate, onClose, searchTerm, updateSearchHistory]);
 
   const handleHistorySelect = useCallback((term: string) => {
-    setSearchTerm(term);
     if (inputRef.current) {
       inputRef.current.value = term;
     }
@@ -182,18 +245,8 @@ const SearchBar: React.FC = () => {
   };
 
   return (
-    <>
-      <Tooltip label="Buscar (Ctrl + /)" placement="bottom">
-        <IconButton
-          aria-label="Search"
-          icon={<SearchIcon />}
-          onClick={onOpen}
-          variant="ghost"
-          borderRadius="full"
-          _hover={{ bg: hoverBgColor, transform: 'scale(1.05)' }}
-          transition="all 0.2s"
-        />
-      </Tooltip>
+    <Box display="flex" alignItems="center" gap={2}>
+      <SearchButton onClick={onOpen} hoverBgColor={hoverBgColor} />
       <AnimatePresence>
         {isOpen && (
           <Portal>
@@ -209,7 +262,7 @@ const SearchBar: React.FC = () => {
         )}
       </AnimatePresence>
       <KeyboardShortcutButton />
-    </>
+    </Box>
   );
 };
 
