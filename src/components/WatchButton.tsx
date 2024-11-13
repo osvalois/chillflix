@@ -8,7 +8,6 @@ import { DynamicIcon } from './Movie/Icons';
 import { useMemoOne } from 'use-memo-one';
 
 // Refined types
-type ButtonState = 'idle' | 'loading' | 'success' | 'error';
 type GlassMorphismIntensity = 'light' | 'medium' | 'heavy';
 type ButtonSize = 'sm' | 'md' | 'lg' | 'xl';
 type ButtonVariant = 'solid' | 'ghost' | 'outline' | 'gradient' | 'glass' | 'minimal';

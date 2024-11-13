@@ -113,10 +113,7 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ movieId }) => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
   const { isOpen, onOpen, onClose } = useDisclosure();
-
-  const bgColor = useColorModeValue('whiteAlpha.200', 'blackAlpha.300');
   const textColor = useColorModeValue('gray.800', 'gray.100');
-  const borderColor = useColorModeValue('whiteAlpha.300', 'whiteAlpha.100');
 
   const maxContentLength = useBreakpointValue(RESPONSIVE_CONFIG.maxContentLength) || RESPONSIVE_CONFIG.maxContentLength.base;
   
