@@ -329,6 +329,7 @@ const MovieCard: React.FC<MovieCardProps> = React.memo(({
                       withSound={true}
                       icon={<DynamicIcon name="Play" size={20} />}
                     />
+                    
                   </HStack>
                 </VStack>
               </MotionBox>

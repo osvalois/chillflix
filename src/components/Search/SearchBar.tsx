@@ -261,7 +261,6 @@ const SearchBar: React.FC = () => {
           </Portal>
         )}
       </AnimatePresence>
-      <KeyboardShortcutButton />
     </Box>
   );
 };

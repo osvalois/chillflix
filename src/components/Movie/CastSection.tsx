@@ -473,7 +473,6 @@ const FilmographyTimeline: React.FC<FilmographyTimelineProps> = ({ credits }) =>
   );
 };
 
-
 const AwardsSection: React.FC<AwardsSectionProps> = ({ actorName }) => {
   const awards = [
     { name: 'Academy Award', year: 2020, category: 'Best Actor' },
