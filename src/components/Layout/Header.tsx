@@ -21,7 +21,6 @@ import { useHeaderStyles } from '../../hooks/useHeaderStyles';
 interface HeaderProps {
   className?: string;
 }
-
 // Constantes
 const SCROLL_THRESHOLD = 50;
 const HEADER_HEIGHTS = {
