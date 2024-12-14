@@ -17,7 +17,6 @@ import { useNavigationItems } from "../Home/NavigationItems";
 import { DesktopNav } from "./DesktopNav";
 import { MobileMenu } from "./MobileMenu";
 import { useHeaderStyles } from '../../hooks/useHeaderStyles';
-
 // Definición de tipos
 interface HeaderProps {
   className?: string;
