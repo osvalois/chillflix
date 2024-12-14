@@ -84,7 +84,7 @@
     "eslint-plugin-react-refresh": "^0.4.9",
     "globals": "^15.9.0",
     "typescript": "^5.6.2",
-    "typescript-eslint": "^6.21.0",
+    "typescript-eslint": "^8.0.1",
     "vite": "^5.4.5",
     "yarn": "^1.22.22"
   }
