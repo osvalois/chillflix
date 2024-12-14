@@ -5,9 +5,22 @@ import { useLocation } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { NavItemEnhanced } from '../Nav/NavItem';
 import { DesktopNavProps, NavItem } from '../../types';
-import { INTERSECTION_OPTIONS, RESPONSIVE_SPACING, VIEWPORT_SIZES, enhancedContainerVariants } from '../../constants';
+import { INTERSECTION_OPTIONS, enhancedContainerVariants } from '../../constants';
 
-const MAX_WIDTH = '1200px';
+// Definimos breakpoints más específicos para pantallas medianas
+const BREAKPOINT_SIZES = {
+  sm: '30em',    // 480px
+  md: '48em',    // 768px
+  lg: '62em',    // 992px
+  xl: '80em'     // 1280px
+};
+
+const MAX_WIDTH = { 
+  base: '95%',
+  sm: '85%',
+  md: '90%',
+  lg: '1200px'
+};
 
 // Optimized motion component with proper typing
 const MotionBox = motion(Box as any);
@@ -21,10 +34,27 @@ export const DesktopNav: React.FC<DesktopNavProps> = React.memo(({
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [ref, inView] = useInView(INTERSECTION_OPTIONS);
   
-  // Hooks at the top level
-  const containerPadding = useBreakpointValue(RESPONSIVE_SPACING.padding) ?? RESPONSIVE_SPACING.padding.base;
-  const containerMargin = useBreakpointValue(RESPONSIVE_SPACING.margin) ?? RESPONSIVE_SPACING.margin.base;
-  const itemSpacing = useBreakpointValue(RESPONSIVE_SPACING.itemSpacing) ?? RESPONSIVE_SPACING.itemSpacing.base;
+  // Hooks mejorados para responsive
+  const containerPadding = useBreakpointValue({
+    base: '3',
+    sm: '4',
+    md: '5',
+    lg: '6'
+  }) ?? '4';
+
+  const containerMargin = useBreakpointValue({
+    base: '2',
+    sm: '3',
+    md: '4',
+    lg: '5'
+  }) ?? '3';
+
+  const itemSpacing = useBreakpointValue({
+    base: '2',
+    sm: '3',
+    md: '4',
+    lg: '5'
+  }) ?? '3';
 
   // Memoized hover handlers
   const createHoverStartHandler = useCallback((label: string) => {
@@ -49,7 +79,7 @@ export const DesktopNav: React.FC<DesktopNavProps> = React.memo(({
     return location.pathname === path;
   }, [location.pathname]);
 
-  // Memoized nav items rendering
+  // Memoized nav items rendering con ajustes responsive
   const renderedNavItems = useMemo(() => {
     return navItems.map((item: NavItem) => (
       <NavItemEnhanced
@@ -74,7 +104,7 @@ export const DesktopNav: React.FC<DesktopNavProps> = React.memo(({
       borderRadius="full"
       p={containerPadding}
       mx={containerMargin}
-      width={VIEWPORT_SIZES}
+      width="100%"
       maxWidth={MAX_WIDTH}
       role="navigation"
       aria-label="Desktop navigation"
@@ -83,10 +113,16 @@ export const DesktopNav: React.FC<DesktopNavProps> = React.memo(({
         spacing={itemSpacing} 
         px={containerPadding}
         justifyContent="center"
+        alignItems="center"
         flexWrap={{ base: 'wrap', md: 'nowrap' }}
+        minHeight={{
+          base: '48px',
+          md: '56px',
+          lg: '64px'
+        }}
         style={{ 
-          gap: `${theme.space[itemSpacing as number]}`,
-          transition: `gap ${theme.transition.duration.normal}`
+          gap: `${theme.space[itemSpacing as unknown as number]}`,
+          transition: `all ${theme.transition.duration.normal}`,
         }}
       >
         {renderedNavItems}
@@ -94,6 +130,12 @@ export const DesktopNav: React.FC<DesktopNavProps> = React.memo(({
 
       <style>
         {`
+          @media (max-width: ${BREAKPOINT_SIZES.md}) {
+            .chakra-stack {
+              row-gap: ${theme.space[2]};
+            }
+          }
+          
           @keyframes pulse {
             0%, 100% { 
               transform: scale(1); 

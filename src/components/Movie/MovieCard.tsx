@@ -16,7 +16,7 @@ import {
   chakra,
 } from '@chakra-ui/react';
 import { CombinedContent } from '../../types';
-import WatchButton from '../WatchButton';
+import {WatchButton} from '../WatchButton';
 import { DynamicIcon } from './Icons';
 
 // Constants
@@ -30,6 +30,7 @@ interface MovieCardProps {
   isFavorite?: boolean;
   isLoading?: boolean;
   variant?: 'default' | 'compact' | 'featured';
+  isSelected?: boolean // Add this line
 }
 
 // Styled Components
@@ -324,9 +325,6 @@ const MovieCard: React.FC<MovieCardProps> = React.memo(({
                       size="md"
                       variant="gradient"
                       accentColor="blue"
-                      animated={true}
-                      showRipple={true}
-                      withSound={true}
                       icon={<DynamicIcon name="Play" size={20} />}
                     />
                     
