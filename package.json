@@ -37,6 +37,7 @@
     "jszip": "^3.10.1",
     "lodash": "^4.17.21",
     "lucide-react": "^0.453.0",
+    "next": "^14.0.4",
     "npm": "^10.9.0",
     "pako": "^2.1.0",
     "plyr": "^3.7.8",
@@ -71,8 +72,7 @@
   "devDependencies": {
     "@eslint/js": "^8.56.0",
     "@flydotio/dockerfile": "^0.5.8",
-    "@types/next": "^9.0.0",
-    "@types/node": "^22.5.5",
+    "@types/node": "^20.11.0",
     "@types/pako": "^2.0.3",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
@@ -87,5 +87,8 @@
     "typescript-eslint": "^7.0.0",
     "vite": "^5.4.5",
     "yarn": "^1.22.22"
+  },
+  "engines": {
+    "node": ">=18.18.0"
   }
 }
