@@ -194,7 +194,6 @@ const StatCard: React.FC<{
 
   return (
     <MotionBox
-      p={6}
       borderRadius="2xl"
       bg={bgColor}
       backdropFilter="blur(20px)"
@@ -404,7 +403,6 @@ const Profile: React.FC = () => {
       <Container maxW="7xl" pt="100px">
         <Parallax translateY={[-20, 20]}>
           <MotionFlex
-            direction="column"
             w="full"
             borderRadius="3xl"
             overflow="hidden"
@@ -547,7 +545,6 @@ const Profile: React.FC = () => {
                 <MotionBox
                   whileHover={{ scale: 1.05 }}
                   transition={{ duration: 0.2 }}
-                  position="relative"
                 >
                   <Avatar
                     size="2xl"

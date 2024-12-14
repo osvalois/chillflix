@@ -164,7 +164,6 @@ export const TitleDisplay: React.FC<TitleDisplayProps> = ({
       {/* Bottom gradient line */}
       {variant === 'featured' && (
         <MotionBox
-          position="absolute"
           bottom="-2px"
           left="0"
           right="0"

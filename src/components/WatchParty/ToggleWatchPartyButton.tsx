@@ -112,7 +112,6 @@ const ToggleWatchPartyButton: React.FC<ToggleWatchPartyButtonProps> = ({
         borderRadius="xl"
       >
         <MotionBox
-          w="full"
           variants={buttonVariants}
           initial="initial"
           whileHover="hover"
