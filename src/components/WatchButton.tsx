@@ -45,7 +45,6 @@ export const WatchButton = memo(({
   variant = 'solid',
   tooltip,
   accentColor = 'blue.500',
-  icon,
   loadingText = 'Loading...',
   customText,
   disabled = false,
