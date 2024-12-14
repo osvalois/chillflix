@@ -43,7 +43,6 @@ const BLUR_VALUES = {
 
 // Componentes Moción
 const MotionBox = motion(Box as any);
-
 // Hook personalizado para manejo del searchbar móvil
 const useSearchBarVisibility = () => {
   const [isSearchVisible, setIsSearchVisible] = useState(false);
