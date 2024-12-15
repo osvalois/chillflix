@@ -17,10 +17,18 @@ import { useNavigationItems } from "../Home/NavigationItems";
 import { DesktopNav } from "./DesktopNav";
 import { MobileMenu } from "./MobileMenu";
 import { useHeaderStyles } from '../../hooks/useHeaderStyles';
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+import { firebaseConfig } from "../../config/constants";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
 // Definición de tipos
 interface HeaderProps {
   className?: string;
 }
+
 // Constantes
 const SCROLL_THRESHOLD = 50;
 const HEADER_HEIGHTS = {
@@ -43,6 +51,7 @@ const BLUR_VALUES = {
 
 // Componentes Moción
 const MotionBox = motion(Box as any);
+
 // Hook personalizado para manejo del searchbar móvil
 const useSearchBarVisibility = () => {
   const [isSearchVisible, setIsSearchVisible] = useState(false);
@@ -137,6 +146,9 @@ const HeaderContent = React.memo(({
   );
 });
 
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
 HeaderContent.displayName = 'HeaderContent';
 
 // Hook personalizado para manejar el scroll

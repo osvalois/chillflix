@@ -28,6 +28,7 @@
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.13",
     "downshift": "^9.0.8",
+    "firebase": "^11.1.0",
     "framer-motion": "^11.11.9",
     "hls.js": "^1.5.15",
     "i": "^0.3.7",
