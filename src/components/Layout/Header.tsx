@@ -13,11 +13,13 @@ import {
   useDisclosure,
   useBreakpointValue,
   Text,
+  IconButton,
+  Collapse,
 } from "@chakra-ui/react";
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ParallaxProvider, Parallax } from 'react-scroll-parallax';
-import { LogOut, User, Settings } from 'lucide-react';
+import { LogOut, User, Settings, Menu as MenuIcon, Search as SearchIcon, X } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { analyticsService } from '../../config/firebase';
 
@@ -28,12 +30,11 @@ import { DesktopNav } from "./DesktopNav";
 import { MobileMenu } from "./MobileMenu";
 import { useHeaderStyles } from '../../hooks/useHeaderStyles';
 
-// Tipos
 interface HeaderProps {
   className?: string;
 }
 
-// Constantes
+// Constants
 const SCROLL_THRESHOLD = 50;
 const HEADER_HEIGHTS = {
   scrolled: {
@@ -53,46 +54,15 @@ const BLUR_VALUES = {
   default: '8px',
 } as const;
 
-// Componentes Moción
+// Motion Components
 const MotionBox = motion(Box as any);
 const MotionFlex = motion(Flex as any);
 
-// Hooks personalizados
-const useSearchBarVisibility = () => {
-  const [isSearchVisible, setIsSearchVisible] = useState(false);
-  const toggleSearch = useCallback(() => {
-    setIsSearchVisible(prev => !prev);
-    // Log search visibility toggle
-    analyticsService.logUserInteraction('search_toggle', 'search_bar', {
-      visible: !isSearchVisible
-    });
-  }, [isSearchVisible]);
-  return { isSearchVisible, toggleSearch };
-};
-
-const useScrollDetection = (threshold: number) => {
-  const [isScrolled, setIsScrolled] = useState(false);
-  useEffect(() => {
-    const handleScroll = () => {
-      const newScrolled = window.scrollY > threshold;
-      if (newScrolled !== isScrolled) {
-        setIsScrolled(newScrolled);
-        analyticsService.logUserInteraction('scroll', 'header', {
-          scrolled: newScrolled,
-          scrollPosition: window.scrollY
-        });
-      }
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [threshold, isScrolled]);
-  return isScrolled;
-};
-
-// Componente UserMenu
+// UserMenu Component
 const UserMenu: React.FC = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [isLargeScreen] = useMediaQuery("(min-width: 48em)");
 
   const handleSettingsClick = () => {
     analyticsService.logUserInteraction('settings_click', 'user_menu');
@@ -117,7 +87,7 @@ const UserMenu: React.FC = () => {
         alignItems="center"
       >
         <Avatar
-          size="sm"
+          size={isLargeScreen ? "sm" : "xs"}
           name={user.displayName || undefined}
           src={user.photoURL || undefined}
         />
@@ -145,14 +115,38 @@ const UserMenu: React.FC = () => {
   );
 };
 
+// Mobile Search Component
+const MobileSearch: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
+  return (
+    <Collapse in={isOpen} animateOpacity>
+      <Box
+        position="absolute"
+        top={HEADER_HEIGHTS.default.base}
+        left={0}
+        right={0}
+        bg="rgba(0, 0, 0, 0.9)"
+        p={4}
+        zIndex={1000}
+      >
+        <Flex alignItems="center" gap={2}>
+          <Box flex={1}>
+            <SearchBar />
+          </Box>
+          <IconButton
+            aria-label="Close search"
+            icon={<X size={20} />}
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+          />
+        </Flex>
+      </Box>
+    </Collapse>
+  );
+};
+
 // HeaderContent Component
-const HeaderContent = React.memo(({ 
-  isLargeScreen,
-  handleNavigation,
-  navItems,
-  isSearchVisible,
-  isScrolled,
-}: {
+const HeaderContent: React.FC<{
   isLargeScreen: boolean;
   onMobileMenuOpen: () => void;
   handleNavigation: (path: string) => void;
@@ -160,6 +154,13 @@ const HeaderContent = React.memo(({
   isSearchVisible: boolean;
   toggleSearch: () => void;
   isScrolled: boolean;
+}> = ({
+  isLargeScreen,
+  onMobileMenuOpen,
+  handleNavigation,
+  navItems,
+  toggleSearch,
+  isScrolled,
 }) => {
   const searchBarWidth = useBreakpointValue({
     base: "100%",
@@ -175,7 +176,7 @@ const HeaderContent = React.memo(({
       alignItems="center"
       justifyContent="space-between"
       position="relative"
-      flexDir={{ base: "column", sm: "row" }}
+      flexDir={{ base: "row", sm: "row" }}
       gap={{ base: 2, sm: 0 }}
       initial={false}
       animate={{
@@ -193,7 +194,18 @@ const HeaderContent = React.memo(({
         w="100%"
         justifyContent="space-between"
       >
+        {/* Left Section */}
         <Flex alignItems="center" gap={{ base: 2, md: 6 }}>
+          {!isLargeScreen && (
+            <IconButton
+              aria-label="Open menu"
+              icon={<MenuIcon size={20} />}
+              variant="ghost"
+              onClick={onMobileMenuOpen}
+              display={{ base: "flex", md: "none" }}
+            />
+          )}
+          
           <Parallax translateX={[-5, 5]}>
             <MotionBox
               whileHover={{ scale: 1.05 }}
@@ -213,31 +225,34 @@ const HeaderContent = React.memo(({
           )}
         </Flex>
 
+        {/* Right Section */}
         <Flex 
           alignItems="center" 
           gap={{ base: 2, md: 4 }}
           ml="auto"
         >
-          <Box
-            w={searchBarWidth}
-            display={{
-              base: isSearchVisible ? "block" : "none",
-              md: "block"
-            }}
-          >
-            <SearchBar />
-          </Box>
+          {/* Search Section */}
+          {isLargeScreen ? (
+            <Box w={searchBarWidth}>
+              <SearchBar />
+            </Box>
+          ) : (
+            <IconButton
+              aria-label="Toggle search"
+              icon={<SearchIcon size={20} />}
+              variant="ghost"
+              onClick={toggleSearch}
+            />
+          )}
 
           <UserMenu />
         </Flex>
       </HStack>
     </MotionFlex>
   );
-});
+};
 
-HeaderContent.displayName = 'HeaderContent';
-
-// Header Component
+// Main Header Component
 const Header: React.FC<HeaderProps> = ({ className }) => {
   const [isLargeScreen] = useMediaQuery("(min-width: 48em)");
   const { 
@@ -246,7 +261,7 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
     onClose: onMobileMenuClose 
   } = useDisclosure();
   
-  const { isSearchVisible, toggleSearch } = useSearchBarVisibility();
+  const { isOpen: isSearchVisible, onToggle: toggleSearch, onClose: closeSearch } = useDisclosure();
   const headerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const navItems = useNavigationItems();
@@ -258,7 +273,6 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
   );
 
   const handleNavigation = useCallback((path: string) => {
-    // Log navigation event
     analyticsService.logUserInteraction('navigation', 'header', {
       destination: path,
       source: window.location.pathname
@@ -267,10 +281,10 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
     navigate(path);
     if (!isLargeScreen) {
       onMobileMenuClose();
+      closeSearch();
     }
-  }, [navigate, isLargeScreen, onMobileMenuClose]);
+  }, [navigate, isLargeScreen, onMobileMenuClose, closeSearch]);
 
-  // Log mobile menu interactions
   useEffect(() => {
     if (isMobileMenuOpen) {
       analyticsService.logUserInteraction('mobile_menu', 'header', {
@@ -318,6 +332,12 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
           />
         </MotionBox>
 
+        {/* Mobile Search Overlay */}
+        {!isLargeScreen && (
+          <MobileSearch isOpen={isSearchVisible} onClose={closeSearch} />
+        )}
+
+        {/* Mobile Navigation Menu */}
         <MobileMenu
           isOpen={isMobileMenuOpen}
           onClose={onMobileMenuClose}
@@ -327,6 +347,29 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
       </Box>
     </ParallaxProvider>
   );
+};
+
+// Hook for scroll detection
+const useScrollDetection = (threshold: number) => {
+  const [isScrolled, setIsScrolled] = useState(false);
+  
+  useEffect(() => {
+    const handleScroll = () => {
+      const newScrolled = window.scrollY > threshold;
+      if (newScrolled !== isScrolled) {
+        setIsScrolled(newScrolled);
+        analyticsService.logUserInteraction('scroll', 'header', {
+          scrolled: newScrolled,
+          scrollPosition: window.scrollY
+        });
+      }
+    };
+    
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [threshold, isScrolled]);
+
+  return isScrolled;
 };
 
 export default React.memo(Header);

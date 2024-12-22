@@ -1,12 +1,12 @@
 import React, { useState, useMemo, memo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Box, Container, VStack, HStack, Heading, Text, Button, Icon, Tag } from '@chakra-ui/react';
+import { Box, Container, VStack, HStack, Heading, Text, Icon, Tag } from '@chakra-ui/react';
 
-import { Link as RouterLink } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { Blurhash } from "react-blurhash";
 import useWindowSize from '../../hooks/useWindowSize'; // Asumiendo que existe este hook
-import Icons, { DynamicIcon } from '../Movie/Icons';
+import Icons from '../Movie/Icons';
+import EnhancedPlayButton from '../EnhancedPlayButton';
 
 // Types
 interface Genre {
@@ -166,7 +166,7 @@ const FeaturedContent: React.FC<FeaturedContentProps> = memo(({ content, genres 
     <Box 
       ref={ref}
       position="relative" 
-      height={{ base: "90vh", md: "100vh" }}
+      height={{ base: "40vh", md: "70vh" }}
       overflow="hidden"
     >
       {/* Backdrop */}
@@ -287,35 +287,7 @@ const FeaturedContent: React.FC<FeaturedContentProps> = memo(({ content, genres 
               </Text>
 
               {/* Action Button */}
-              <Button
-                as={RouterLink}
-                to={`/${contentType}/${content.id}`}
-                leftIcon={<DynamicIcon name="Play" color="#FFFFFF" size={16} />}
-                bg="rgba(255, 255, 255, 0.2)"
-                color="white"
-                size={{ base: "md", md: "lg" }}
-                _hover={{
-                  bg: "rgba(255, 255, 255, 0.3)",
-                  transform: "translateY(-2px)"
-                }}
-                _active={{
-                  bg: "rgba(255, 255, 255, 0.4)",
-                  transform: "translateY(0)"
-                }}
-                borderRadius="full"
-                transition="all 0.3s ease"
-                sx={{
-                  "@keyframes pulse": {
-                    "0%": { boxShadow: "0 0 0 0 rgba(255, 255, 255, 0.4)" },
-                    "70%": { boxShadow: "0 0 0 10px rgba(255, 255, 255, 0)" },
-                    "100%": { boxShadow: "0 0 0 0 rgba(255, 255, 255, 0)" }
-                  },
-                  animation: "pulse 2s infinite"
-                }}
-              >
-                Play
-              </Button>
-            </VStack>
+              <EnhancedPlayButton contentType={contentType} contentId={content?.id?.toString() ?? ''} />   </VStack>
           </Box>
         </motion.div>
       </Container>

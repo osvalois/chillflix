@@ -181,7 +181,7 @@ const SimilarMoviesSection: React.FC<SimilarMoviesSectionProps> = ({ movies, isL
             textAlign="center"
             textShadow="0 2px 4px rgba(0,0,0,0.3)"
           >
-            Similar Recommendations
+            Recommendations
           </Text>
         )}
         
