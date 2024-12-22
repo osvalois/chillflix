@@ -1,35 +1,58 @@
-// src/components/Auth/SocialButton.tsx
 import React from 'react';
-import { motion } from 'framer-motion';
-import { AuthProviderConfig } from '../../types/auth';
 
-interface SocialButtonProps extends AuthProviderConfig {
+interface SocialButtonProps {
   onClick: () => void;
-  isLoading?: boolean;
+  className?: string;
+  disabled?: boolean;
+  loading?: boolean;
 }
 
-export const SocialButton: React.FC<SocialButtonProps> = ({
-  id,
-  name,
-  icon,
-  backgroundColor,
-  textColor,
-  onClick,
-  isLoading
+export const GoogleSignInButton: React.FC<SocialButtonProps> = ({ 
+  onClick, 
+  className = '',
+  disabled = false,
+  loading = false 
 }) => {
   return (
-    <motion.button
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-      className="w-full px-6 py-3 mb-4 flex items-center justify-center gap-3 rounded-lg transition-all"
-      style={{ backgroundColor, color: textColor }}
+    <button
       onClick={onClick}
-      disabled={isLoading}
+      disabled={disabled || loading}
+      className={`
+        w-12 
+        h-12 
+        flex 
+        items-center 
+        justify-center 
+        bg-white 
+        rounded-full 
+        border 
+        border-gray-300 
+        shadow-sm 
+        transition-all 
+        duration-200 
+        hover:shadow-md 
+        hover:bg-gray-50 
+        active:scale-95 
+        disabled:opacity-50 
+        disabled:cursor-not-allowed
+        ${className}
+      `}
+      aria-label="Sign in with Google"
     >
-      <img src={icon} alt={name} className="w-5 h-5" />
-      <span className="font-medium">
-        {isLoading ? 'Connecting...' : `Continue with ${name}`}
-      </span>
-    </motion.button>
+      {loading ? (
+        <div className="w-5 h-5 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
+      ) : (
+        <img
+          src="/google.png"
+          alt="Google Logo"
+          className="w-6 h-6 object-contain"
+          loading="eager"
+          decoding="async"
+          draggable={false}
+        />
+      )}
+    </button>
   );
 };
+
+export default GoogleSignInButton;

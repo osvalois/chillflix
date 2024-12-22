@@ -1,5 +1,5 @@
 // components/Header/NavigationItems.tsx
-import { Home, User, CompassIcon } from 'lucide-react';
+import { Home, User, CompassIcon, Settings } from 'lucide-react';
 import { NavItem } from '../../types';
 
 export const useNavigationItems = (): NavItem[] => {
@@ -31,9 +31,9 @@ export const useNavigationItems = (): NavItem[] => {
       shortcut: ''
     },
     {
-      icon: User,
-      label: 'Profile',
-      path: '/profile',
+      icon: Settings,
+      label: 'Settings',
+      path: '/settings',
       gradient: 'linear-gradient(135deg, #00DFD8 0%, #007CF0 100%)',
       glassEffect: {
         background: 'rgba(255, 255, 255, 0.1)',

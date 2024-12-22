@@ -5,10 +5,10 @@ import Layout from './components/Layout/Layout';
 import Home from './pages/Home';
 import MoviePage from './pages/MoviePage';
 import NotFound from './pages/NotFound';
-import Profile from './pages/Profile';
 import Discover from './pages/Discover';
-import { Auth } from './pages/Auth';
+import  Auth  from './pages/Auth';
 import { RequireAuth } from './components/Auth/RequireAuth';
+import SiteSettings from './pages/SiteSettings';
 
 const ProtectedRoutes: React.FC = () => {
   return (
@@ -17,7 +17,7 @@ const ProtectedRoutes: React.FC = () => {
         <Route path="/" element={<Home />} />
         <Route path="/discover" element={<Discover />} />
         <Route path="/movie/:tmdbId" element={<MoviePage />} />
-        <Route path="/profile" element={<Profile />} />
+        <Route path="/settings" element={<SiteSettings />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Layout>
@@ -27,7 +27,7 @@ const ProtectedRoutes: React.FC = () => {
 const App: React.FC = () => {
   return (
     <Routes>
-      <Route path="/login" element={<Auth />} />
+      <Route path="/auth" element={<Auth />} />
       <Route
         path="/*"
         element={

@@ -20,7 +20,7 @@ createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <ChakraProvider theme={theme}>
         <BrowserRouter>
-          <AuthProvider>  {/* Agrega el AuthProvider aquí */}
+          <AuthProvider>
             <App />
           </AuthProvider>
         </BrowserRouter>

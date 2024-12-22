@@ -298,7 +298,7 @@ const AchievementBadge: React.FC<{ achievement: Achievement }> = ({ achievement 
   );
 };
 
-const Profile: React.FC = () => {
+const SiteSettings: React.FC = () => {
   const { colorMode, toggleColorMode } = useColorMode();
   const [isLoading, setIsLoading] = useState(true);
   const [currentLanguage, setCurrentLanguage] = useState(LANGUAGES[0]);
@@ -792,4 +792,4 @@ const Profile: React.FC = () => {
   );
 };
 
-export default React.memo(Profile);
+export default React.memo(SiteSettings);

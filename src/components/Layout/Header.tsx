@@ -3,13 +3,22 @@ import {
   Box,
   Flex,
   HStack,
+  Button,
+  Avatar,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
   useMediaQuery,
   useDisclosure,
   useBreakpointValue,
+  Text,
 } from "@chakra-ui/react";
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ParallaxProvider, Parallax } from 'react-scroll-parallax';
+import { LogOut, User, Settings } from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth';
 
 import Logo from "../UI/Logo";
 import SearchBar from "../Search/SearchBar";
@@ -17,15 +26,11 @@ import { useNavigationItems } from "../Home/NavigationItems";
 import { DesktopNav } from "./DesktopNav";
 import { MobileMenu } from "./MobileMenu";
 import { useHeaderStyles } from '../../hooks/useHeaderStyles';
-// Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { firebaseConfig } from "../../config/firebase";
 
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Definición de tipos
+// Tipos
 interface HeaderProps {
   className?: string;
 }
@@ -34,14 +39,14 @@ interface HeaderProps {
 const SCROLL_THRESHOLD = 50;
 const HEADER_HEIGHTS = {
   scrolled: {
-    base: '56px',
-    sm: '60px',
-    md: '64px'
+    base: '60px',
+    sm: '64px',
+    md: '68px'
   },
   default: {
-    base: '64px',
-    sm: '72px',
-    md: '80px'
+    base: '70px',
+    sm: '76px',
+    md: '84px'
   },
 } as const;
 
@@ -52,23 +57,82 @@ const BLUR_VALUES = {
 
 // Componentes Moción
 const MotionBox = motion(Box as any);
+const MotionFlex = motion(Flex as any);
 
-// Hook personalizado para manejo del searchbar móvil
+// Hooks personalizados
 const useSearchBarVisibility = () => {
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   const toggleSearch = useCallback(() => {
     setIsSearchVisible(prev => !prev);
   }, []);
-
   return { isSearchVisible, toggleSearch };
 };
 
-// Memorización de componentes puros
+const useScrollDetection = (threshold: number) => {
+  const [isScrolled, setIsScrolled] = useState(false);
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > threshold);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [threshold]);
+  return isScrolled;
+};
+
+// Componente UserMenu
+const UserMenu: React.FC = () => {
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  if (!user) return null;
+
+  return (
+    <Menu>
+      <MenuButton
+        as={Button}
+        variant="ghost"
+        rounded="full"
+        padding={2}
+        display="flex"
+        alignItems="center"
+      >
+        <Avatar
+          size="sm"
+          name={user.displayName || undefined}
+          src={user.photoURL || undefined}
+        />
+      </MenuButton>
+      <MenuList>
+        <MenuItem icon={<User size={18} />}>
+          <Text fontSize="sm">{user.displayName}</Text>
+        </MenuItem>
+        <MenuItem 
+          icon={<Settings size={18} />}
+          onClick={() => navigate('/settings')}
+        >
+          Configuración
+        </MenuItem>
+        <MenuItem 
+          icon={<LogOut size={18} />}
+          onClick={signOut}
+          color="red.500"
+          _hover={{ bg: 'red.50' }}
+        >
+          Cerrar Sesión
+        </MenuItem>
+      </MenuList>
+    </Menu>
+  );
+};
+
+// HeaderContent Component
 const HeaderContent = React.memo(({ 
   isLargeScreen,
   handleNavigation,
   navItems,
   isSearchVisible,
+  isScrolled,
 }: {
   isLargeScreen: boolean;
   onMobileMenuOpen: () => void;
@@ -76,6 +140,7 @@ const HeaderContent = React.memo(({
   navItems: any[];
   isSearchVisible: boolean;
   toggleSearch: () => void;
+  isScrolled: boolean;
 }) => {
   const searchBarWidth = useBreakpointValue({
     base: "100%",
@@ -86,88 +151,78 @@ const HeaderContent = React.memo(({
   });
 
   return (
-    <Flex
+    <MotionFlex
       h="100%"
       alignItems="center"
       justifyContent="space-between"
       position="relative"
       flexDir={{ base: "column", sm: "row" }}
       gap={{ base: 2, sm: 0 }}
+      initial={false}
+      animate={{
+        y: isScrolled ? 0 : 10,
+        opacity: 1,
+      }}
+      transition={{
+        duration: 0.3,
+        ease: "easeInOut"
+      }}
     >
       <HStack 
-        spacing={{ base: 2, md: 8 }} 
+        spacing={{ base: 2, md: 6 }} 
         alignItems="center"
-        w={{ base: "100%", sm: "auto" }}
-        justifyContent={{ base: "space-between", sm: "flex-start" }}
+        w="100%"
+        justifyContent="space-between"
       >
+        <Flex alignItems="center" gap={{ base: 2, md: 6 }}>
+          <Parallax translateX={[-5, 5]}>
+            <MotionBox
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => handleNavigation('/')}
+              cursor="pointer"
+            >
+              <Logo />
+            </MotionBox>
+          </Parallax>
 
-        <Parallax translateX={[-5, 5]}>
-          <MotionBox
-            whileHover={{
-              scale: 1.05,
-              filter: 'brightness(1.2)',
+          {isLargeScreen && (
+            <DesktopNav
+              navItems={navItems}
+              handleNavigation={handleNavigation}
+            />
+          )}
+        </Flex>
+
+        <Flex 
+          alignItems="center" 
+          gap={{ base: 2, md: 4 }}
+          ml="auto"
+        >
+          <Box
+            w={searchBarWidth}
+            display={{
+              base: isSearchVisible ? "block" : "none",
+              md: "block"
             }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => handleNavigation('/')}
-            cursor="pointer"
           >
-            <Logo />
-          </MotionBox>
-        </Parallax>
+            <SearchBar />
+          </Box>
 
-        <DesktopNav
-            navItems={navItems}
-            handleNavigation={handleNavigation}
-          />
-
-        {!isLargeScreen && (
-          <SearchBar/>
-        )}
+          <UserMenu />
+        </Flex>
       </HStack>
-
-      <Box
-        w={{ base: "100%", sm: searchBarWidth }}
-        display={{
-          base: isSearchVisible ? "block" : "none",
-          sm: "block"
-        }}
-        transition="all 0.3s ease"
-        position={{ base: "absolute", sm: "relative" }}
-        top={{ base: "100%", sm: "auto" }}
-        left="0"
-        px={{ base: 4, sm: 0 }}
-        pb={{ base: 2, sm: 0 }}
-        bg={{ base: "rgba(255, 255, 255, 0.9)", sm: "transparent" }}
-        backdropFilter={{ base: "blur(8px)", sm: "none" }}
-        zIndex={1}
-      >
-        <SearchBar />
-      </Box>
-    </Flex>
+    </MotionFlex>
   );
 });
+
+HeaderContent.displayName = 'HeaderContent';
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
-HeaderContent.displayName = 'HeaderContent';
 
-// Hook personalizado para manejar el scroll
-const useScrollDetection = (threshold: number) => {
-  const [isScrolled, setIsScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > threshold);
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [threshold]);
-
-  return isScrolled;
-};
-
+// Header Component
 const Header: React.FC<HeaderProps> = ({ className }) => {
   const [isLargeScreen] = useMediaQuery("(min-width: 48em)");
   const { 
@@ -205,8 +260,8 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
         className={className}
       >
         <MotionBox
-          px={{ base: 2, sm: 4, md: 6 }}
-          py={{ base: 2, sm: 3, md: 4 }}
+          px={{ base: 3, sm: 4, md: 6, lg: 8 }}
+          py={{ base: 2, sm: 3 }}
           style={{
             background: gradients.glass,
             backdropFilter: `blur(${isScrolled ? BLUR_VALUES.scrolled : BLUR_VALUES.default})`,
@@ -229,6 +284,7 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
             navItems={navItems}
             isSearchVisible={isSearchVisible}
             toggleSearch={toggleSearch}
+            isScrolled={isScrolled}
           />
         </MotionBox>
 
