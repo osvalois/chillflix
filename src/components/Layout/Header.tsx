@@ -19,7 +19,7 @@ import {
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ParallaxProvider, Parallax } from 'react-scroll-parallax';
-import { LogOut, User, Settings, Menu as MenuIcon, Search as SearchIcon, X } from 'lucide-react';
+import { LogOut, User, Settings, Menu as MenuIcon, X } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { analyticsService } from '../../config/firebase';
 
@@ -159,16 +159,8 @@ const HeaderContent: React.FC<{
   onMobileMenuOpen,
   handleNavigation,
   navItems,
-  toggleSearch,
   isScrolled,
 }) => {
-  const searchBarWidth = useBreakpointValue({
-    base: "100%",
-    sm: "200px",
-    md: "250px",
-    lg: "300px",
-    xl: "400px"
-  });
 
   return (
     <MotionFlex
@@ -232,14 +224,7 @@ const HeaderContent: React.FC<{
           ml="auto"
         >
           {/* Search Section */}
-          {isLargeScreen ? (
-            <Box w={searchBarWidth}>
-              <SearchBar />
-            </Box>
-          ) : (
-            <SearchBar />
-     
-          )}
+          <SearchBar />
 
           <UserMenu />
         </Flex>
