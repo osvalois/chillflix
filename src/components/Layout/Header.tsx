@@ -19,6 +19,7 @@ import { useNavigate } from 'react-router-dom';
 import { ParallaxProvider, Parallax } from 'react-scroll-parallax';
 import { LogOut, User, Settings } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { analyticsService } from '../../config/firebase';
 
 import Logo from "../UI/Logo";
 import SearchBar from "../Search/SearchBar";
@@ -26,9 +27,6 @@ import { useNavigationItems } from "../Home/NavigationItems";
 import { DesktopNav } from "./DesktopNav";
 import { MobileMenu } from "./MobileMenu";
 import { useHeaderStyles } from '../../hooks/useHeaderStyles';
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-import { firebaseConfig } from "../../config/firebase";
 
 // Tipos
 interface HeaderProps {
@@ -64,7 +62,11 @@ const useSearchBarVisibility = () => {
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   const toggleSearch = useCallback(() => {
     setIsSearchVisible(prev => !prev);
-  }, []);
+    // Log search visibility toggle
+    analyticsService.logUserInteraction('search_toggle', 'search_bar', {
+      visible: !isSearchVisible
+    });
+  }, [isSearchVisible]);
   return { isSearchVisible, toggleSearch };
 };
 
@@ -72,11 +74,18 @@ const useScrollDetection = (threshold: number) => {
   const [isScrolled, setIsScrolled] = useState(false);
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > threshold);
+      const newScrolled = window.scrollY > threshold;
+      if (newScrolled !== isScrolled) {
+        setIsScrolled(newScrolled);
+        analyticsService.logUserInteraction('scroll', 'header', {
+          scrolled: newScrolled,
+          scrollPosition: window.scrollY
+        });
+      }
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [threshold]);
+  }, [threshold, isScrolled]);
   return isScrolled;
 };
 
@@ -84,6 +93,16 @@ const useScrollDetection = (threshold: number) => {
 const UserMenu: React.FC = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+
+  const handleSettingsClick = () => {
+    analyticsService.logUserInteraction('settings_click', 'user_menu');
+    navigate('/settings');
+  };
+
+  const handleSignOut = async () => {
+    analyticsService.logUserInteraction('sign_out', 'user_menu');
+    await signOut();
+  };
 
   if (!user) return null;
 
@@ -109,13 +128,13 @@ const UserMenu: React.FC = () => {
         </MenuItem>
         <MenuItem 
           icon={<Settings size={18} />}
-          onClick={() => navigate('/settings')}
+          onClick={handleSettingsClick}
         >
           Configuración
         </MenuItem>
         <MenuItem 
           icon={<LogOut size={18} />}
-          onClick={signOut}
+          onClick={handleSignOut}
           color="red.500"
           _hover={{ bg: 'red.50' }}
         >
@@ -218,10 +237,6 @@ const HeaderContent = React.memo(({
 
 HeaderContent.displayName = 'HeaderContent';
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-
 // Header Component
 const Header: React.FC<HeaderProps> = ({ className }) => {
   const [isLargeScreen] = useMediaQuery("(min-width: 48em)");
@@ -243,11 +258,26 @@ const Header: React.FC<HeaderProps> = ({ className }) => {
   );
 
   const handleNavigation = useCallback((path: string) => {
+    // Log navigation event
+    analyticsService.logUserInteraction('navigation', 'header', {
+      destination: path,
+      source: window.location.pathname
+    });
+    
     navigate(path);
     if (!isLargeScreen) {
       onMobileMenuClose();
     }
   }, [navigate, isLargeScreen, onMobileMenuClose]);
+
+  // Log mobile menu interactions
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      analyticsService.logUserInteraction('mobile_menu', 'header', {
+        action: 'open'
+      });
+    }
+  }, [isMobileMenuOpen]);
 
   return (
     <ParallaxProvider>

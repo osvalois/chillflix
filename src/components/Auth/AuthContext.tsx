@@ -1,13 +1,8 @@
 // src/components/Auth/AuthContext.tsx
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext } from 'react';
 import { 
   User,
-  GoogleAuthProvider,
-  signInWithPopup,
-  onAuthStateChanged,
-  signOut as firebaseSignOut
 } from 'firebase/auth';
-import { auth } from '../../config/firebase';
 
 interface AuthContextType {
   user: User | null;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { ShieldCheck } from 'lucide-react';
@@ -84,7 +84,7 @@ interface AuthProps {
 }
 
 const Auth: React.FC<AuthProps> = ({ className }) => {
-  const { signInWithGoogle, isLoading, error } = useAuth();
+  const { signInWithGoogle, error } = useAuth();
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const navigate = useNavigate();
