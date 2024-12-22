@@ -237,12 +237,8 @@ const HeaderContent: React.FC<{
               <SearchBar />
             </Box>
           ) : (
-            <IconButton
-              aria-label="Toggle search"
-              icon={<SearchIcon size={20} />}
-              variant="ghost"
-              onClick={toggleSearch}
-            />
+            <SearchBar />
+     
           )}
 
           <UserMenu />
