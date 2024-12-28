@@ -35,6 +35,7 @@
     "immer": "^10.1.1",
     "install": "^0.13.0",
     "jotai": "^2.10.1",
+    "jotai-immer": "^0.4.1",
     "jszip": "^3.10.1",
     "lodash": "^4.17.21",
     "lucide-react": "^0.453.0",

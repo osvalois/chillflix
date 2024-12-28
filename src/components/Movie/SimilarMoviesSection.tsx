@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { Box, SimpleGrid, useColorModeValue, Button, useBreakpointValue, Text, VStack } from '@chakra-ui/react';
+import { Box, SimpleGrid, useColorModeValue, Button, useBreakpointValue, Text, VStack, useToast } from '@chakra-ui/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import { useSpring, animated } from 'react-spring';
@@ -8,7 +8,7 @@ import OptimizedImage from '../UI/OptimizedImage';
 import { useNavigate } from 'react-router-dom';
 import { CombinedContent } from '../../types';
 
-// Componentes motion optimizados
+// Optimized motion components
 const MotionBox = motion(Box as any);
 const AnimatedBox = animated(MotionBox);
 
@@ -17,7 +17,7 @@ interface SimilarMoviesSectionProps {
   isLoading: boolean;
 }
 
-// Skeleton mejorado con animación de pulso
+// Enhanced loading skeleton with pulse animation
 const LoadingSkeleton = () => {
   const shimmerAnimation = {
     initial: { backgroundPosition: '-400px 0' },
@@ -38,7 +38,7 @@ const LoadingSkeleton = () => {
         height={{ base: "300px", md: "400px" }}
         bg="rgba(255, 255, 255, 0.1)"
         backdropFilter="blur(20px)"
-        borderRadius="30px"
+        borderRadius="xl"
         border="1px solid rgba(255, 255, 255, 0.2)"
         boxShadow="0 8px 32px 0 rgba(31, 38, 135, 0.37)"
         overflow="hidden"
@@ -75,23 +75,28 @@ const LoadingSkeleton = () => {
 const SimilarMoviesSection: React.FC<SimilarMoviesSectionProps> = ({ movies, isLoading }) => {
   const [showAll, setShowAll] = useState(false);
   const [selectedMovie, setSelectedMovie] = useState<CombinedContent | null>(null);
+  const toast = useToast();
+  const isMobile = useBreakpointValue({ base: true, md: false });
+
+  // Enhanced InView with mobile optimization
   const [ref, inView] = useInView({ 
     threshold: 0.1, 
     triggerOnce: true,
-    rootMargin: '50px 0px'
+    rootMargin: isMobile ? '0px' : '50px 0px',
+    initialInView: isMobile
   });
 
-  // Estilos mejorados con hover y focus states
+  // Enhanced glassmorphism styles
   const styles = useMemo(() => ({
     glassmorphism: {
-      bg: "rgba(255, 255, 255, 0.08)",
+      bg: useColorModeValue("rgba(255, 255, 255, 0.08)", "rgba(0, 0, 0, 0.3)"),
       backdropFilter: "blur(20px)",
-      borderRadius: "30px",
+      borderRadius: "xl",
       border: "1px solid rgba(255, 255, 255, 0.15)",
       boxShadow: 
         "0 8px 32px 0 rgba(31, 38, 135, 0.37), " +
         "inset 0 0 30px rgba(255, 255, 255, 0.08)",
-      transition: "all 0.3s ease-in-out",
+      transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
       _hover: {
         boxShadow: 
           "0 12px 48px 0 rgba(31, 38, 135, 0.45), " +
@@ -101,33 +106,46 @@ const SimilarMoviesSection: React.FC<SimilarMoviesSectionProps> = ({ movies, isL
     }
   }), []);
 
+  // Refined animation config
   const fadeIn = useSpring({
     opacity: inView ? 1 : 0,
-    transform: inView ? 'translateY(0px)' : 'translateY(50px)',
-    config: { tension: 280, friction: 20 },
+    transform: inView ? 'translateY(0px)' : 'translateY(30px)',
+    config: { 
+      tension: 280, 
+      friction: 20,
+      duration: isMobile ? 300 : 500
+    },
   });
 
-  const buttonBgColor = useColorModeValue('rgba(72, 187, 120, 0.85)', 'rgba(154, 230, 180, 0.85)');
+  const buttonBgColor = useColorModeValue('rgba(72, 187, 120, 0.9)', 'rgba(154, 230, 180, 0.9)');
   const buttonTextColor = useColorModeValue('white', 'gray.800');
-  const columns = useBreakpointValue({ base: 1, sm: 2, md: 3, lg: 4, xl: 5 });
+  const columns = useBreakpointValue({ base: 2, sm: 3, md: 4, lg: 5, xl: 6 });
   const navigate = useNavigate();
 
   const handleSelectMovie = useCallback((movie: CombinedContent) => {
     setSelectedMovie(movie);
+    const route = movie.media_type === 'movie' ? `/movie/${movie.id}` : `/serie/${movie.id}`;
+    
+    // Enhanced transition animation
     setTimeout(() => {
-      const route = movie.media_type === 'movie' ? `/movie/${movie.id}` : `/serie/${movie.id}`;
       navigate(route);
-    }, 300);
+    }, 200);
   }, [navigate]);
 
   const handleAddToFavorites = useCallback((movie: CombinedContent) => {
-    // Animación de feedback visual
-    console.log('Added to favorites:', movie);
-  }, []);
+    toast({
+      title: "Added to favorites",
+      description: `${movie.title || movie.name} has been added to your favorites`,
+      status: "success",
+      duration: 2000,
+      isClosable: true,
+      position: "bottom-right"
+    });
+  }, [toast]);
 
   const displayedMovies = useMemo(() => 
-    showAll ? movies : movies.slice(0, 6),
-    [showAll, movies]
+    showAll ? movies : movies.slice(0, isMobile ? 4 : 6),
+    [showAll, movies, isMobile]
   );
 
   const movieCards = useMemo(() => 
@@ -138,8 +156,8 @@ const SimilarMoviesSection: React.FC<SimilarMoviesSectionProps> = ({ movies, isL
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ 
-          duration: 0.5, 
-          delay: index * 0.1,
+          duration: 0.4, 
+          delay: index * 0.08,
           ease: "easeOut"
         }}
         whileHover={{ 
@@ -164,38 +182,39 @@ const SimilarMoviesSection: React.FC<SimilarMoviesSectionProps> = ({ movies, isL
       ref={ref}
       style={fadeIn} 
       sx={styles.glassmorphism} 
-      mt={8} 
-      maxWidth="1400px" 
+      mt={{ base: 4, md: 8 }}
+      maxWidth="1600px" 
       width="95%" 
       mx="auto"
-      p={{ base: 4, md: 6, lg: 8 }}
+      p={{ base: 3, md: 6, lg: 8 }}
       role="region"
       aria-label="Similar Movies Section"
     >
-      <VStack spacing={8} width="100%">
+      <VStack spacing={{ base: 4, md: 8 }} width="100%">
         {movies.length > 0 && (
           <Text
-            fontSize={{ base: "xl", md: "2xl" }}
+            fontSize={{ base: "xl", md: "2xl", lg: "3xl" }}
             fontWeight="bold"
-            color="white"
+            bgGradient="linear(to-r, teal.200, blue.500)"
+            bgClip="text"
             textAlign="center"
             textShadow="0 2px 4px rgba(0,0,0,0.3)"
           >
-            Recommendations
+            Recommended For You
           </Text>
         )}
         
         <AnimatePresence mode="wait">
           <SimpleGrid 
             columns={columns} 
-            spacing={{ base: 4, md: 6, lg: 8 }}
+            spacing={{ base: 3, md: 4, lg: 6 }}
             width="100%"
           >
             {isLoading ? <LoadingSkeleton /> : movieCards}
           </SimpleGrid>
         </AnimatePresence>
 
-        {movies.length > 6 && (
+        {movies.length > (isMobile ? 4 : 6) && (
           <Button
             onClick={() => setShowAll(!showAll)}
             bg={buttonBgColor}
@@ -218,12 +237,12 @@ const SimilarMoviesSection: React.FC<SimilarMoviesSectionProps> = ({ movies, isL
             borderRadius="full"
             px={8}
             py={6}
-            fontSize={{ base: "lg", md: "xl" }}
+            fontSize={{ base: "md", md: "lg" }}
             boxShadow="lg"
             backdropFilter="blur(10px)"
             aria-expanded={showAll}
           >
-            {showAll ? 'Show Less' : 'Show More'}
+            {showAll ? 'Show Less' : 'View All Recommendations'}
           </Button>
         )}
       </VStack>
