@@ -1,21 +1,77 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { initializeApp } from 'firebase/app';
+import { 
+  getAnalytics, 
+  logEvent, 
+  setUserProperties,
+  Analytics 
+} from 'firebase/analytics';
+import { firebaseConfig } from '../config/firebase';
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
 
 export const useAnalytics = () => {
-  const trackEvent = useCallback((eventName: string, eventProperties?: Record<string, any>) => {
-    // This is a placeholder for actual analytics tracking
-    // In a real-world scenario, you would integrate with your analytics service here
-    console.log('Analytics event tracked:', { eventName, eventProperties });
+  const [analytics, setAnalytics] = useState<Analytics | null>(null);
 
-    // Example integration with Google Analytics
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', eventName, eventProperties);
-    }
-
-    // Example integration with Mixpanel
-    if (typeof window !== 'undefined' && (window as any).mixpanel) {
-      (window as any).mixpanel.track(eventName, eventProperties);
+  useEffect(() => {
+    // Initialize analytics in useEffect to ensure window is available
+    if (typeof window !== 'undefined') {
+      try {
+        const analyticsInstance = getAnalytics(app);
+        setAnalytics(analyticsInstance);
+      } catch (error) {
+        console.error('Failed to initialize Firebase Analytics:', error);
+      }
     }
   }, []);
 
-  return { trackEvent };
+  const trackEvent = useCallback((
+    eventName: string, 
+    eventProperties?: Record<string, any>
+  ) => {
+    if (!analytics) {
+      console.warn('Analytics not initialized');
+      return;
+    }
+
+    try {
+      // Log event to Firebase Analytics
+      logEvent(analytics, eventName, {
+        ...eventProperties,
+        timestamp: new Date().toISOString(),
+      });
+
+      // Optional: Log to console in development
+      if (import.meta.env.DEV) {
+        console.log('Analytics event tracked:', { 
+          eventName, 
+          eventProperties 
+        });
+      }
+    } catch (error) {
+      console.error('Failed to track event:', error);
+    }
+  }, [analytics]);
+
+  const setUserProps = useCallback((
+    properties: Record<string, any>
+  ) => {
+    if (!analytics) {
+      console.warn('Analytics not initialized');
+      return;
+    }
+
+    try {
+      setUserProperties(analytics, properties);
+    } catch (error) {
+      console.error('Failed to set user properties:', error);
+    }
+  }, [analytics]);
+
+  return { 
+    trackEvent,
+    setUserProps,
+    isInitialized: !!analytics 
+  };
 };
