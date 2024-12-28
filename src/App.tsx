@@ -5,7 +5,6 @@ import Layout from './components/Layout/Layout';
 import Home from './pages/Home';
 import MoviePage from './pages/MoviePage';
 import NotFound from './pages/NotFound';
-import Discover from './pages/Discover';
 import  Auth  from './pages/Auth';
 import { RequireAuth } from './components/Auth/RequireAuth';
 import SiteSettings from './pages/SiteSettings';
@@ -15,7 +14,6 @@ const ProtectedRoutes: React.FC = () => {
     <Layout>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/discover" element={<Discover />} />
         <Route path="/movie/:tmdbId" element={<MoviePage />} />
         <Route path="/settings" element={<SiteSettings />} />
         <Route path="*" element={<NotFound />} />

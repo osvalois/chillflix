@@ -1,17 +1,15 @@
 import React, { useRef, useCallback, useMemo, useState } from 'react';
-import { Box, Flex, Heading, IconButton, useToken, Portal } from '@chakra-ui/react';
+import { Box, Flex, Heading, IconButton, useToken, Portal, useTheme } from '@chakra-ui/react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import type { Swiper as SwiperType } from 'swiper';
 import { Navigation, EffectCoverflow, Autoplay, Parallax } from 'swiper/modules';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import { useBreakpointValue } from '@chakra-ui/react';
-import { useDebounce } from 'use-debounce';
-import useSound from 'use-sound';
 import ContentCard from './ContentCard';
 import { DynamicIcon } from '../Movie/Icons';
 
-// Style imports
+// Styles
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/effect-coverflow';
@@ -30,26 +28,24 @@ interface ContentBase {
   media_type: 'movie' | 'tv';
   overview?: string;
   genre_ids?: number[];
-  vote_count?: number;
-  popularity?: number;
-  genres?: Array<{ id: number; name: string }>;
-  runtime?: number;
 }
-
-export type CombinedContent = ContentBase;
 
 interface ContentCarouselProps {
   title: string;
-  content: CombinedContent[];
+  content: ContentBase[];
   autoplay?: boolean;
   interval?: number;
   onSlideChange?: (index: number) => void;
-  onCardClick?: (content: CombinedContent) => void;
+  onCardClick?: (content: ContentBase) => void;
 }
 
 // Constants
-const ANIMATION_DURATION = 0.3;
-const SLIDE_CHANGE_DELAY = 300;
+const TRANSITION_DURATION = 300;
+const BREAKPOINTS = {
+  base: 1,
+  md: 1.5,
+  lg: 2.5
+};
 
 const ContentCarousel: React.FC<ContentCarouselProps> = ({
   title,
@@ -59,32 +55,26 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
   onSlideChange,
   onCardClick,
 }) => {
-  // Refs
+  // Refs & State
   const swiperRef = useRef<SwiperType | null>(null);
-  
-  // State
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [isInteracting, setIsInteracting] = useState(false);
+  const [activeSlide, setActiveSlide] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   
   // Hooks
   const { ref, inView } = useInView({ threshold: 0.2, triggerOnce: true });
+  const theme = useTheme();
   const [purple400, pink400] = useToken('colors', ['purple.400', 'pink.400']);
   const isMobile = useBreakpointValue({ base: true, md: false });
-  const [debouncedIsInteracting] = useDebounce(isInteracting, 100);
-  
-  // Sound effects
-  const [playHover] = useSound('/assets/sounds/hover.mp3', { volume: 0.3 });
-  const [playClick] = useSound('/assets/sounds/click.mp3', { volume: 0.4 });
+  const slidesPerView = useBreakpointValue(BREAKPOINTS) ?? 1;
 
-  // Memoized configurations
+  // Memoized Swiper Config
   const swiperConfig = useMemo(() => ({
     modules: [Navigation, EffectCoverflow, Autoplay, Parallax],
     spaceBetween: 30,
-    slidesPerView: isMobile ? 1 : 2.5,
+    slidesPerView,
     centeredSlides: true,
     loop: true,
-    effect: "coverflow" as const,
+    effect: "coverflow",
     coverflowEffect: {
       rotate: 35,
       stretch: 0,
@@ -92,84 +82,73 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
       modifier: 1.5,
       slideShadows: true,
     },
-    autoplay: autoplay && !debouncedIsInteracting ? {
+    autoplay: autoplay ? {
       delay: interval,
       disableOnInteraction: false,
       pauseOnMouseEnter: true,
     } : false,
-    grabCursor: true,
-    keyboard: { enabled: true },
-    preventInteractionOnTransition: true,
     speed: 500,
-  }), [autoplay, interval, debouncedIsInteracting, isMobile]);
+    preventInteractionOnTransition: true,
+    observer: true,
+    observeParents: true,
+  }), [autoplay, interval, slidesPerView]);
 
   // Handlers
   const handleSlideChange = useCallback((swiper: SwiperType) => {
-    if (isTransitioning) return;
+    if (!isTransitioning) {
+      setIsTransitioning(true);
+      setActiveSlide(swiper.realIndex);
+      onSlideChange?.(swiper.realIndex);
+      
+      setTimeout(() => {
+        setIsTransitioning(false);
+      }, TRANSITION_DURATION);
+    }
+  }, [isTransitioning, onSlideChange]);
 
-    setIsTransitioning(true);
-    setActiveIndex(swiper.realIndex);
-    onSlideChange?.(swiper.realIndex);
-    playClick();
+  const handleNavigation = useCallback((direction: 'prev' | 'next') => {
+    if (swiperRef.current && !isTransitioning) {
+      direction === 'prev' 
+        ? swiperRef.current.slidePrev() 
+        : swiperRef.current.slideNext();
+    }
+  }, [isTransitioning]);
 
-    setTimeout(() => setIsTransitioning(false), SLIDE_CHANGE_DELAY);
-  }, [isTransitioning, onSlideChange, playClick]);
-
-  const handleInteraction = useCallback((type: 'enter' | 'leave') => {
-    if (isTransitioning) return;
-    
-    setIsInteracting(type === 'enter');
-    type === 'enter' && playHover();
-  }, [isTransitioning, playHover]);
-
-  // Navigation component
+  // Memoized Navigation Button Component
   const NavigationButton = useCallback(({ direction }: { direction: 'prev' | 'next' }) => (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: ANIMATION_DURATION }}
-    >
-      <IconButton
-        aria-label={`${direction} slide`}
-        icon={<DynamicIcon 
-          name={direction === 'prev' ? "ChevronLeft" : "ChevronRight"} 
-          size={20} 
-          style="default" 
-        />}
-        position="absolute"
-        top="50%"
-        transform="translateY(-50%)"
-        {...(direction === 'prev' ? { left: 4 } : { right: 4 })}
-        size={isMobile ? "md" : "lg"}
-        variant="ghost"
-        colorScheme="whiteAlpha"
-        bg="rgba(0, 0, 0, 0.6)"
-        backdropFilter="blur(4px)"
-        onClick={() => {
-          if (!swiperRef.current || isTransitioning) return;
-          direction === 'prev' 
-            ? swiperRef.current.slidePrev() 
-            : swiperRef.current.slideNext();
-        }}
-        onMouseEnter={() => handleInteraction('enter')}
-        onMouseLeave={() => handleInteraction('leave')}
-        isDisabled={isTransitioning}
-        _hover={{
-          bg: "rgba(0, 0, 0, 0.8)",
-          transform: "translateY(-50%) scale(1.1)",
-        }}
-      />
-    </motion.div>
-  ), [isMobile, isTransitioning, handleInteraction]);
+    <IconButton
+      aria-label={`${direction} slide`}
+      icon={
+        direction === 'prev' 
+          ? <DynamicIcon name="ChevronLeft" size={20} style="default" />
+          : <DynamicIcon name="ChevronRight" size={20} style="default" />
+      }
+      position="absolute"
+      top="50%"
+      transform="translateY(-50%)"
+      {...(direction === 'prev' ? { left: 4 } : { right: 4 })}
+      size={isMobile ? "md" : "lg"}
+      variant="ghost"
+      colorScheme="whiteAlpha"
+      bg="rgba(0, 0, 0, 0.6)"
+      backdropFilter="blur(4px)"
+      boxShadow={theme.shadows.lg}
+      _hover={{
+        bg: "rgba(0, 0, 0, 0.8)",
+        transform: "translateY(-50%) scale(1.1)",
+      }}
+      onClick={() => handleNavigation(direction)}
+      isDisabled={isTransitioning}
+    />
+  ), [handleNavigation, isMobile, isTransitioning, theme.shadows.lg]);
 
-  // Content renderer
-  const renderContent = useMemo(() => (
-    content.map((item: CombinedContent) => (
+  // Memoized Content
+  const carouselContent = useMemo(() => (
+    content.map((item) => (
       <SwiperSlide key={item.id} data-swiper-parallax="-300">
         <Box
           p={4}
-          transition={`all ${ANIMATION_DURATION}s ease`}
+          transition={`all ${TRANSITION_DURATION}ms ease`}
           _hover={{ transform: 'scale(1.02)' }}
           position="relative"
           overflow="hidden"
@@ -179,19 +158,19 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
         >
           <ContentCard
             content={item}
-            isActive={activeIndex === content.indexOf(item)}
+            isActive={activeSlide === content.indexOf(item)}
           />
         </Box>
       </SwiperSlide>
     ))
-  ), [content, activeIndex, isTransitioning, onCardClick]);
+  ), [content, activeSlide, isTransitioning, onCardClick]);
 
   return (
     <motion.div
       ref={ref}
       initial={{ opacity: 0, y: 50 }}
       animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
-      transition={{ duration: ANIMATION_DURATION }}
+      transition={{ duration: 0.3 }}
     >
       <Flex direction="column" mb={16} position="relative">
         {/* Header */}
@@ -218,7 +197,6 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
             bgClip="text"
             fontWeight="extrabold"
             letterSpacing="tight"
-            _hover={{ letterSpacing: "wider" }}
           >
             {title}
           </Heading>
@@ -229,21 +207,19 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
           position="relative"
           px={isMobile ? 2 : 6}
           mx={isMobile ? -4 : 0}
-          onMouseEnter={() => handleInteraction('enter')}
-          onMouseLeave={() => handleInteraction('leave')}
           sx={{
             '.swiper-slide': {
-              transition: `all ${ANIMATION_DURATION}s ease`,
-              filter: 'brightness(0.7)',
+              transition: `all ${TRANSITION_DURATION}ms ease`,
+              filter: 'brightness(0.7) blur(1px)',
               transform: 'scale(0.95)',
             },
             '.swiper-slide-active': {
-              filter: 'brightness(1)',
+              filter: 'brightness(1) blur(0px)',
               transform: 'scale(1.05)',
               zIndex: 1,
             },
             '.swiper-slide-prev, .swiper-slide-next': {
-              filter: 'brightness(0.85)',
+              filter: 'brightness(0.85) blur(0.5px)',
               transform: 'scale(0.98)',
             },
           }}
@@ -255,7 +231,7 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
             }}
             onSlideChange={handleSlideChange}
           >
-            {renderContent}
+            {carouselContent}
           </Swiper>
 
           <Portal>
@@ -274,4 +250,11 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
   );
 };
 
-export default React.memo(ContentCarousel);
+export default React.memo(ContentCarousel, (prevProps, nextProps) => {
+  return (
+    prevProps.title === nextProps.title &&
+    prevProps.content === nextProps.content &&
+    prevProps.autoplay === nextProps.autoplay &&
+    prevProps.interval === nextProps.interval
+  );
+});
