@@ -43,7 +43,7 @@ export const GoogleSignInButton: React.FC<SocialButtonProps> = ({
         <div className="w-5 h-5 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
       ) : (
         <img
-          src="/google.png"
+          src="/google.svg"
           alt="Google Logo"
           className="w-6 h-6 object-contain"
           loading="eager"
