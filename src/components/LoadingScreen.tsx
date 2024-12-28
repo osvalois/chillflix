@@ -1,9 +1,7 @@
-import { Player } from "@lottiefiles/react-lottie-player";
 import {
   Box,
   Container,
   VStack,
-  Text,
   Grid,
   Flex,
   keyframes
