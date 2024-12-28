@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect } from 'react';
+import React, { Suspense, lazy, useEffect, useState, useCallback } from 'react';
 import {
   Box,
   Container,
@@ -8,31 +8,22 @@ import {
   Skeleton,
   SkeletonText,
   Stack,
-  Grid,
-  useBreakpointValue,
+  IconButton,
+  HStack,
+  CircularProgress,
   useToken
 } from '@chakra-ui/react';
 import { ParallaxProvider } from 'react-scroll-parallax';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useInView } from 'react-intersection-observer';
-
+import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
 import { useContentData } from '../hooks/useContentData';
 import { useDynamicBackground } from '../hooks/useDynamicBackground';
-import GlassmorphicBox from '../components/UI/GlassmorphicBox';
-import ContentCarousel from '../components/Home/ContentCarousel';
 
 const FeaturedContent = lazy(() => import('../components/Home/FeaturedContent'));
 const SimilarMoviesSection = lazy(() => import('../components/Movie/SimilarMoviesSection'));
 
-// Animations
-const fadeInUp = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -20 },
-  transition: { duration: 0.5 }
-};
+const AUTOPLAY_INTERVAL = 10000;
 
-// Enhanced Skeleton Components
 const FeaturedContentSkeleton: React.FC = () => {
   const [purple100, purple200] = useToken('colors', ['purple.100', 'purple.200']);
   
@@ -63,69 +54,166 @@ const FeaturedContentSkeleton: React.FC = () => {
   );
 };
 
-const ContentCarouselSkeleton: React.FC = () => {
-  const isMobile = useBreakpointValue({ base: true, md: false });
-  
-  return (
-    <Box p={6}>
-      <SkeletonText noOfLines={1} width="200px" mb={6} />
-      <Grid 
-        templateColumns={{
-          base: "repeat(auto-fill, minmax(140px, 1fr))",
-          md: "repeat(auto-fill, minmax(200px, 1fr))"
-        }} 
-        gap={6}
-      >
-        {[...Array(isMobile ? 4 : 6)].map((_, i) => (
-          <Box key={i}>
-            <Skeleton 
-              height={{ base: "200px", md: "250px" }} 
-              mb={3} 
-              borderRadius="xl"
-            />
-            <SkeletonText noOfLines={2} spacing="2" />
-          </Box>
-        ))}
-      </Grid>
-    </Box>
-  );
-};
-
-const SectionContainer: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { ref, inView } = useInView({ threshold: 0.1, triggerOnce: true });
-  
-  return (
+const NavigationControls: React.FC<{
+  autoplay: boolean;
+  progress: number;
+  onPrev: () => void;
+  onNext: () => void;
+  onToggleAutoplay: () => void;
+}> = ({ autoplay, progress, onPrev, onNext, onToggleAutoplay }) => (
+  <Box
+    position="absolute"
+    bottom={{ base: "3%", md: "5%" }}
+    right={{ base: "3%", md: "5%" }}
+    zIndex={2}
+  >
     <motion.div
-      ref={ref}
-      initial="initial"
-      animate={inView ? "animate" : "initial"}
-      variants={fadeInUp}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
     >
-      {children}
+      <HStack
+        spacing={4}
+        bg="rgba(0, 0, 0, 0.3)"
+        backdropFilter="blur(12px)"
+        borderRadius="full"
+        p={2}
+        boxShadow="0 4px 30px rgba(0, 0, 0, 0.1)"
+        border="1px solid rgba(255, 255, 255, 0.1)"
+      >
+        <IconButton
+          aria-label="Previous"
+          icon={<ChevronLeft size={24} />}
+          onClick={onPrev}
+          variant="ghost"
+          color="white"
+          size="lg"
+          _hover={{ bg: 'whiteAlpha.200' }}
+          _active={{ bg: 'whiteAlpha.300' }}
+        />
+        
+        <Box position="relative">
+          <CircularProgress
+            value={progress}
+            color="blue.400"
+            trackColor="whiteAlpha.200"
+            size="50px"
+            thickness="4px"
+            capIsRound
+          />
+          <IconButton
+            aria-label={autoplay ? 'Pause' : 'Play'}
+            icon={autoplay ? <Pause size={18} /> : <Play size={18} />}
+            onClick={onToggleAutoplay}
+            variant="ghost"
+            color="white"
+            position="absolute"
+            top="50%"
+            left="50%"
+            transform="translate(-50%, -50%)"
+            size="sm"
+            _hover={{ bg: 'whiteAlpha.200' }}
+            _active={{ bg: 'whiteAlpha.300' }}
+          />
+        </Box>
+
+        <IconButton
+          aria-label="Next"
+          icon={<ChevronRight size={24} />}
+          onClick={onNext}
+          variant="ghost"
+          color="white"
+          size="lg"
+          _hover={{ bg: 'whiteAlpha.200' }}
+          _active={{ bg: 'whiteAlpha.300' }}
+        />
+      </HStack>
     </motion.div>
-  );
-};
+  </Box>
+);
 
 export const Home: React.FC = () => {
   const {
-    featuredContent,
     trendingContent,
     topRated,
     genres,
     isLoading,
     error,
-    refreshContent
   } = useContentData();
 
+  const [currentTopRatedIndex, setCurrentTopRatedIndex] = useState(0);
+  const [autoplay, setAutoplay] = useState(true);
+  const [progress, setProgress] = useState(0);
   const { bgGradient, textColor } = useDynamicBackground();
 
+  const resetProgress = useCallback(() => {
+    setProgress(0);
+  }, []);
+
   useEffect(() => {
-    if (error) {
-      console.error('Error loading content:', error);
-      const retryTimer = setTimeout(refreshContent, 5000);
-      return () => clearTimeout(retryTimer);
+    let intervalId: NodeJS.Timeout;
+    let animationId: number;
+    let startTime: number;
+
+    const animate = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const elapsed = timestamp - startTime;
+      const newProgress = (elapsed / AUTOPLAY_INTERVAL) * 100;
+
+      if (newProgress <= 100) {
+        setProgress(newProgress);
+        animationId = requestAnimationFrame(animate);
+      }
+    };
+
+    if (autoplay && topRated && topRated.length > 0) {
+      startTime = performance.now();
+      animationId = requestAnimationFrame(animate);
+
+      intervalId = setInterval(() => {
+        setCurrentTopRatedIndex((prev) => 
+          prev === topRated.length - 1 ? 0 : prev + 1
+        );
+        startTime = performance.now();
+      }, AUTOPLAY_INTERVAL);
     }
-  }, [error, refreshContent]);
+
+    return () => {
+      clearInterval(intervalId);
+      if (animationId) cancelAnimationFrame(animationId);
+    };
+  }, [autoplay, topRated, currentTopRatedIndex]);
+
+  const handleNext = useCallback(() => {
+    if (topRated) {
+      setCurrentTopRatedIndex((prev) => 
+        prev === topRated.length - 1 ? 0 : prev + 1
+      );
+      resetProgress();
+    }
+  }, [topRated, resetProgress]);
+
+  const handlePrev = useCallback(() => {
+    if (topRated) {
+      setCurrentTopRatedIndex((prev) => 
+        prev === 0 ? topRated.length - 1 : prev - 1
+      );
+      resetProgress();
+    }
+  }, [topRated, resetProgress]);
+
+  const toggleAutoplay = useCallback(() => {
+    setAutoplay(prev => !prev);
+    resetProgress();
+  }, [resetProgress]);
+
+  if (isLoading) {
+    return (
+      <Box minHeight="100vh" bgGradient={bgGradient}>
+        <FeaturedContentSkeleton />
+      </Box>
+    );
+  }
 
   if (error) {
     return (
@@ -138,15 +226,21 @@ export const Home: React.FC = () => {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3 }}
         >
-          <GlassmorphicBox>
-            <Text color={textColor} p={8} textAlign="center">
-              Error: {error}
-              <br />
+          <Box
+            bg="rgba(255, 255, 255, 0.1)"
+            backdropFilter="blur(16px)"
+            borderRadius="xl"
+            p={8}
+            boxShadow="lg"
+            border="1px solid rgba(255, 255, 255, 0.1)"
+          >
+            <Text color={textColor} textAlign="center">
+              {error}
               <Text fontSize="sm" mt={2} opacity={0.8}>
                 Retrying automatically...
               </Text>
             </Text>
-          </GlassmorphicBox>
+          </Box>
         </motion.div>
       </Center>
     );
@@ -161,79 +255,65 @@ export const Home: React.FC = () => {
         color={textColor}
         overflow="hidden"
       >
-        <AnimatePresence mode="wait">
-          {/* Featured Content Section */}
-          <Suspense fallback={<FeaturedContentSkeleton />}>
-            {featuredContent && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5 }}
-              >
-                <FeaturedContent 
-                  content={{ 
-                    ...featuredContent, 
-                    backdrop_path: featuredContent.backdrop_path ?? '' 
-                  }} 
-                  genres={genres} 
+        <Suspense fallback={<FeaturedContentSkeleton />}>
+          <AnimatePresence mode="wait">
+            {topRated && topRated.length > 0 && (
+              <Box position="relative" key={currentTopRatedIndex}>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  <FeaturedContent 
+                    content={{ 
+                      ...topRated[currentTopRatedIndex], 
+                      backdrop_path: topRated[currentTopRatedIndex].backdrop_path ?? '' 
+                    }} 
+                    genres={genres} 
+                  />
+                </motion.div>
+                
+                <NavigationControls
+                  autoplay={autoplay}
+                  progress={progress}
+                  onPrev={handlePrev}
+                  onNext={handleNext}
+                  onToggleAutoplay={toggleAutoplay}
                 />
-              </motion.div>
+              </Box>
             )}
-          </Suspense>
-
-          {/* Main Content Container */}
-          <Container maxW="container.xl" py={12}>
-            <VStack spacing={16} align="stretch">
-              {/* Top Rated Section */}
-              {!isLoading && topRated && topRated.length > 0 && (
-                <SectionContainer>
-                  <GlassmorphicBox>
-                    <ContentCarousel
-                      title="Top Rated"
-                      content={topRated}
-                      autoplay={true}
-                      interval={5000}
-                    />
-                  </GlassmorphicBox>
-                </SectionContainer>
-              )}
-
-              {/* Trending Content Section */}
-              {!isLoading && trendingContent && trendingContent.length > 0 && (
-                <SectionContainer>
-                  <Suspense fallback={
-                    <GlassmorphicBox>
-                      <ContentCarouselSkeleton />
-                    </GlassmorphicBox>
-                  }>
-                    <SimilarMoviesSection 
-                      movies={trendingContent} 
-                      isLoading={false}
-                    />
-                  </Suspense>
-                </SectionContainer>
-              )}
-
-              {/* Loading States */}
-              {isLoading && (
-                <VStack spacing={12}>
-                  <GlassmorphicBox>
-                    <ContentCarouselSkeleton />
-                  </GlassmorphicBox>
-                  <GlassmorphicBox>
-                    <ContentCarouselSkeleton />
-                  </GlassmorphicBox>
-                </VStack>
-              )}
-            </VStack>
-          </Container>
-        </AnimatePresence>
+          </AnimatePresence>
+        </Suspense>
+        
+        <Container maxW="container.xl" py={12}>
+          <VStack spacing={16} align="stretch">
+            <Suspense fallback={<Skeleton height="200px" />}>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+              >
+                <Box
+                  bg="rgba(255, 255, 255, 0.1)"
+                  backdropFilter="blur(16px)"
+                  borderRadius="xl"
+                  p={6}
+                  boxShadow="lg"
+                  border="1px solid rgba(255, 255, 255, 0.1)"
+                >
+                  <SimilarMoviesSection 
+                    movies={trendingContent} 
+                    isLoading={trendingContent.length === 0} 
+                  />
+                </Box>
+              </motion.div>
+            </Suspense>
+          </VStack>
+        </Container>
       </Box>
     </ParallaxProvider>
   );
 };
 
-export default React.memo(Home, () => {
-  // Implementar lógica de comparación personalizada si es necesario
-  return true;
-});
+export default Home;
