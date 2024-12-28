@@ -24,7 +24,7 @@ export const carouselStateAtom = atomWithImmer<CarouselState>(initialCarouselSta
 
 export const activeSlideAtom = atom(
   (get) => get(carouselStateAtom).activeSlide,
-  (get, set, newValue: number) => {
+  (_get, set, newValue: number) => {
     set(carouselStateAtom, (draft) => {
       draft.activeSlide = newValue;
     });
