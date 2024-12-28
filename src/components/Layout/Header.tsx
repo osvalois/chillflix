@@ -19,7 +19,7 @@ import {
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ParallaxProvider, Parallax } from 'react-scroll-parallax';
-import { LogOut, User, Settings, Menu as MenuIcon, X } from 'lucide-react';
+import { LogOut, User, Menu as MenuIcon, X } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { analyticsService } from '../../config/firebase';
 
@@ -61,13 +61,7 @@ const MotionFlex = motion(Flex as any);
 // UserMenu Component
 const UserMenu: React.FC = () => {
   const { user, signOut } = useAuth();
-  const navigate = useNavigate();
   const [isLargeScreen] = useMediaQuery("(min-width: 48em)");
-
-  const handleSettingsClick = () => {
-    analyticsService.logUserInteraction('settings_click', 'user_menu');
-    navigate('/settings');
-  };
 
   const handleSignOut = async () => {
     analyticsService.logUserInteraction('sign_out', 'user_menu');
@@ -97,18 +91,12 @@ const UserMenu: React.FC = () => {
           <Text fontSize="sm">{user.displayName}</Text>
         </MenuItem>
         <MenuItem 
-          icon={<Settings size={18} />}
-          onClick={handleSettingsClick}
-        >
-          Configuración
-        </MenuItem>
-        <MenuItem 
           icon={<LogOut size={18} />}
           onClick={handleSignOut}
           color="red.500"
           _hover={{ bg: 'red.50' }}
         >
-          Cerrar Sesión
+          Close session
         </MenuItem>
       </MenuList>
     </Menu>

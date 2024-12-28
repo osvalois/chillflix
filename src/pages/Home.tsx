@@ -233,7 +233,7 @@ export const Home: React.FC = () => {
   );
 };
 
-export default React.memo(Home, (prevProps, nextProps) => {
+export default React.memo(Home, () => {
   // Implementar lógica de comparación personalizada si es necesario
   return true;
 });

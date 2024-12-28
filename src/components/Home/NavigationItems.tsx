@@ -1,5 +1,5 @@
 // components/Header/NavigationItems.tsx
-import { Home, CompassIcon, Settings } from 'lucide-react';
+import { Home, Settings } from 'lucide-react';
 import { NavItem } from '../../types';
 
 export const useNavigationItems = (): NavItem[] => {
