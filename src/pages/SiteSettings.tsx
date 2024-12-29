@@ -18,10 +18,8 @@ import {
   MenuList,
   MenuItem,
   IconButton,
-  Tooltip,
   Badge,
   Skeleton,
-  useDisclosure,
   Drawer,
   DrawerBody,
   DrawerHeader,
@@ -29,22 +27,21 @@ import {
   DrawerContent,
   DrawerCloseButton,
   Progress,
-  keyframes,
+  useDisclosure,
+  useToast,
   Tag,
   TagLabel,
 } from '@chakra-ui/react';
-import { motion, useAnimation } from 'framer-motion';
-import { 
+import { motion } from 'framer-motion';
+import {
   Edit2, Settings, Clock, Heart,
-  Sun, Moon, Globe, Github,
-  Twitter, Award,
-  MessageCircle, Share2,
-  Star, ChevronRight, Film,
+  Sun, Moon, Globe, Award, MessageCircle, Star, ChevronRight, Film, Share2,
 } from 'lucide-react';
 import { ParallaxProvider, Parallax } from 'react-scroll-parallax';
 import { rgba } from 'polished';
+import { useAuth } from '../hooks/useAuth';
 
-// Types and Interfaces
+// Types
 interface ProfileStats {
   watchlist: number;
   favorites: number;
@@ -87,23 +84,7 @@ interface UserProfile {
   };
 }
 
-interface Language {
-  code: string;
-  name: string;
-  flag: string;
-}
-
-const pulseKeyframe = keyframes`
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); }
-`;
-
-const MotionBox = motion(Box as any);
-const MotionFlex = motion(Flex as any);
-
-// Constants
-const LANGUAGES: Language[] = [
+const LANGUAGES = [
   { code: 'es', name: 'Español', flag: '🇪🇸' },
   { code: 'en', name: 'English', flag: '🇺🇸' },
   { code: 'fr', name: 'Français', flag: '🇫🇷' },
@@ -121,7 +102,9 @@ const RARITY_COLORS = {
   legendary: 'orange.400'
 };
 
-// Components
+const MotionBox = motion(Box);
+const MotionFlex = motion(Flex);
+
 const StatusIndicator: React.FC<{ status: UserProfile['status'] }> = ({ status }) => {
   const statusColors = {
     online: 'green.400',
@@ -135,62 +118,33 @@ const StatusIndicator: React.FC<{ status: UserProfile['status'] }> = ({ status }
     watching: 'Watching Now'
   };
 
-  const bgColor = useColorModeValue('white', 'gray.800');
+  const bgColor = useColorModeValue('whiteAlpha.200', 'whiteAlpha.100');
 
   return (
-    <Tag size="sm" variant="subtle" bg={bgColor} boxShadow="sm">
+    <Tag size="md" variant="subtle" bg={bgColor}>
       <Box
         w="2"
         h="2"
         borderRadius="full"
         bg={statusColors[status]}
         mr="2"
-        animation={status === 'watching' ? `${pulseKeyframe} 2s infinite` : undefined}
+        animation={status === 'watching' ? 'pulse 2s infinite' : undefined}
       />
       <TagLabel>{statusText[status]}</TagLabel>
     </Tag>
   );
 };
 
-const StatCard: React.FC<{ 
+const StatCard: React.FC<{
   icon: React.ReactNode;
   label: string;
   value: string | number;
   isLoading?: boolean;
   subtitle?: string;
   trend?: number;
-}> = ({
-  icon,
-  label,
-  value,
-  isLoading = false,
-  subtitle,
-  trend
-}) => {
-  const controls = useAnimation();
-  const bgColor = useColorModeValue(
-    'rgba(255, 255, 255, 0.08)',
-    'rgba(0, 0, 0, 0.08)'
-  );
-  const borderColor = useColorModeValue(
-    'rgba(255, 255, 255, 0.15)',
-    'rgba(255, 255, 255, 0.05)'
-  );
-  const iconColor = useColorModeValue('purple.500', 'purple.300');
-
-  const handleHover = async () => {
-    await controls.start({
-      scale: 1.05,
-      transition: { duration: 0.2 }
-    });
-  };
-
-  const handleHoverEnd = async () => {
-    await controls.start({
-      scale: 1,
-      transition: { duration: 0.2 }
-    });
-  };
+}> = ({ icon, label, value, isLoading = false, subtitle, trend }) => {
+  const bgColor = useColorModeValue('whiteAlpha.200', 'whiteAlpha.100');
+  const borderColor = useColorModeValue('whiteAlpha.300', 'whiteAlpha.100');
 
   return (
     <MotionBox
@@ -201,34 +155,14 @@ const StatCard: React.FC<{
       border="1px solid"
       borderColor={borderColor}
       boxShadow={`0 8px 32px 0 ${rgba(0, 0, 0, 0.1)}`}
-      animate={controls}
-      onHoverStart={handleHover}
-      onHoverEnd={handleHoverEnd}
-      position="relative"
-      overflow="hidden"
-      _before={{
-        content: '""',
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        borderRadius: '2xl',
-        background: 'linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.05) 100%)',
-        opacity: 0.5,
-        pointerEvents: 'none'
-      }}
+      whileHover={{ scale: 1.05 }}
+      transition={{ duration: 0.2 }}
     >
-      <VStack spacing={3} position="relative">
-        <Box
-          color={iconColor}
-          transform="scale(1.2)"
-          transition="all 0.3s ease"
-          _hover={{ transform: "scale(1.4) rotate(10deg)" }}
-        >
+      <VStack spacing={3}>
+        <Box color="purple.400" transform="scale(1.2)">
           {icon}
         </Box>
-        <Skeleton isLoaded={!isLoading} speed={2} borderRadius="md">
+        <Skeleton isLoaded={!isLoading}>
           <Text fontSize="3xl" fontWeight="bold" textAlign="center">
             {value}
             {trend && (
@@ -244,17 +178,13 @@ const StatCard: React.FC<{
           </Text>
         </Skeleton>
         <VStack spacing={1}>
-          <Skeleton isLoaded={!isLoading} speed={2}>
-            <Text color="gray.500" fontSize="sm" fontWeight="medium">
-              {label}
-            </Text>
-          </Skeleton>
+          <Text color="gray.500" fontSize="sm" fontWeight="medium">
+            {label}
+          </Text>
           {subtitle && (
-            <Skeleton isLoaded={!isLoading} speed={2}>
-              <Text color="gray.400" fontSize="xs">
-                {subtitle}
-              </Text>
-            </Skeleton>
+            <Text color="gray.400" fontSize="xs">
+              {subtitle}
+            </Text>
           )}
         </VStack>
       </VStack>
@@ -263,18 +193,17 @@ const StatCard: React.FC<{
 };
 
 const AchievementBadge: React.FC<{ achievement: Achievement }> = ({ achievement }) => {
-  const bgColor = useColorModeValue('white', 'gray.800');
-  
+  const bgColor = useColorModeValue('whiteAlpha.200', 'whiteAlpha.100');
+
   return (
     <HStack
       spacing={3}
       p={3}
       bg={bgColor}
       borderRadius="lg"
-      boxShadow="sm"
       border="1px solid"
-      borderColor={useColorModeValue('gray.100', 'gray.700')}
-      _hover={{ transform: 'translateY(-2px)', boxShadow: 'md' }}
+      borderColor={useColorModeValue('whiteAlpha.300', 'whiteAlpha.100')}
+      _hover={{ transform: 'translateY(-2px)' }}
       transition="all 0.2s"
     >
       <Box color={RARITY_COLORS[achievement.rarity]}>
@@ -288,399 +217,399 @@ const AchievementBadge: React.FC<{ achievement: Achievement }> = ({ achievement 
           {achievement.description}
         </Text>
       </VStack>
-      <Tag
-        size="sm"
+      <Badge
         colorScheme={achievement.rarity === 'legendary' ? 'orange' : 'gray'}
         variant="subtle"
+        ml="auto"
       >
         {achievement.rarity}
-      </Tag>
+      </Badge>
     </HStack>
   );
 };
 
 const SiteSettings: React.FC = () => {
-  const { colorMode, toggleColorMode } = useColorMode();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [currentLanguage, setCurrentLanguage] = useState(LANGUAGES[0]);
+  const { colorMode, toggleColorMode } = useColorMode();
   const achievementsDisclosure = useDisclosure();
+  const toast = useToast();
+  const [profileData, setProfileData] = useState<UserProfile | null>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Theme colors
-  const glassBackground = useColorModeValue(
-    'rgba(255, 255, 255, 0.03)',
-    'rgba(0, 0, 0, 0.03)'
-  );
-  
-  const borderColor = useColorModeValue(
-    'rgba(255, 255, 255, 0.15)',
-    'rgba(255, 255, 255, 0.05)'
-  );
-
-  const headerBg = useColorModeValue(
-    'linear-gradient(to right, rgba(255,255,255,0.05), rgba(255,255,255,0.02))',
-    'linear-gradient(to right, rgba(0,0,0,0.05), rgba(0,0,0,0.02))'
-  );
-
-  // Mock user data
-  const userProfile: UserProfile = {
-    username: "MovieLover123",
-    email: "user@example.com",
-    avatarUrl: "/api/placeholder/150/150",
-    joinDate: "January 2024",
-    status: 'watching',
-    bio: "Passionate about cinema and storytelling. Always exploring new genres and perspectives in film.",
-    stats: {
-      watchlist: 47,
-      favorites: 123,
-      watchTime: "320h",
-      following: 234,
-      followers: 567,
-      reviews: 89,
-      level: 42,
-      exp: 8750,
-      nextLevelExp: 10000
-    },
-    achievements: [
-      {
-        id: '1',
-        icon: <Award size={20} />,
-        name: 'Cinephile Elite',
-        description: 'Watched 1000+ hours of content',
-        date: '2024-01-15',
-        rarity: 'legendary'
-      },
-      {
-        id: '2',
-        icon: <Star size={20} />,
-        name: 'Review Master',
-        description: 'Written 100 quality reviews',
-        date: '2024-01-10',
-        rarity: 'epic'
-      },
-      // Add more achievements...
-    ],
-    recentActivity: [
-      {
-        id: '1',
-        type: 'watch',
-        content: 'Watched "Inception"',
-        timestamp: '2h ago'
-      },
-      {
-        id: '2',
-        type: 'review',
-        content: 'Reviewed "The Dark Knight"',
-        timestamp: '5h ago'
-      },
-      // Add more activity...
-    ],
-    socialLinks: {
-      github: "https://github.com/movielover",
-      twitter: "https://twitter.com/movielover"
+    if (user) {
+      // Simular carga de datos del perfil
+      setTimeout(() => {
+        setProfileData({
+          username: user.displayName || 'User',
+          email: user.email || '',
+          avatarUrl: user.photoURL || '',
+          joinDate: 'January 2024',
+          status: 'online',
+          bio: "Passionate about cinema and storytelling. Always exploring new genres and perspectives in film.",
+          stats: {
+            watchlist: 47,
+            favorites: 123,
+            watchTime: "320h",
+            following: 234,
+            followers: 567,
+            reviews: 89,
+            level: 42,
+            exp: 8750,
+            nextLevelExp: 10000
+          },
+          achievements: [
+            {
+              id: '1',
+              icon: <Award size={20} />,
+              name: 'Cinephile Elite',
+              description: 'Watched 1000+ hours of content',
+              date: '2024-01-15',
+              rarity: 'legendary'
+            },
+            {
+              id: '2',
+              icon: <Star size={20} />,
+              name: 'Review Master',
+              description: 'Written 100 quality reviews',
+              date: '2024-01-10',
+              rarity: 'epic'
+            }
+          ],
+          recentActivity: [
+            {
+              id: '1',
+              type: 'watch',
+              content: 'Watched "Inception"',
+              timestamp: '2h ago'
+            }
+          ],
+          socialLinks: {
+            github: "https://github.com",
+            twitter: "https://twitter.com"
+          }
+        });
+        setIsLoading(false);
+      }, 1500);
     }
-  };
+  }, [user]);
 
-  const profileControls = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      transition: {
-        duration: 0.5,
-        staggerChildren: 0.1
-      }
-    }
-  };
+  if (!user) {
+    return (
+      <Flex minH="100vh" justify="center" align="center">
+        <Box
+          as={motion.div}
+          animate={{ rotate: 360 }}
+          w="50px"
+          h="50px"
+          borderWidth="3px"
+          borderStyle="solid"
+          borderColor="purple.500"
+          borderTopColor="transparent"
+          borderRadius="full"
+        />
+      </Flex>
+    );
+  }
 
   return (
     <ParallaxProvider>
-      <Container maxW="7xl" pt="100px">
+      <Container maxW="7xl" pt={{ base: "4", md: "100px" }} px={{ base: "4", md: "6" }}>
         <Parallax translateY={[-20, 20]}>
           <MotionFlex
             direction="column"
             w="full"
             borderRadius="3xl"
             overflow="hidden"
-            bg={glassBackground}
+            bg={useColorModeValue('whiteAlpha.100', 'blackAlpha.100')}
             backdropFilter="blur(20px)"
             border="1px solid"
-            borderColor={borderColor}
+            borderColor={useColorModeValue('whiteAlpha.300', 'whiteAlpha.100')}
             boxShadow={`0 8px 32px 0 ${rgba(0, 0, 0, 0.1)}`}
-            position="relative"
-            initial="hidden"
-            animate="visible"
-            variants={profileControls}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
           >
+            <Box display={{ base: 'block', md: 'none' }} height={16} />
+            <Box display={{ base: 'block', md: 'none' }} height={16} />
+            <Box p={{ base: 4, md: 8 }}>
+              {/* Profile Header */}
+              <Flex
+                direction={{ base: "column", lg: "row" }}
+                align={{ base: "center", lg: "start" }}
+                gap={{ base: 6, md: 8, lg: 10 }}
+                w="full"
+                py={{ base: 4, md: 6, lg: 8 }}
+              >
+                {/* Avatar Section */}
+                <Box
+                  position="relative"
+                  flex={{ base: "none", lg: "0 0 auto" }}
+                  alignSelf={{ base: "center", lg: "flex-start" }}
+                >
+                  <MotionBox
+                    whileHover={{ scale: 1.05 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Avatar
+                      size={{ base: "xl", md: "2xl" }}
+                      src={profileData?.avatarUrl}
+                      name={profileData?.username}
+                      border="4px solid"
+                      borderColor="purple.400"
+                      boxShadow="lg"
+                    />
+                    {/* Status Indicator */}
+                    <Box
+                      position="absolute"
+                      bottom="-2"
+                      right="-2"
+                      bg={profileData?.status === 'online' ? 'green.400' : 'gray.400'}
+                      w={{ base: "3", md: "4" }}
+                      h={{ base: "3", md: "4" }}
+                      borderRadius="full"
+                      border="3px solid"
+                      borderColor={useColorModeValue('white', 'gray.800')}
+                      boxShadow="md"
+                    />
+                  </MotionBox>
+                </Box>
+
+                {/* Profile Info Section */}
+                <VStack
+                  align={{ base: "center", lg: "start" }}
+                  spacing={{ base: 4, md: 5, lg: 6 }}
+                  flex="1"
+                  w="full"
+                  maxW={{ xl: "800px", "2xl": "1000px" }}
+                >
+                  {/* Name and Badges */}
+                  <VStack
+                    spacing={{ base: 2, md: 3 }}
+                    align={{ base: "center", lg: "start" }}
+                    w="full"
+                  >
+                    <HStack
+                      spacing={{ base: 2, md: 4 }}
+                      flexWrap="wrap"
+                      justify={{ base: "center", lg: "start" }}
+                    >
+                      <Text
+                        fontSize={{ base: "2xl", md: "3xl", lg: "4xl" }}
+                        fontWeight="bold"
+                        textAlign={{ base: "center", lg: "left" }}
+                      >
+                        {profileData?.username}
+                      </Text>
+                      <HStack
+                        spacing={{ base: 1, md: 2 }}
+                        flexWrap="wrap"
+                        justify={{ base: "center", lg: "start" }}
+                      >
+                        <Badge
+                          colorScheme="purple"
+                          variant="solid"
+                          fontSize={{ base: "xs", md: "sm" }}
+                          px={{ base: 2, md: 3 }}
+                          py={{ base: 1, md: 1.5 }}
+                        >
+                          PRO
+                        </Badge>
+                        <Badge
+                          colorScheme="yellow"
+                          variant="subtle"
+                          fontSize={{ base: "xs", md: "sm" }}
+                          px={{ base: 2, md: 3 }}
+                          py={{ base: 1, md: 1.5 }}
+                        >
+                          <HStack spacing={1}>
+                            <Award size={12} />
+                            <Text>Top Reviewer</Text>
+                          </HStack>
+                        </Badge>
+                      </HStack>
+                    </HStack>
+
+                    {/* Bio */}
+                    <Text
+                      color="gray.500"
+                      fontSize={{ base: "sm", md: "md" }}
+                      textAlign={{ base: "center", lg: "left" }}
+                      maxW={{ base: "100%", md: "600px", lg: "800px" }}
+                      px={{ base: 4, lg: 0 }}
+                    >
+                      {profileData?.bio}
+                    </Text>
+                  </VStack>
+
+                  {/* Stats */}
+                  <HStack
+                    spacing={{ base: 4, md: 8, lg: 12 }}
+                    flexWrap="wrap"
+                    justify={{ base: "center", lg: "start" }}
+                    w="full"
+                    py={{ base: 2, md: 3 }}
+                  >
+                    {[
+                      { label: 'Followers', value: profileData?.stats.followers },
+                      { label: 'Following', value: profileData?.stats.following },
+                      { label: 'Reviews', value: profileData?.stats.reviews }
+                    ].map((stat, index) => (
+                      <VStack
+                        key={index}
+                        spacing={{ base: 0.5, md: 1 }}
+                        align="center"
+                        minW={{ base: "80px", md: "100px" }}
+                      >
+                        <Text
+                          fontWeight="bold"
+                          fontSize={{ base: "lg", md: "xl", lg: "2xl" }}
+                        >
+                          {stat.value}
+                        </Text>
+                        <Text
+                          color="gray.500"
+                          fontSize={{ base: "xs", md: "sm" }}
+                        >
+                          {stat.label}
+                        </Text>
+                      </VStack>
+                    ))}
+                  </HStack>
+
+                  {/* Action Buttons */}
+                  <VStack
+                    spacing={{ base: 3, md: 4 }}
+                    w="full"
+                    align={{ base: "center", lg: "start" }}
+                  >
+                    {/* Primary Actions */}
+                    <HStack
+                      spacing={{ base: 2, md: 4 }}
+                      flexWrap="wrap"
+                      justify={{ base: "center", lg: "start" }}
+                    >
+                      <Button
+                        leftIcon={<Edit2 size={16} />}
+                        colorScheme="purple"
+                        size={{ base: "sm", md: "md" }}
+                        onClick={() => {
+                          toast({
+                            title: "Edit Profile",
+                            description: "This feature will be available soon",
+                            status: "info",
+                            duration: 3000,
+                            isClosable: true,
+                          });
+                        }}
+                      >
+                        Edit Profile
+                      </Button>
+                      <Button
+                        leftIcon={<Share2 size={16} />}
+                        variant="outline"
+                        colorScheme="purple"
+                        size={{ base: "sm", md: "md" }}
+                        onClick={() => {
+                          if (navigator.share) {
+                            navigator.share({
+                              title: `${profileData?.username}'s Profile`,
+                              text: 'Check out my profile on ChillFlix!',
+                              url: window.location.href,
+                            });
+                          } else {
+                            toast({
+                              title: "Share Profile",
+                              description: "URL copied to clipboard",
+                              status: "success",
+                              duration: 3000,
+                              isClosable: true,
+                            });
+                          }
+                        }}
+                      >
+                        Share Profile
+                      </Button>
+                      <IconButton
+                        aria-label="Settings"
+                        icon={<Settings size={16} />}
+                        variant="ghost"
+                        colorScheme="purple"
+                        size={{ base: "sm", md: "md" }}
+                      />
+                    </HStack>
+                  </VStack>
+                </VStack>
+              </Flex>
             {/* Header Controls */}
             <Flex
-              bg={headerBg}
+              bg={useColorModeValue('whiteAlpha.100', 'blackAlpha.100')}
               p={4}
               justifyContent="space-between"
               alignItems="center"
               borderBottom="1px solid"
-              borderColor={borderColor}
+              borderColor={useColorModeValue('whiteAlpha.200', 'whiteAlpha.100')}
             >
               <HStack spacing={4}>
-                <StatusIndicator status={userProfile.status} />
+                <StatusIndicator status={profileData?.status || 'offline'} />
                 <Badge
                   variant="subtle"
                   colorScheme="purple"
-                  px={3}
-                  py={1}
+                  p={2}
                   borderRadius="full"
                 >
-                  Level {userProfile.stats.level}
+                  Level {profileData?.stats.level}
                 </Badge>
               </HStack>
-              
+
               <HStack spacing={2}>
-              <Menu>
-                  <Tooltip 
-                    label={`${currentLanguage.name} (Click to change)`}
-                    hasArrow 
-                    placement="bottom"
-                    openDelay={400}
-                  >
-                    <MenuButton
-                      as={IconButton}
-                      icon={
-                        <HStack spacing={1}>
-                          <Globe size={16} />
-                          <Text fontSize="sm">{currentLanguage.flag}</Text>
-                        </HStack>
-                      }
-                      variant="ghost"
-                      colorScheme="purple"
-                      size="sm"
-                      _hover={{
-                        bg: useColorModeValue('whiteAlpha.200', 'blackAlpha.200'),
-                        transform: 'translateY(-1px)'
-                      }}
-                      _active={{
-                        transform: 'translateY(0)'
-                      }}
-                      transition="all 0.2s"
-                    />
-                  </Tooltip>
-                  <MenuList
-                    bg={useColorModeValue('white', 'gray.800')}
-                    borderColor={useColorModeValue('gray.200', 'gray.600')}
-                    boxShadow="lg"
-                    borderRadius="xl"
-                    p={2}
-                    minW="160px"
-                  >
-                    <Text
-                      px={3}
-                      py={2}
-                      fontSize="xs"
-                      fontWeight="medium"
-                      color="gray.500"
-                      textTransform="uppercase"
-                    >
-                      Select Language
-                    </Text>
+                <Menu>
+                  <MenuButton
+                    as={IconButton}
+                    icon={
+                      <HStack spacing={1}>
+                        <Globe size={16} />
+                        <Text fontSize="sm">{currentLanguage.flag}</Text>
+                      </HStack>
+                    }
+                    variant="ghost"
+                    size="sm"
+                  />
+                  <MenuList>
                     {LANGUAGES.map((lang) => (
                       <MenuItem
                         key={lang.code}
                         onClick={() => setCurrentLanguage(lang)}
-                        icon={
-                          <Text fontSize="xl" lineHeight="1">
-                            {lang.flag}
-                          </Text>
-                        }
-                        bg="transparent"
-                        borderRadius="md"
-                        mb={1}
-                        _hover={{
-                          bg: useColorModeValue('gray.50', 'gray.700')
-                        }}
-                        _focus={{
-                          bg: useColorModeValue('gray.50', 'gray.700')
-                        }}
-                        position="relative"
                       >
-                        <HStack justify="space-between" flex={1}>
+                        <HStack>
+                          <Text>{lang.flag}</Text>
                           <Text>{lang.name}</Text>
-                          {currentLanguage.code === lang.code && (
-                            <Box
-                              w={2}
-                              h={2}
-                              borderRadius="full"
-                              bg="purple.500"
-                            />
-                          )}
                         </HStack>
                       </MenuItem>
                     ))}
-                    <Divider my={2} />
                   </MenuList>
                 </Menu>
-                <Tooltip label={`Switch to ${colorMode === 'light' ? 'dark' : 'light'} mode`} hasArrow>
-                  <IconButton
-                    aria-label="Toggle color mode"
-                    icon={colorMode === 'light' ? <Moon size={18} /> : <Sun size={18} />}
-                    onClick={toggleColorMode}
-                    variant="ghost"
-                    colorScheme="purple"
-                    size="sm"
-                  />
-                </Tooltip>
+                <IconButton
+                  aria-label="Toggle color mode"
+                  icon={colorMode === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+                  onClick={toggleColorMode}
+                  variant="ghost"
+                  size="sm"
+                />
               </HStack>
             </Flex>
-
-            <Box p={8}>
-              {/* Profile Header */}
-              <Flex 
-                direction={{ base: "column", md: "row" }} 
-                align="center" 
-                gap={8} 
-                position="relative"
-              >
-                <MotionBox
-                  whileHover={{ scale: 1.05 }}
-                  transition={{ duration: 0.2 }}
-                  position="relative"
-                >
-                  <Avatar
-                    size="2xl"
-                    src={userProfile.avatarUrl}
-                    name={userProfile.username}
-                    border="4px solid"
-                    borderColor="purple.400"
-                    boxShadow="xl"
-                  />
-                  <Box
-                    position="absolute"
-                    bottom="-2"
-                    right="-2"
-                    bg={userProfile.status === 'online' ? 'green.400' : 'gray.400'}
-                    w="4"
-                    h="4"
-                    borderRadius="full"
-                    border="3px solid"
-                    borderColor={useColorModeValue('white', 'gray.800')}
-                  />
-                </MotionBox>
-                
-                <VStack align={{ base: "center", md: "start" }} spacing={4} flex={1}>
-                  <HStack spacing={4} flexWrap="wrap" justify={{ base: "center", md: "start" }}>
-                    <Text fontSize="3xl" fontWeight="bold">{userProfile.username}</Text>
-                    <HStack spacing={2}>
-                      <Badge colorScheme="purple" variant="solid" px={2} py={1}>
-                        PRO
-                      </Badge>
-                      <Badge colorScheme="yellow" variant="subtle" px={2} py={1}>
-                        <HStack spacing={1}>
-                          <Award size={12} />
-                          <Text>Top Reviewer</Text>
-                        </HStack>
-                      </Badge>
-                    </HStack>
-                  </HStack>
-
-                  <Text
-                    color="gray.500"
-                    textAlign={{ base: "center", md: "left" }}
-                    maxW="600px"
-                  >
-                    {userProfile.bio}
-                  </Text>
-
-                  <HStack spacing={6} flexWrap="wrap" justify={{ base: "center", md: "start" }}>
-                    <VStack spacing={1} align="center">
-                      <Text fontWeight="bold">{userProfile.stats.followers}</Text>
-                      <Text color="gray.500" fontSize="sm">Followers</Text>
-                    </VStack>
-                    <VStack spacing={1} align="center">
-                      <Text fontWeight="bold">{userProfile.stats.following}</Text>
-                      <Text color="gray.500" fontSize="sm">Following</Text>
-                    </VStack>
-                    <VStack spacing={1} align="center">
-                      <Text fontWeight="bold">{userProfile.stats.reviews}</Text>
-                      <Text color="gray.500" fontSize="sm">Reviews</Text>
-                    </VStack>
-                  </HStack>
-
-                  <HStack spacing={4}>
-                    <Button
-                      leftIcon={<Edit2 size={16} />}
-                      colorScheme="purple"
-                      variant="solid"
-                      size="sm"
-                      _hover={{
-                        transform: 'translateY(-2px)',
-                        boxShadow: 'lg',
-                      }}
-                    >
-                      Edit Profile
-                    </Button>
-                    <Button
-                      leftIcon={<Share2 size={16} />}
-                      variant="outline"
-                      colorScheme="purple"
-                      size="sm"
-                      _hover={{
-                        transform: 'translateY(-2px)',
-                        boxShadow: 'lg',
-                      }}
-                    >
-                      Share Profile
-                    </Button>
-                    <IconButton
-                      aria-label="More options"
-                      icon={<Settings size={16} />}
-                      variant="ghost"
-                      colorScheme="purple"
-                      size="sm"
-                      _hover={{
-                        transform: 'translateY(-2px)',
-                      }}
-                    />
-                  </HStack>
-
-                  <HStack spacing={4}>
-                    {userProfile.socialLinks?.github && (
-                      <IconButton
-                        aria-label="GitHub Profile"
-                        icon={<Github size={18} />}
-                        variant="ghost"
-                        colorScheme="purple"
-                        size="sm"
-                        onClick={() => window.open(userProfile.socialLinks?.github, '_blank')}
-                      />
-                    )}
-                    {userProfile.socialLinks?.twitter && (
-                      <IconButton
-                        aria-label="Twitter Profile"
-                        icon={<Twitter size={18} />}
-                        variant="ghost"
-                        colorScheme="purple"
-                        size="sm"
-                        onClick={() => window.open(userProfile.socialLinks?.twitter, '_blank')}
-                      />
-                    )}
-                  </HStack>
-                </VStack>
-              </Flex>
 
               {/* Level Progress */}
               <Box mt={8} p={4} borderRadius="xl" bg={useColorModeValue('whiteAlpha.200', 'blackAlpha.200')}>
                 <HStack justify="space-between" mb={2}>
                   <Text fontSize="sm" fontWeight="medium">Level Progress</Text>
                   <Text fontSize="sm" color="gray.500">
-                    {userProfile.stats.exp} / {userProfile.stats.nextLevelExp} XP
+                    {profileData?.stats.exp} / {profileData?.stats.nextLevelExp} XP
                   </Text>
                 </HStack>
                 <Progress
-                  value={(userProfile.stats.exp / userProfile.stats.nextLevelExp) * 100}
+                  value={(profileData?.stats.exp || 0) / (profileData?.stats.nextLevelExp || 1) * 100}
                   colorScheme="purple"
                   borderRadius="full"
                   size="sm"
@@ -689,20 +618,18 @@ const SiteSettings: React.FC = () => {
                 />
               </Box>
 
-              <Divider my={8} opacity={0.2} />
+              <Divider my={8} />
 
               {/* Stats Grid */}
               <Grid
-                templateColumns={{ base: "1fr", md: "repeat(4, 1fr)" }}
+                templateColumns={{ base: "1fr", md: "repeat(2, 1fr)", lg: "repeat(4, 1fr)" }}
                 gap={6}
-                w="full"
-                position="relative"
               >
                 <GridItem>
                   <StatCard
                     icon={<Film size={24} />}
                     label="Watchlist"
-                    value={userProfile.stats.watchlist}
+                    value={profileData?.stats.watchlist || 0}
                     isLoading={isLoading}
                     subtitle="Movies to watch"
                     trend={5}
@@ -712,7 +639,7 @@ const SiteSettings: React.FC = () => {
                   <StatCard
                     icon={<Heart size={24} />}
                     label="Favorites"
-                    value={userProfile.stats.favorites}
+                    value={profileData?.stats.favorites || 0}
                     isLoading={isLoading}
                     subtitle="Loved movies"
                     trend={8}
@@ -722,7 +649,7 @@ const SiteSettings: React.FC = () => {
                   <StatCard
                     icon={<Clock size={24} />}
                     label="Watch Time"
-                    value={userProfile.stats.watchTime}
+                    value={profileData?.stats.watchTime || '0h'}
                     isLoading={isLoading}
                     subtitle="Total hours"
                     trend={12}
@@ -732,7 +659,7 @@ const SiteSettings: React.FC = () => {
                   <StatCard
                     icon={<MessageCircle size={24} />}
                     label="Reviews"
-                    value={userProfile.stats.reviews}
+                    value={profileData?.stats.reviews || 0}
                     isLoading={isLoading}
                     subtitle="Written reviews"
                     trend={3}
@@ -755,44 +682,44 @@ const SiteSettings: React.FC = () => {
                   </Button>
                 </HStack>
                 <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }} gap={4}>
-                  {userProfile.achievements.map((achievement) => (
+                  {profileData?.achievements.map((achievement) => (
                     <GridItem key={achievement.id}>
                       <AchievementBadge achievement={achievement} />
                     </GridItem>
                   ))}
                 </Grid>
               </Box>
+
+              {/* Achievements Drawer */}
+              <Drawer
+                isOpen={achievementsDisclosure.isOpen}
+                placement="right"
+                onClose={achievementsDisclosure.onClose}
+                size="md"
+              >
+                <DrawerOverlay backdropFilter="blur(10px)" />
+                <DrawerContent>
+                  <DrawerHeader borderBottomWidth="1px">
+                    <HStack justify="space-between">
+                      <Text>Achievements</Text>
+                      <DrawerCloseButton />
+                    </HStack>
+                  </DrawerHeader>
+                  <DrawerBody>
+                    <VStack spacing={4}>
+                      {profileData?.achievements.map((achievement) => (
+                        <AchievementBadge key={achievement.id} achievement={achievement} />
+                      ))}
+                    </VStack>
+                  </DrawerBody>
+                </DrawerContent>
+              </Drawer>
             </Box>
           </MotionFlex>
         </Parallax>
       </Container>
-
-      {/* Achievements Drawer */}
-      <Drawer
-        isOpen={achievementsDisclosure.isOpen}
-        placement="right"
-        onClose={achievementsDisclosure.onClose}
-        size="md"
-      >
-        <DrawerOverlay backdropFilter="blur(10px)" />
-        <DrawerContent>
-          <DrawerHeader borderBottomWidth="1px">
-            <HStack justify="space-between">
-              <Text>Achievements</Text>
-              <DrawerCloseButton />
-            </HStack>
-          </DrawerHeader>
-          <DrawerBody>
-            <VStack spacing={4}>
-              {userProfile.achievements.map((achievement) => (
-                <AchievementBadge key={achievement.id} achievement={achievement} />
-              ))}
-            </VStack>
-          </DrawerBody>
-        </DrawerContent>
-      </Drawer>
     </ParallaxProvider>
   );
 };
 
-export default React.memo(SiteSettings);
+export default SiteSettings;
