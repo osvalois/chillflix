@@ -1,6 +1,6 @@
 import React, { useState, useCallback, memo, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Box, Button, Flex, Text, Badge, useColorMode, Tooltip } from '@chakra-ui/react';
+import { Box, Button, Flex, Badge, useColorMode, Tooltip } from '@chakra-ui/react';
 import { rgba } from 'polished';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { DynamicIcon } from './Movie/Icons';
