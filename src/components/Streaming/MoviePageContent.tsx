@@ -1,43 +1,32 @@
-// src/pages/MoviePage/components/MoviePageContent.tsx
 import React, { Suspense, lazy, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Box, Container, VStack, useBreakpointValue, type ResponsiveValue } from '@chakra-ui/react';
+import { 
+  Box, 
+  Container, 
+  VStack, 
+  useBreakpointValue, 
+  type ResponsiveValue,
+  useToast
+} from '@chakra-ui/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
+
+// Custom hooks and services
 import { useMovieData } from '../../hooks/useMovieData';
+
+// Components
 import LoadingSkeleton from '../LoadingSkeleton';
 import ErrorFallback from '../UI/ErrorFallback';
 import { BackButton } from './BackButton';
+import MirrorTable from '../../components/MirrorTable';
+
+// Types and constants
 import type { MovieDetailsSectionProps } from '../../types';
+
 import { APP_NAME } from '../../constants';
+import { Mirror } from '../../services/movieService';
 
-// Tipos refinados
-interface Movie {
-  id: number;
-  title: string;
-  overview?: string;
-  backdrop_path?: string;
-  poster_path?: string;
-  runtime?: number;
-}
-
-interface PageMetadata {
-  title: string;
-  description: string;
-  image?: string;
-}
-
-interface BackgroundStyle {
-  minHeight: ResponsiveValue<string>;
-  bgImage: string;
-  bgSize: ResponsiveValue<string>;
-  bgPosition: ResponsiveValue<string>;
-  bgAttachment: ResponsiveValue<string>;
-  color: ResponsiveValue<string>;
-  overflow: ResponsiveValue<string>;
-}
-
-// Lazy loading con prefetch y manejo de errores
+// Lazy-loaded components with error boundaries
 const VideoSection = lazy(() => {
   return import('./VideoSection')
     .catch(err => {
@@ -58,7 +47,34 @@ const MovieDetailsSection = lazy(() => {
   return component;
 });
 
-// Constantes
+// Types
+interface Movie {
+  id: number;
+  title: string;
+  overview?: string;
+  backdrop_path?: string;
+  poster_path?: string;
+  runtime?: number;
+  imdb_id?: string;
+}
+
+interface PageMetadata {
+  title: string;
+  description: string;
+  image?: string;
+}
+
+interface BackgroundStyle {
+  minHeight: ResponsiveValue<string>;
+  bgImage: string;
+  bgSize: ResponsiveValue<string>;
+  bgPosition: ResponsiveValue<string>;
+  bgAttachment: ResponsiveValue<string>;
+  color: ResponsiveValue<string>;
+  overflow: ResponsiveValue<string>;
+}
+
+// Animation configuration
 const ANIMATION_CONFIG = {
   initial: { opacity: 0 },
   animate: { opacity: 1 },
@@ -66,7 +82,7 @@ const ANIMATION_CONFIG = {
   transition: { duration: 0.5 }
 } as const;
 
-// Custom hooks refinados
+// Custom hooks
 const usePageMetadata = (movie: Movie | null): PageMetadata => {
   return useMemo(() => ({
     title: movie ? `${movie.title} | ${APP_NAME}` : APP_NAME,
@@ -89,11 +105,11 @@ const useBackgroundStyle = (backdropPath: string | undefined): BackgroundStyle =
     bgPosition: "center",
     bgAttachment: isMobile ? "scroll" : "fixed",
     color: "white",
-    overflow: "hidden" // Cambiado de overflowX a overflow para compatibilidad con Chakra UI
+    overflow: "hidden"
   }), [backdropPath, isMobile]);
 };
 
-// Error Boundary personalizado
+// Error Boundary
 class MoviePageErrorBoundary extends React.Component<{ children: React.ReactNode }> {
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('MoviePage Error:', error, errorInfo);
@@ -104,13 +120,14 @@ class MoviePageErrorBoundary extends React.Component<{ children: React.ReactNode
   }
 }
 
-// Componentes memorizados
+// Memoized components
 const MemoizedErrorFallback = React.memo(ErrorFallback);
 const MemoizedLoadingSkeleton = React.memo(LoadingSkeleton);
 
 const MoviePageContent: React.FC = () => {
   const { tmdbId } = useParams<{ tmdbId: string }>();
   const navigate = useNavigate();
+  const toast = useToast();
   
   const {
     movie,
@@ -118,28 +135,65 @@ const MoviePageContent: React.FC = () => {
     error,
     videoProps,
     watchPartyProps,
-    movieDetailsProps
+    movieDetailsProps,
+    utils: { 
+      setFailedMirrors,
+      refetchMirrors,
+      setShouldRefreshMirrors 
+    },
+    state: { 
+      selectedMirror,
+      mirrors,
+      failedMirrors 
+    }
   } = useMovieData(tmdbId);
 
   const metadata = usePageMetadata(movie as any);
   const backgroundStyle = useBackgroundStyle(movie?.backdrop_path ?? '');
 
-  // Manejadores memorizados
+  // Handlers
   const handleBack = useMemo(() => () => navigate(-1), [navigate]);
   const handleError = useMemo(() => () => navigate('/'), [navigate]);
 
-  // Efectos
+  const handleMirrorSelect = (mirror: Mirror) => {
+    try {
+      setFailedMirrors(new Set()); // Reset failed mirrors
+      videoProps.handleQualityChange(mirror.quality);
+      videoProps.handleLanguageChange(mirror.language);
+      
+      toast({
+        title: "Source Changed",
+        description: `Switching to ${mirror.quality} quality in ${mirror.language}`,
+        status: "info",
+        duration: 3000,
+        isClosable: true,
+      });
+
+      // Refresh mirrors list after selection
+      setShouldRefreshMirrors(true);
+      refetchMirrors();
+    } catch (error) {
+      console.error('Error switching mirror:', error);
+      toast({
+        title: "Error",
+        description: "Failed to switch source. Please try another one.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  // Effects
   useEffect(() => {
-    // Cambiar título al montar
     const originalTitle = document.title;
     document.title = metadata.title;
-
-    // Cleanup function
     return () => {
       document.title = originalTitle;
     };
   }, [metadata.title]);
 
+  // Loading and error states
   if (isLoading) return <MemoizedLoadingSkeleton />;
   if (error) return <MemoizedErrorFallback error={error} resetErrorBoundary={handleError} />;
   if (!movie) return <MemoizedErrorFallback error={new Error("Movie not found")} resetErrorBoundary={handleError} />;
@@ -167,15 +221,28 @@ const MoviePageContent: React.FC = () => {
               px={{ base: 4, md: 6, lg: 8 }}
             >
               <BackButton onBack={handleBack} />
+              
               <VStack 
                 spacing={{ base: 4, md: 6, lg: 8 }}
                 align="stretch"
               >
                 <Suspense fallback={<MemoizedLoadingSkeleton />}>
+                  {/* Video Player Section */}
                   <VideoSection 
                     {...videoProps} 
                     movie={videoProps.movie as { title: string; imdb_id?: string }}
                   />
+                  
+                  {/* Mirror Table Section */}
+                  {mirrors && mirrors.length > 0 && (
+                    <MirrorTable
+                      mirrors={mirrors.filter(mirror => !failedMirrors.has(mirror.infoHash))}
+                      onMirrorSelect={handleMirrorSelect}
+                      selectedMirrorId={selectedMirror?.id}
+                    />
+                  )}
+
+                  {/* Watch Party Section */}
                   <WatchPartySection 
                     movieId={movie.id.toString()} 
                     movieTitle={movie.title}
@@ -183,9 +250,10 @@ const MoviePageContent: React.FC = () => {
                     movieThumbnail={movie.poster_path ?? ''}
                     {...watchPartyProps} 
                   />
+                  
+                  {/* Movie Details Section */}
                   <MovieDetailsSection 
                     {...movieDetailsProps as MovieDetailsSectionProps}
-                    
                   />
                 </Suspense>
               </VStack>

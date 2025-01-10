@@ -331,8 +331,6 @@ const SiteSettings: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <Box display={{ base: 'block', md: 'none' }} height={16} />
-            <Box display={{ base: 'block', md: 'none' }} height={16} />
             <Box p={{ base: 4, md: 8 }}>
               {/* Profile Header */}
               <Flex

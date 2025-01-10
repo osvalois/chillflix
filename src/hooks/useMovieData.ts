@@ -419,54 +419,56 @@ export const useMovieData = (tmdbId: string | undefined) => {
       handleBackupApiCall
     },
 
-// Props para WatchParty
-watchPartyProps: {
-    isVisible,
-    watchPartyId,
-    hasJoined,
-    movie,
-    onToggleVisibility: () => setIsVisible(!isVisible),
-    onWatchPartyCreated: handleCreateWatchParty,
-    onJoinParty: handleJoinParty
-  },
+    // Props para WatchParty
+    watchPartyProps: {
+      isVisible,
+      watchPartyId,
+      hasJoined,
+      movie,
+      onToggleVisibility: () => setIsVisible(!isVisible),
+      onWatchPartyCreated: handleCreateWatchParty,
+      onJoinParty: handleJoinParty
+    },
 
-  // Props para MovieDetails
-  movieDetailsProps: {
-    movie,
-    credits,
-    similarMovies,
-    isCreditsLoading,
-    isSimilarMoviesLoading,
-    headerProps: {
-      onTrailerPlay: () => {}, // Implementar si es necesario
-      isMobile,
-      isLoading: false,
-      onChangeMirror: handleChangeMirror,
-      isChangingMirror,
-      currentMirrorIndex,
-      totalMirrors: mirrors?.length ?? 0,
-      onOpenQualitySelector: () => {}, // Implementar si es necesario
-      isPlaying,
-      currentQuality
+    // Props para MovieDetails
+    movieDetailsProps: {
+      movie,
+      credits,
+      similarMovies,
+      isCreditsLoading,
+      isSimilarMoviesLoading,
+      headerProps: {
+        onTrailerPlay: () => {},
+        isMobile,
+        isLoading: false,
+        onChangeMirror: handleChangeMirror,
+        isChangingMirror,
+        currentMirrorIndex,
+        totalMirrors: mirrors?.length ?? 0,
+        onOpenQualitySelector: () => {},
+        isPlaying,
+        currentQuality
+      }
+    },
+
+    // Helpers y funciones
+    utils: {
+      refetchMirrors,
+      setFailedMirrors,
+      setShouldRefreshMirrors,
+      setIsCustomSearchComplete
+    },
+
+    // Estado adicional para componentes específicos
+    state: {
+      selectedLanguage,
+      selectedQuality,
+      isCustomSearchComplete,
+      shouldRefreshMirrors,
+      failedMirrors,
+      selectedMirror,
+      mirrors
     }
-  },
-
-  // Helpers y funciones adicionales
-  utils: {
-    refetchMirrors,
-    setFailedMirrors,
-    setShouldRefreshMirrors,
-    setIsCustomSearchComplete
-  },
-
-  // Estado adicional para componentes específicos
-  state: {
-    selectedLanguage,
-    selectedQuality,
-    isCustomSearchComplete,
-    shouldRefreshMirrors,
-    failedMirrors
-  }
 };
 };
 const fetchMovieDetails = async (id: string): Promise<CombinedContent> => {
@@ -482,51 +484,3 @@ try {
   throw error;
 }
 };
-
-// Tipos de exportación para el hook
-export type UseMovieDataReturn = ReturnType<typeof useMovieData>;
-
-export interface VideoProps {
-isVideoLoading: boolean;
-streamUrl: string | null;
-videoJsOptions: any;
-movie: CombinedContent;
-qualities: string[];
-languages: string[];
-handleQualityChange: (quality: string) => void;
-handleLanguageChange: (language: string) => void;
-posterUrl: string;
-hasTriedBackupApi: boolean;
-isBackupApiLoading: boolean;
-handleBackupApiCall: () => Promise<void>;
-}
-
-export interface WatchPartyProps {
-isVisible: boolean;
-watchPartyId: string | null;
-hasJoined: boolean;
-movie: CombinedContent;
-onToggleVisibility: () => void;
-onWatchPartyCreated: (partyId: string) => void;
-onJoinParty: () => void;
-}
-
-export interface MovieDetailsProps {
-movie: CombinedContent;
-credits: MovieCredits | undefined;
-similarMovies: CombinedContent[] | undefined;
-isCreditsLoading: boolean;
-isSimilarMoviesLoading: boolean;
-headerProps: {
-  onTrailerPlay: () => void;
-  isMobile: boolean;
-  isLoading: boolean;
-  onChangeMirror: () => void;
-  isChangingMirror: boolean;
-  currentMirrorIndex: number;
-  totalMirrors: number;
-  onOpenQualitySelector: () => void;
-  isPlaying: boolean;
-  currentQuality: string;
-};
-}
