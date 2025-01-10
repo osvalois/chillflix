@@ -238,8 +238,9 @@ const MoviePageContent: React.FC = () => {
                     <MirrorTable
                       mirrors={mirrors.filter(mirror => !failedMirrors.has(mirror.infoHash))}
                       onMirrorSelect={handleMirrorSelect}
-                      selectedMirrorId={selectedMirror?.id}
-                    />
+                      selectedMirrorId={selectedMirror?.id} handleBackupApiCall={function (): Promise<void> {
+                        throw new Error('Function not implemented.');
+                      } }                    />
                   )}
 
                   {/* Watch Party Section */}

@@ -10,9 +10,8 @@ import {
 import { motion, MotionProps, useAnimation, AnimatePresence } from 'framer-motion';
 import useSound from 'use-sound';
 
-// Refined Motion Components
 const MotionBox = motion(Box as any);
-// Extended Props Interface
+
 interface GlassmorphicButtonProps extends Omit<BoxProps, keyof MotionProps>, ThemingProps {
     onClick?: () => void;
     isLoading?: boolean;
@@ -40,95 +39,87 @@ interface GlassmorphicButtonProps extends Omit<BoxProps, keyof MotionProps>, The
     neonEffect?: boolean;
 }
 
-// Enhanced Animations
+// Refined Animations
 const glowKeyframes = keyframes`
-  0% { background-position: 0% 50%; background-size: 200% 200%; filter: brightness(1); }
-  50% { background-position: 100% 50%; background-size: 250% 250%; filter: brightness(1.3); }
-  100% { background-position: 0% 50%; background-size: 200% 200%; filter: brightness(1); }
+  0% { opacity: 0.8; filter: saturate(0.8) brightness(1); }
+  50% { opacity: 1; filter: saturate(1.2) brightness(1.2); }
+  100% { opacity: 0.8; filter: saturate(0.8) brightness(1); }
 `;
 
 const shineKeyframes = keyframes`
-  0% { transform: translateX(-100%) rotate(35deg); opacity: 0; }
-  50% { opacity: 0.7; }
-  100% { transform: translateX(200%) rotate(35deg); opacity: 0; }
+  0% { transform: translateX(-200%) rotate(45deg); }
+  100% { transform: translateX(200%) rotate(45deg); }
 `;
 
 const pulseKeyframes = keyframes`
-  0% { 
-    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.5),
-                inset 0 0 0 0.5px rgba(255, 255, 255, 0.3);
-  }
-  70% { 
-    box-shadow: 0 0 0 20px rgba(255, 255, 255, 0),
-                inset 0 0 0 0.5px rgba(255, 255, 255, 0.6);
-  }
-  100% { 
-    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0),
-                inset 0 0 0 0.5px rgba(255, 255, 255, 0.3);
-  }
+  0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(255, 255, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
 `;
 
 const rippleKeyframes = keyframes`
-  0% { transform: scale(0); opacity: 1; }
-  100% { transform: scale(4); opacity: 0; }
+  0% { transform: scale(0); opacity: 0.35; }
+  100% { transform: scale(2.5); opacity: 0; }
 `;
 
-// Enhanced Variants Configuration with Modern Color Palettes
+// Refined Color Palettes
 const variants = {
     primary: {
-        gradient: 'linear-gradient(45deg, #2B6CB0 0%, #4299E1 30%, #63B3ED 70%, #2B6CB0 100%)',
-        glow: 'rgba(66, 153, 225, 0.6)',
-        colors: ['#2B6CB0', '#4299E1', '#63B3ED'],
+        gradient: 'linear-gradient(135deg, #3182CE 0%, #2B6CB0 100%)',
+        glow: 'rgba(49, 130, 206, 0.35)',
+        colors: ['#3182CE', '#2B6CB0'],
     },
     success: {
-        gradient: 'linear-gradient(45deg, #276749 0%, #48BB78 30%, #68D391 70%, #276749 100%)',
-        glow: 'rgba(56, 161, 105, 0.6)',
-        colors: ['#276749', '#48BB78', '#68D391'],
+        gradient: 'linear-gradient(135deg, #38A169 0%, #276749 100%)',
+        glow: 'rgba(56, 161, 105, 0.35)',
+        colors: ['#38A169', '#276749'],
     },
     danger: {
-        gradient: 'linear-gradient(45deg, #C53030 0%, #F56565 30%, #FC8181 70%, #C53030 100%)',
-        glow: 'rgba(229, 62, 62, 0.6)',
-        colors: ['#C53030', '#F56565', '#FC8181'],
+        gradient: 'linear-gradient(135deg, #E53E3E 0%, #C53030 100%)',
+        glow: 'rgba(229, 62, 62, 0.35)',
+        colors: ['#E53E3E', '#C53030'],
     },
     warning: {
-        gradient: 'linear-gradient(45deg, #B7791F 0%, #ECC94B 30%, #F6E05E 70%, #B7791F 100%)',
-        glow: 'rgba(214, 158, 46, 0.6)',
-        colors: ['#B7791F', '#ECC94B', '#F6E05E'],
+        gradient: 'linear-gradient(135deg, #D69E2E 0%, #B7791F 100%)',
+        glow: 'rgba(214, 158, 46, 0.35)',
+        colors: ['#D69E2E', '#B7791F'],
     },
     info: {
-        gradient: 'linear-gradient(45deg, #0987A0 0%, #38B2AC 30%, #4FD1C5 70%, #0987A0 100%)',
-        glow: 'rgba(9, 135, 160, 0.6)',
-        colors: ['#0987A0', '#38B2AC', '#4FD1C5'],
+        gradient: 'linear-gradient(135deg, #319795 0%, #2C7A7B 100%)',
+        glow: 'rgba(49, 151, 149, 0.35)',
+        colors: ['#319795', '#2C7A7B'],
     },
     dark: {
-        gradient: 'linear-gradient(45deg, #171923 0%, #2D3748 30%, #4A5568 70%, #171923 100%)',
-        glow: 'rgba(23, 25, 35, 0.6)',
-        colors: ['#171923', '#2D3748', '#4A5568'],
+        gradient: 'linear-gradient(135deg, #2D3748 0%, #1A202C 100%)',
+        glow: 'rgba(45, 55, 72, 0.35)',
+        colors: ['#2D3748', '#1A202C'],
     },
 } as const;
-// Enhanced Intensity Configurations
+
+// Refined Intensities
 const glowIntensities = {
     none: { opacity: 0, blur: '0px' },
-    low: { opacity: 0.3, blur: '8px' },
-    medium: { opacity: 0.5, blur: '12px' },
-    high: { opacity: 0.7, blur: '16px' },
-    ultra: { opacity: 0.9, blur: '24px' },
+    low: { opacity: 0.2, blur: '6px' },
+    medium: { opacity: 0.35, blur: '10px' },
+    high: { opacity: 0.5, blur: '14px' },
+    ultra: { opacity: 0.65, blur: '18px' },
 } as const;
 
 const frosts = {
     none: { blur: '0px', bg: 'rgba(255, 255, 255, 0)' },
-    light: { blur: '5px', bg: 'rgba(255, 255, 255, 0.1)' },
-    medium: { blur: '10px', bg: 'rgba(255, 255, 255, 0.15)' },
-    heavy: { blur: '15px', bg: 'rgba(255, 255, 255, 0.2)' },
-    ultra: { blur: '20px', bg: 'rgba(255, 255, 255, 0.25)' },
+    light: { blur: '4px', bg: 'rgba(255, 255, 255, 0.08)' },
+    medium: { blur: '8px', bg: 'rgba(255, 255, 255, 0.12)' },
+    heavy: { blur: '12px', bg: 'rgba(255, 255, 255, 0.16)' },
+    ultra: { blur: '16px', bg: 'rgba(255, 255, 255, 0.2)' },
 } as const;
 
+// Refined Sizes
 const sizes = {
-    xs: { padding: '0.5rem 1rem', fontSize: 'xs', minWidth: '80px' },
-    sm: { padding: '0.75rem 1.5rem', fontSize: 'sm', minWidth: '100px' },
-    md: { padding: '1rem 2rem', fontSize: 'md', minWidth: '120px' },
-    lg: { padding: '1.25rem 2.5rem', fontSize: 'lg', minWidth: '140px' },
-    xl: { padding: '1.5rem 3rem', fontSize: 'xl', minWidth: '160px' },
+    xs: { px: '3', py: '1.5', fontSize: 'xs', minW: '20' },
+    sm: { px: '4', py: '2', fontSize: 'sm', minW: '24' },
+    md: { px: '6', py: '2.5', fontSize: 'md', minW: '28' },
+    lg: { px: '8', py: '3', fontSize: 'lg', minW: '32' },
+    xl: { px: '10', py: '4', fontSize: 'xl', minW: '36' },
 } as const;
 
 export const GlassmorphicButton = forwardRef<GlassmorphicButtonProps, 'button'>((props, ref) => {
@@ -163,27 +154,24 @@ export const GlassmorphicButton = forwardRef<GlassmorphicButtonProps, 'button'>(
     const controls = useAnimation();
     const rippleRef = useRef<HTMLSpanElement>(null);
 
-    // Sound effect
-    const [playHover] = useSound('/hover.mp3', { volume: 0.5 });
-    const [playClick] = useSound('/click.mp3', { volume: 0.5 });
+    const [playHover] = useSound('/hover.mp3', { volume: 0.3 });
+    const [playClick] = useSound('/click.mp3', { volume: 0.3 });
 
     const variantStyle = variants[variant];
     const glowStyle = glowIntensities[glowIntensity];
     const frostStyle = frosts[glassFrost];
     const sizeStyle = sizes[size];
 
-    // Memoized Configurations
     const animationConfig = useMemo(() => ({
         rest: { scale: 1, y: 0 },
         hover: {
             scale: hoverLift ? 1.02 : 1,
-            y: hoverLift ? -4 : 0,
-            transition: { duration: 0.2, ease: 'easeOut' }
+            y: hoverLift ? -2 : 0,
+            transition: { duration: 0.2, ease: [0.4, 0, 0.2, 1] }
         },
         press: { scale: pressEffect ? 0.98 : 1 },
     }), [hoverLift, pressEffect]);
 
-    // Handle Ripple Effect
     const createRipple = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
         if (!rippleEffect || disabled || isLoading) return;
 
@@ -206,25 +194,22 @@ export const GlassmorphicButton = forwardRef<GlassmorphicButtonProps, 'button'>(
         button.appendChild(ripple);
     }, [rippleEffect, disabled, isLoading]);
 
-    // Enhanced Click Handler
     const handleClick = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
         if (disabled || isLoading) return;
 
         if (soundEnabled) playClick();
         if (hapticFeedback && navigator.vibrate) {
-            navigator.vibrate(50);
+            navigator.vibrate(30);
         }
 
         createRipple(event);
         onClick?.();
     }, [disabled, isLoading, soundEnabled, hapticFeedback, onClick, playClick, createRipple]);
 
-    // Hover Sound Effect
     const handleMouseEnter = useCallback(() => {
         if (soundEnabled && !disabled && !isLoading) playHover();
     }, [soundEnabled, disabled, isLoading, playHover]);
 
-    // Enhanced Button Styles
     const buttonStyles = useMemo(() => ({
         position: 'relative',
         overflow: 'hidden',
@@ -234,20 +219,16 @@ export const GlassmorphicButton = forwardRef<GlassmorphicButtonProps, 'button'>(
         border: '1px solid',
         borderColor: borderGlow ? `rgba(255, 255, 255, ${glowStyle.opacity})` : 'whiteAlpha.200',
         color: 'white',
-        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
         cursor: disabled || isLoading ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.6 : 1,
         width: fullWidth ? '100%' : 'auto',
         ...sizeStyle,
 
-        // Enhanced Glow Effect
         _before: {
             content: '""',
             position: 'absolute',
-            top: '-2px',
-            left: '-2px',
-            right: '-2px',
-            bottom: '-2px',
+            inset: '-1px',
             background: customGradient || variantStyle.gradient,
             opacity: glowStyle.opacity,
             filter: `blur(${glowStyle.blur})`,
@@ -255,56 +236,43 @@ export const GlassmorphicButton = forwardRef<GlassmorphicButtonProps, 'button'>(
             zIndex: -1,
         },
 
-        // Enhanced Shine Effect
-        _after: {
+        _after: animated ? {
             content: '""',
             position: 'absolute',
             top: 0,
             left: '-50%',
-            width: '50%',
+            width: '25%',
             height: '100%',
-            background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent)',
+            background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent)',
             transform: 'skewX(-25deg)',
-            animation: animated ? `${shineKeyframes} 5s infinite` : 'none',
-        },
+            animation: `${shineKeyframes} 3s ease-in-out infinite`,
+        } : {},
 
-        // Enhanced Hover States
         _hover: !disabled && !isLoading ? {
             transform: hoverLift ? 'translateY(-2px)' : 'none',
             _before: {
-                opacity: glowStyle.opacity + 0.2,
-                filter: `blur(${parseInt(glowStyle.blur) + 4}px)`,
-            },
-            '& .button-content': {
-                transform: 'scale(1.02)',
+                opacity: glowStyle.opacity + 0.1,
+                filter: `blur(${parseInt(glowStyle.blur) + 2}px)`,
             },
         } : {},
 
-        // Enhanced Active States
         _active: !disabled && !isLoading ? {
-            transform: 'scale(0.98)',
-            '& .button-content': {
-                transform: 'scale(0.98)',
-            },
+            transform: 'translateY(1px)',
         } : {},
 
-        // Neon Effect
         ...(neonEffect && {
-            boxShadow: `0 0 10px ${glowColor || variantStyle.colors[0]}, 
-                  0 0 20px ${glowColor || variantStyle.colors[0]}, 
-                  0 0 30px ${glowColor || variantStyle.colors[0]}`,
+            boxShadow: `0 0 8px ${glowColor || variantStyle.colors[0]}, 
+                       0 0 16px ${glowColor || variantStyle.colors[0]}`,
         }),
 
-        // Animation
         animation: pulseEffect && !disabled ? `${pulseKeyframes} 2s infinite` : 'none',
 
-        // Ripple Effect Styles
         '& .ripple': {
             position: 'absolute',
             borderRadius: '50%',
             transform: 'scale(0)',
-            animation: `${rippleKeyframes} 0.6s linear`,
-            backgroundColor: 'rgba(255, 255, 255, 0.7)',
+            animation: `${rippleKeyframes} 0.6s ease-out`,
+            backgroundColor: 'rgba(255, 255, 255, 0.5)',
         },
     }), [
         frostStyle, variantStyle, glowStyle, customGradient, animated,
@@ -333,9 +301,9 @@ export const GlassmorphicButton = forwardRef<GlassmorphicButtonProps, 'button'>(
                 {isLoading ? (
                     <MotionBox
                         key="loading"
-                        initial={{ opacity: 0, y: 10 }}
+                        initial={{ opacity: 0, y: 5 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
+                        exit={{ opacity: 0, y: -5 }}
                         transition={{ duration: 0.2 }}
                         display="flex"
                         alignItems="center"
@@ -346,13 +314,12 @@ export const GlassmorphicButton = forwardRef<GlassmorphicButtonProps, 'button'>(
                             className="loading-spinner"
                             sx={{
                                 display: 'inline-block',
-                                width: '1em',
-                                height: '1em',
-                                borderRadius: '50%',
+                                w: '4',
+                                h: '4',
+                                borderRadius: 'full',
                                 border: '2px solid',
-                                borderColor: 'currentColor',
-                                borderRightColor: 'transparent',
-                                animation: 'spin 0.75s linear infinite',
+                                borderColor: 'currentColor transparent currentColor currentColor',
+                                animation: `${glowKeyframes} 0.75s linear infinite`,
                             }}
                         />
                         <Box as="span">{loadingText}</Box>
@@ -360,7 +327,6 @@ export const GlassmorphicButton = forwardRef<GlassmorphicButtonProps, 'button'>(
                 ) : (
                     <MotionBox
                         key="content"
-                        className="button-content"
                         display="flex"
                         alignItems="center"
                         justifyContent="center"
@@ -377,7 +343,7 @@ export const GlassmorphicButton = forwardRef<GlassmorphicButtonProps, 'button'>(
                                 sx={{
                                     display: 'flex',
                                     alignItems: 'center',
-                                    transform: 'scale(1.2)',
+                                    transform: 'scale(1.1)',
                                     transition: 'transform 0.2s ease',
                                 }}
                             >
@@ -395,10 +361,10 @@ export const GlassmorphicButton = forwardRef<GlassmorphicButtonProps, 'button'>(
                                 backgroundClip: textGradient ? 'text' : 'none',
                                 WebkitBackgroundClip: textGradient ? 'text' : 'none',
                                 WebkitTextFillColor: textGradient ? 'transparent' : 'inherit',
-                                textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
-                                fontWeight: 'bold',
-                                letterSpacing: '0.025em',
-                                transition: 'all 0.3s ease',
+                                textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
+                                fontWeight: 'semibold',
+                                letterSpacing: '0.01em',
+                                transition: 'all 0.2s ease',
                             }}
                         >
                             {children}
@@ -411,7 +377,7 @@ export const GlassmorphicButton = forwardRef<GlassmorphicButtonProps, 'button'>(
                                 sx={{
                                     display: 'flex',
                                     alignItems: 'center',
-                                    transform: 'scale(1.2)',
+                                    transform: 'scale(1.1)',
                                     transition: 'transform 0.2s ease',
                                 }}
                             >
@@ -422,7 +388,6 @@ export const GlassmorphicButton = forwardRef<GlassmorphicButtonProps, 'button'>(
                 )}
             </AnimatePresence>
 
-            {/* Ripple Container */}
             <Box
                 ref={rippleRef}
                 as="span"

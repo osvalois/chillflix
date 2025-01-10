@@ -4,7 +4,7 @@ import { ErrorBoundary } from 'react-error-boundary';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import { useInView } from 'react-intersection-observer';
-import { Search } from 'lucide-react';
+import { FloatingButton } from '../Button/CustomButton';
 
 // Dynamic imports para reducir el tamaño del bundle inicial
 const VideoPlayer = dynamic(() => import('../VideoPlayer/VideoPlayer'), {
@@ -13,7 +13,6 @@ const VideoPlayer = dynamic(() => import('../VideoPlayer/VideoPlayer'), {
 });
 
 const LoadingMessage = dynamic(() => import('../common/LoadingMessage'));
-const GlassmorphicButton = dynamic(() => import('../Button/GlassmorphicButton'));
 const ErrorFallback = dynamic(() => import('../UI/ErrorFallback'));
 
 // Types
@@ -94,7 +93,6 @@ PosterBackground.displayName = 'PosterBackground';
 const NoSourceMessage = memo(({ 
   hasTriedBackupApi,
   isBackupApiLoading,
-  handleBackupApiCall 
 }: { 
   hasTriedBackupApi: boolean;
   isBackupApiLoading: boolean;
@@ -118,35 +116,6 @@ const NoSourceMessage = memo(({
           No playback options available at this moment
         </Text>
 
-        <GlassmorphicButton
-          onClick={handleBackupApiCall}
-          isLoading={isBackupApiLoading}
-          loadingText="Searching sources..."
-          icon={<Search size={16} />}
-          variant="info"
-          glowIntensity="none"
-          pulseEffect={false}
-          size="md"
-          animated={true}
-          px={6}
-          py={4}
-          fontSize="md"
-          fontWeight="semibold"
-          backdropFilter="blur(8px)"
-          bg="rgba(255,255,255,0.1)"
-          color="white"
-          _hover={{
-            transform: 'translateY(-1px)',
-            bg: 'rgba(255,255,255,0.15)',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
-          }}
-          _active={{
-            transform: 'translateY(0)',
-            boxShadow: 'none'
-          }}
-        >
-          Try Alternative Source
-        </GlassmorphicButton>
       </>
     )}
 
@@ -196,6 +165,16 @@ export const VideoSection: React.FC<VideoSectionProps> = memo(({
 
     return (
       <Suspense fallback={<LoadingMessage />}>
+        <FloatingButton
+          onClick={handleBackupApiCall}
+          text="Find more options"
+          buttonPlacement="top-right"
+          buttonVariant="glass"     // Puedes usar: 'default', 'minimal', o 'glass'
+          buttonSize="sm"           // Puedes usar: 'sm', 'md', o 'lg'
+          showIcon={false}
+          showGlow={true}          // Efecto de brillo (opcional)
+          zIndex={1000}     
+        />
         <VideoPlayer
           options={videoJsOptions}
           title={movie.title}
