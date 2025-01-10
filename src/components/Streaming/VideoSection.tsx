@@ -115,7 +115,16 @@ const NoSourceMessage = memo(({
         >
           No playback options available at this moment
         </Text>
-
+        <FloatingButton
+          onClick={handleBackupApiCall}
+          text="Find more options"
+          buttonPlacement="top-right"
+          buttonVariant="glass"     // Puedes usar: 'default', 'minimal', o 'glass'
+          buttonSize="sm"           // Puedes usar: 'sm', 'md', o 'lg'
+          showIcon={false}
+          showGlow={true}          // Efecto de brillo (opcional)
+          zIndex={1000}     
+        />
       </>
     )}
 
@@ -251,3 +260,7 @@ export const VideoSection: React.FC<VideoSectionProps> = memo(({
 VideoSection.displayName = 'VideoSection';
 
 export default VideoSection;
+
+function handleBackupApiCall(): void {
+  throw new Error('Function not implemented.');
+}

@@ -4,6 +4,7 @@ import { Box, Button, Flex, Text, Badge, useColorMode, Tooltip } from '@chakra-u
 import { rgba } from 'polished';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { DynamicIcon } from './Movie/Icons';
+import GlassmorphicButton from './Button/GlassmorphicButton';
 
 type ButtonSize = 'sm' | 'md' | 'lg' | 'xl';
 type ButtonVariant = 'solid' | 'ghost' | 'outline' | 'gradient' | 'glass' | 'minimal';
@@ -229,18 +230,78 @@ export const WatchButton = memo(({
             width: '100%'
           }}
         >
-          <Text 
-            fontWeight="600"
-            style={{ 
-              fontSize: SIZE_MAP[size].fontSize,
-              lineHeight: '1.2',
-              width: '100%',
-              textAlign
-            }}
-          >
-            {isLoading ? loadingText : customText || (isPlaying ? 'Pause' : 'Watch Now')}
-          </Text>
-          {renderMetadata()}
+<GlassmorphicButton
+  variant="info"
+  size="sm"
+  glowIntensity="medium"
+  glassFrost="medium"
+  iconPosition="right"
+  animated={true}
+  neonEffect={false}
+  textGradient={false}
+  glowColor="#2D9CDB"
+  sx={{
+    fontWeight: '500',
+    fontSize: '14px',
+    py: '8px',
+    px: '16px',
+    minHeight: '36px',
+    letterSpacing: '0.3px',
+    borderRadius: '12px',
+    borderColor: 'rgba(45, 156, 219, 0.3)',
+    color: '#FFFFFF',
+    bg: 'rgba(14, 165, 233, 0.15)',
+    backdropFilter: 'blur(12px)',
+    boxShadow: '0 2px 8px rgba(45, 156, 219, 0.15)',
+    textShadow: '0 1px 2px rgba(0, 0, 0, 0.15)', // Mejora la legibilidad
+    WebkitFontSmoothing: 'antialiased', // Mejora el renderizado del texto
+    MozOsxFontSmoothing: 'grayscale', // Mejora el renderizado en Firefox
+    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+    '& .button-text': {
+      color: '#FFFFFF',
+      opacity: 1,
+      textShadow: '0 1px 2px rgba(0, 0, 0, 0.15)',
+    },
+    '&:hover': {
+      bg: 'rgba(14, 165, 233, 0.25)',
+      borderColor: 'rgba(45, 156, 219, 0.4)',
+      boxShadow: '0 4px 12px rgba(45, 156, 219, 0.25)',
+      '& .button-text': {
+        color: '#FFFFFF',
+        opacity: 1,
+      }
+    },
+    '&:active': {
+      bg: 'rgba(14, 165, 233, 0.3)',
+      transform: 'translateY(1px)',
+      boxShadow: '0 2px 4px rgba(45, 156, 219, 0.2)',
+      '& .button-text': {
+        color: '#FFFFFF',
+        opacity: 0.95,
+      }
+    },
+    // Estado de carga
+    '&[data-loading]': {
+      '& .loading-spinner': {
+        borderColor: '#FFFFFF transparent #FFFFFF #FFFFFF',
+      },
+      '& .button-text': {
+        color: '#FFFFFF',
+        opacity: 0.9,
+      }
+    },
+    // Estado deshabilitado
+    '&:disabled': {
+      bg: 'rgba(14, 165, 233, 0.1)',
+      '& .button-text': {
+        color: '#FFFFFF',
+        opacity: 0.6,
+      }
+    }
+  }}
+>
+  {isLoading ? loadingText : customText || (isPlaying ? 'Pause' : 'Start Watching')}
+</GlassmorphicButton>{renderMetadata()}
         </Flex>
       </Flex>
 

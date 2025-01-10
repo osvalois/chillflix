@@ -213,6 +213,7 @@ const DetailModal: React.FC<DetailModalProps> = memo(({ isOpen, onClose, content
         </ModalBody>
 
         <ModalFooter>
+          
           <Button 
             leftIcon={<DynamicIcon name="Play" size={16} />} 
             colorScheme="blue" 

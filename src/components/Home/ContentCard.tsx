@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import { useParallax } from 'react-scroll-parallax';
 import { rgba } from 'polished';
 import { DynamicIcon } from '../Movie/Icons';
+import GlassmorphicButton from '../Button/GlassmorphicButton';
 
 const pulse = keyframes`
   0% { transform: scale(1); opacity: 0.8; }
@@ -287,30 +288,41 @@ const ContentCard: React.FC<ContentCardProps> = ({
 
           {/* Play button */}
           <Flex justify="center">
-            <motion.button
-              onClick={handlePlay}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-              style={{
-                background: `linear-gradient(135deg, 
-                  ${rgba(255, 255, 255, 0.2)} 0%, 
-                  ${rgba(255, 255, 255, 0.1)} 100%)`,
-                backdropFilter: 'blur(4px)',
-                border: `1px solid ${rgba(255, 255, 255, 0.2)}`,
-                borderRadius: '9999px',
-                padding: '1rem 2rem',
-                color: 'white',
-                fontSize: '1.1rem',
-                fontWeight: 'bold',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                cursor: 'pointer',
+          <GlassmorphicButton
+                          onClick={handlePlay}
+              variant="dark"
+              size="sm"
+              glowIntensity="low"
+              glassFrost="light"
+              iconPosition="left"
+              animated={false}
+              soundEnabled={false}
+              hoverLift={false}
+              pulseEffect={false}
+              textGradient={false}
+              sx={{
+                fontWeight: 'normal',
+                fontSize: '14px',
+                py: '6px',
+                px: '12px',
+                minHeight: '32px',
+                borderColor: 'rgba(86, 204, 242, 0.2)',
+                color: '#56CCF2',
+                bg: 'rgba(47, 128, 237, 0.05)',
+                backdropFilter: 'blur(8px)',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  bg: 'rgba(47, 128, 237, 0.15)',
+                  borderColor: 'rgba(86, 204, 242, 0.3)',
+                },
+                '&:active': {
+                  bg: 'rgba(47, 128, 237, 0.2)',
+                  transform: 'translateY(1px)',
+                }
               }}
             >
-              <DynamicIcon name="Play" color="#FFD700" size={16} />
-              Watch Now
-            </motion.button>
+ Watch Now            </GlassmorphicButton>
+           
           </Flex>
 
           {/* Additional details on hover */}
