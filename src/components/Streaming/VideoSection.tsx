@@ -93,6 +93,7 @@ PosterBackground.displayName = 'PosterBackground';
 const NoSourceMessage = memo(({ 
   hasTriedBackupApi,
   isBackupApiLoading,
+  handleBackupApiCall
 }: { 
   hasTriedBackupApi: boolean;
   isBackupApiLoading: boolean;
@@ -119,10 +120,10 @@ const NoSourceMessage = memo(({
           onClick={handleBackupApiCall}
           text="Find more options"
           buttonPlacement="top-right"
-          buttonVariant="glass"     // Puedes usar: 'default', 'minimal', o 'glass'
-          buttonSize="sm"           // Puedes usar: 'sm', 'md', o 'lg'
+          buttonVariant="glass"
+          buttonSize="sm"
           showIcon={false}
-          showGlow={true}          // Efecto de brillo (opcional)
+          showGlow={true}
           zIndex={1000}     
         />
       </>
@@ -178,10 +179,10 @@ export const VideoSection: React.FC<VideoSectionProps> = memo(({
           onClick={handleBackupApiCall}
           text="Find more options"
           buttonPlacement="top-right"
-          buttonVariant="glass"     // Puedes usar: 'default', 'minimal', o 'glass'
-          buttonSize="sm"           // Puedes usar: 'sm', 'md', o 'lg'
+          buttonVariant="glass"
+          buttonSize="sm"
           showIcon={false}
-          showGlow={true}          // Efecto de brillo (opcional)
+          showGlow={true}
           zIndex={1000}     
         />
         <VideoPlayer
@@ -206,7 +207,8 @@ export const VideoSection: React.FC<VideoSectionProps> = memo(({
     qualities,
     languages,
     movie.imdb_id,
-    posterUrl
+    posterUrl,
+    handleBackupApiCall
   ]);
 
   const renderLoadingState = useMemo(() => (
@@ -260,7 +262,3 @@ export const VideoSection: React.FC<VideoSectionProps> = memo(({
 VideoSection.displayName = 'VideoSection';
 
 export default VideoSection;
-
-function handleBackupApiCall(): void {
-  throw new Error('Function not implemented.');
-}

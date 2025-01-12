@@ -5,13 +5,11 @@ import { PlaybackControls } from './PlaybackControls';
 import { VolumeControls } from './VolumeControls';
 import { TimeDisplay } from './TimeDisplay';
 import { SeekBar } from './SeekBar';
-import { LanguageSelector } from './LanguageSelector';
 import { AudioSettingsMenu, AudioTrackCustom } from './AudioSettingsMenu';
 import { FullscreenButton } from './FullscreenButton';
 import { MobileMenu } from './MobileMenu';
 import { LoadingSpinner } from './LoadingSpinner';
 import { TitleDisplay } from './TitleDisplay';
-import { QualitySelector } from './QualitySelector';
 import { SubtitleSelector } from './SubtitleSelector';
 import { ControlsProps, Subtitle } from '../../types';
 
@@ -281,17 +279,7 @@ const Controls: React.FC<ControlsProps> = ({
                             <Flex alignItems="center" mt={[2, 0]} width={["100%", "auto"]} justifyContent={["space-between", "flex-end"]}>
                                 {isLargerThan768 ? (
                                     <>
-                                        <QualitySelector
-                                            selectedQuality={localQuality}
-                                            availableQualities={availableQualities}
-                                            onQualityChange={handleQualityChange}
-                                            
-                                        />
-                                        <LanguageSelector
-                                            selectedLanguage={localLanguage}
-                                            availableLanguages={availableLanguages}
-                                            onLanguageChange={handleLanguageChange}
-                                        />
+                                 
                                         <AudioSettingsMenu
                                             audioTracks={audioTracks}
                                             selectedAudioTrack={localAudioTrack}

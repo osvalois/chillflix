@@ -18,9 +18,9 @@ import OpenSubtitlesService from "../../services/openSubtitlesService";
 import { useVideoPlayerState } from "../../hooks/useVideoPlayerState";
 import { AudioTrackCustom } from "./AudioSettingsMenu";
 import { debounce } from 'lodash';
-import { Subtitle } from "../../types";
 import { CONSTANTS, initialOptions } from "./constants";
 import { useTimeout } from "../../hooks/useTimeout";
+import { Subtitle } from "../../services/subtitle-types";
 
 const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
   ({
@@ -349,6 +349,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
         if (imdbId) {
           try {
             const fetchedSubtitles = await OpenSubtitlesService.searchSubtitles(imdbId);
+            trackEvent('subtitle_fetch_success', { 
+              imdbId, 
+              fetchedSubtitles
+            });
             setSubtitles(fetchedSubtitles);
           } catch (error) {
             console.error('Error fetching subtitles:', error);
