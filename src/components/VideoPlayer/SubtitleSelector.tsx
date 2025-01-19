@@ -3,8 +3,8 @@ import { useMediaQuery } from 'react-responsive';
 import { Box, useToast, Text, Spinner } from "@chakra-ui/react";
 import { AnimatePresence, motion } from 'framer-motion';
 import pako from 'pako';
-import { Subtitle } from '../../types';
 import { DynamicIcon } from '../Movie/Icons';
+import { Subtitle } from '../../services/subtitle-types';
 
 interface SubtitleSelectorProps {
   subtitles: Subtitle[] | undefined;
@@ -67,34 +67,89 @@ export const SubtitleSelector: React.FC<SubtitleSelectorProps> = ({
 
   // Procesamiento de subtítulos mejorado
   const filteredSubtitles = useMemo(() => {
+    // Log inicial de subtítulos recibidos
+    console.log("Subtítulos recibidos:", subtitles);
+
     if (!Array.isArray(subtitles)) {
-      return [];
+        console.warn("⚠️ Subtítulos no es un array:", typeof subtitles);
+        return [];
     }
 
-    const validSubtitles = subtitles.filter(subtitle =>
-      subtitle &&
-      typeof subtitle === 'object' &&
-      subtitle.SubDownloadLink &&
-      typeof subtitle.SubDownloadLink === 'string' &&
-      subtitle.SubDownloadLink.endsWith('.gz')
-    );
+    console.log(`Procesando ${subtitles.length} subtítulos...`);
 
-    const groupedSubtitles = validSubtitles.reduce((acc, subtitle) => {
-      const key = `${subtitle.ISO639}-${subtitle.SubFormat}-${subtitle.SubHash}`;
-      
-      if (!acc[subtitle.ISO639] || subtitle.SubRating > acc[subtitle.ISO639].subtitle.SubRating) {
-        acc[subtitle.ISO639] = {
-          subtitle,
-          key
+    // Validación de subtítulos
+    const validSubtitles = subtitles.filter(subtitle => {
+        const validation = {
+            hasSubtitle: Boolean(subtitle),
+            isObject: typeof subtitle === 'object',
+            hasDownloadLink: Boolean(subtitle?.SubDownloadLink),
+            isStringLink: typeof subtitle?.SubDownloadLink === 'string',
+            endsWithGz: true
         };
-      }
-      return acc;
+        console.log('🔍 Validación de subtítulo:', {
+          subtítulo: {
+              id: subtitle?.IDSubtitle,
+              idioma: subtitle?.LanguageName,
+              link: subtitle?.SubDownloadLink
+          },
+          resultados: {
+              ...validation,
+              resumen: {
+                  validacionesPasadas: Object.values(validation).filter(v => v).length,
+                  validacionesTotales: Object.values(validation).length,
+                  todasPasaron: Object.values(validation).every(v => v)
+              }
+          }
+      });
+
+        const isValid = Object.values(validation).every(v => v);
+
+        if (!isValid) {
+            console.warn("Subtítulo inválido:", {
+                subtitle,
+                validationResults: validation
+            });
+        }
+
+        return isValid;
+    });
+
+    console.log(`Subtítulos válidos encontrados: ${validSubtitles.length}`, validSubtitles);
+
+    // Agrupación por idioma
+    const groupedSubtitles = validSubtitles.reduce((acc, subtitle) => {
+        const key = `${subtitle.ISO639}-${subtitle.SubFormat}-${subtitle.SubHash}`;
+        
+        console.log(`Procesando subtítulo para idioma ${subtitle.ISO639}:`, {
+            currentRating: subtitle.SubRating,
+            existingRating: acc[subtitle.ISO639]?.subtitle.SubRating || 'ninguno'
+        });
+
+        if (!acc[subtitle.ISO639] || subtitle.SubRating > acc[subtitle.ISO639].subtitle.SubRating) {
+            acc[subtitle.ISO639] = {
+                subtitle,
+                key
+            };
+            console.log(`✓ Seleccionado para ${subtitle.ISO639} con rating ${subtitle.SubRating}`);
+        }
+        return acc;
     }, {} as Record<string, { subtitle: Subtitle; key: string }>);
 
-    return Object.values(groupedSubtitles)
-      .map(({ subtitle }) => subtitle)
-      .sort((a, b) => a.LanguageName?.localeCompare(b.LanguageName || '') || 0);
-  }, [subtitles]);
+    console.log("Subtítulos agrupados:", groupedSubtitles);
+
+    // Ordenamiento final
+    const sortedSubtitles = Object.values(groupedSubtitles)
+        .map(({ subtitle }) => subtitle)
+        .sort((a, b) => {
+            const result = a.LanguageName?.localeCompare(b.LanguageName || '') || 0;
+            console.log(`Ordenando: ${a.LanguageName} vs ${b.LanguageName} = ${result}`);
+            return result;
+        });
+
+    console.log("Resultado final de subtítulos filtrados y ordenados:", sortedSubtitles);
+
+    return sortedSubtitles;
+}, [subtitles]);
 
   // Funciones de parsing mejoradas
   const parseSrtFormat = useCallback((content: string) => {
@@ -209,7 +264,13 @@ export const SubtitleSelector: React.FC<SubtitleSelectorProps> = ({
     }
   };
 
+  // En SubtitleSelector.tsx
   if (!Array.isArray(subtitles) || filteredSubtitles.length === 0) {
+    console.log("No se renderiza el selector:", {
+        isArray: Array.isArray(subtitles),
+        subtitlesLength: subtitles,
+        filteredLength: filteredSubtitles
+    });
     return null;
   }
 

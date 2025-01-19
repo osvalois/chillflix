@@ -11,7 +11,8 @@ import { MobileMenu } from './MobileMenu';
 import { LoadingSpinner } from './LoadingSpinner';
 import { TitleDisplay } from './TitleDisplay';
 import { SubtitleSelector } from './SubtitleSelector';
-import { ControlsProps, Subtitle } from '../../types';
+import { ControlsProps } from '../../types';
+import { Subtitle } from '../../services/subtitle-types';
 
 interface ParsedSubtitleCue {
     start: number;
