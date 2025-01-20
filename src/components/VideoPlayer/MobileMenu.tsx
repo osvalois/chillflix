@@ -20,7 +20,7 @@ import { LanguageSelector } from './LanguageSelector';
 import { AudioSettingsMenu } from './AudioSettingsMenu';
 import { SubtitleSelector } from './SubtitleSelector';
 import type { AudioTrack } from './types';
-import { Subtitle } from '../../types';
+import type { Subtitle } from '../../services/subtitle-types';
 
 const MotionBox = motion(Box as any);
 const AnimatedFlex = animated(Flex);

@@ -6,17 +6,16 @@ import { SubtitleAdapter } from './subtitle-adapter';
 class OpenSubtitlesService {
   private axiosInstance: AxiosInstance;
   private apiKey: string;
-  private token: string | null = null;
   private subtitleCache: Map<string, Subtitle[]> = new Map();
   private downloadCache: Map<string, string> = new Map();
   private pendingRequests: Map<string, Promise<Subtitle[]>> = new Map();
   private lastRequestTime: number = 0;
-  private readonly REQUEST_DELAY = 1000; // 1 segundo entre solicitudes
+  private readonly REQUEST_DELAY = 1000;
 
   constructor() {
     this.apiKey = 'CebeEIzDp2oKu8PhYhR1K8J2ZRAWEtQq';
     this.axiosInstance = axios.create({
-      baseURL: 'https://api.opensubtitles.com/api/v1',
+      baseURL: 'https://chillflix-subtitles-service-production.up.railway.app/api/v1',
       headers: {
         'Content-Type': 'application/json',
         'Api-Key': this.apiKey,
@@ -38,19 +37,16 @@ class OpenSubtitlesService {
   }
 
   async searchSubtitles(imdbId: string): Promise<Subtitle[]> {
-    // Verificar caché primero
     const cachedSubtitles = this.subtitleCache.get(imdbId);
     if (cachedSubtitles) {
       return cachedSubtitles;
     }
 
-    // Verificar si hay una solicitud pendiente
     const pendingRequest = this.pendingRequests.get(imdbId);
     if (pendingRequest) {
       return pendingRequest;
     }
 
-    // Crear nueva solicitud
     const request = this.fetchSubtitles(imdbId);
     this.pendingRequests.set(imdbId, request);
 
@@ -75,20 +71,17 @@ class OpenSubtitlesService {
         }
       });
 
-      const subtitles = response.data.data.map(subtitle => 
+      return response.data.data.map(subtitle => 
         SubtitleAdapter.toLegacySubtitle(subtitle)
       );
-
-      return subtitles;
     } catch (error) {
       console.error('Error searching for subtitles:', error);
       return [];
     }
   }
 
-  async downloadSubtitle(url: string): Promise<string> {
-    // Verificar caché de descargas
-    const cachedDownload = this.downloadCache.get(url);
+  async downloadSubtitle(fileId: string): Promise<string> {
+    const cachedDownload = this.downloadCache.get(fileId);
     if (cachedDownload) {
       return cachedDownload;
     }
@@ -96,29 +89,24 @@ class OpenSubtitlesService {
     try {
       await this.throttleRequest();
       
-      let subtitleUrl: string;
+      // Extraer el ID numérico del fileId (eliminar el prefijo 'file_')
+      const numericFileId = parseInt(fileId.replace('file_', ''));
       
-      if (url.startsWith('file_')) {
-        const fileId = url.replace('file_', '');
-        const downloadRequest: DownloadRequestV1 = {
-          file_id: parseInt(fileId),
-        };
+      // Preparar la solicitud de descarga
+      const downloadRequest: DownloadRequestV1 = {
+        file_id: numericFileId,
+        sub_format: 'srt'
+      };
 
-        if (this.token) {
-          const response = await this.axiosInstance.post<DownloadResponseV1>(
-            '/download',
-            downloadRequest
-          );
-          subtitleUrl = response.data.link;
-        } else {
-          throw new Error('Token not available for download');
-        }
-      } else {
-        subtitleUrl = url;
-      }
+      // Obtener el enlace de descarga
+      const downloadResponse = await this.axiosInstance.post<DownloadResponseV1>(
+        '/subtitles/download',
+        downloadRequest
+      );
 
-      const subtitleContent = await this.downloadAndProcessSubtitle(subtitleUrl);
-      this.downloadCache.set(url, subtitleContent);
+      // Descargar y procesar el subtítulo
+      const subtitleContent = await this.downloadAndProcessSubtitle(downloadResponse.data.link);
+      this.downloadCache.set(fileId, subtitleContent);
       
       return subtitleContent;
     } catch (error) {
@@ -128,24 +116,29 @@ class OpenSubtitlesService {
   }
 
   private async downloadAndProcessSubtitle(url: string): Promise<string> {
-    const response = await axios.get(url, {
-      responseType: 'arraybuffer'
-    });
+    try {
+      const response = await axios.get(url, {
+        responseType: 'arraybuffer'
+      });
 
-    let subtitleContent: string;
-    if (url.endsWith('.gz')) {
-      const decompressed = pako.inflate(new Uint8Array(response.data), { to: 'string' });
-      subtitleContent = decompressed;
-    } else {
-      subtitleContent = new TextDecoder().decode(response.data);
+      let subtitleContent: string;
+      if (url.endsWith('.gz')) {
+        const decompressed = pako.inflate(new Uint8Array(response.data), { to: 'string' });
+        subtitleContent = decompressed;
+      } else {
+        subtitleContent = new TextDecoder().decode(response.data);
+      }
+
+      if (!subtitleContent.startsWith('WEBVTT')) {
+        subtitleContent = this.convertToVTT(subtitleContent);
+      }
+
+      const subtitleBlob = new Blob([subtitleContent], { type: 'text/vtt' });
+      return URL.createObjectURL(subtitleBlob);
+    } catch (error) {
+      console.error('Error processing subtitle:', error);
+      throw new Error('Failed to process subtitle file');
     }
-
-    if (!subtitleContent.startsWith('WEBVTT')) {
-      subtitleContent = this.convertToVTT(subtitleContent);
-    }
-
-    const subtitleBlob = new Blob([subtitleContent], { type: 'text/vtt' });
-    return URL.createObjectURL(subtitleBlob);
   }
 
   private convertToVTT(srtContent: string): string {
@@ -155,7 +148,6 @@ class OpenSubtitlesService {
         .replace(/^\d+\s*$/gm, '');
   }
 
-  // Método para limpiar la caché si es necesario
   clearCache(): void {
     this.subtitleCache.clear();
     this.downloadCache.clear();
