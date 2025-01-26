@@ -268,7 +268,7 @@ export const useMovieData = (tmdbId: string | undefined) => {
     while (currentTry <= MAX_RETRIES) {
       try {
         const response = await axios.get(
-          `https://chillflix-movie-.fly.dev/api/movie/${tmdbId}`,
+          `https://chillflix-movie-importer.fly.dev/api/movie/${tmdbId}`,
           { timeout: 60000 }
         );
 
