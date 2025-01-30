@@ -7,7 +7,7 @@ import { MovieData } from '../types/movie.types';
     private readonly apiClient: AxiosInstance;
     private static instance: MovieStorageService;
   
-    private constructor(baseURL: string = 'https://chillflix-indexer-movie-maker-production.up.railway.app') {
+    private constructor(baseURL: string = 'https://chillflix-movie-maker-production.up.railway.app') {
       this.apiClient = axios.create({
         baseURL: `${baseURL}/api/movies`,
         timeout: 30000,
