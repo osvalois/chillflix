@@ -8,6 +8,7 @@ import NotFound from './pages/NotFound';
 import  Auth  from './pages/Auth';
 import { RequireAuth } from './components/Auth/RequireAuth';
 import SiteSettings from './pages/SiteSettings';
+import LiveChannelPage from './pages/LiveChannelPage';
 
 const ProtectedRoutes: React.FC = () => {
   return (
@@ -16,6 +17,7 @@ const ProtectedRoutes: React.FC = () => {
         <Route path="/" element={<Home />} />
         <Route path="/movie/:tmdbId" element={<MoviePage />} />
         <Route path="/settings" element={<SiteSettings />} />
+        <Route path="/live" element={<LiveChannelPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Layout>

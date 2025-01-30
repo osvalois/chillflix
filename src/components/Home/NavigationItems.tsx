@@ -1,6 +1,7 @@
 // components/Header/NavigationItems.tsx
 import { Home, Settings } from 'lucide-react';
 import { NavItem } from '../../types';
+import Live from '../../icons/Live';
 
 export const useNavigationItems = (): NavItem[] => {
   return [
@@ -28,6 +29,19 @@ export const useNavigationItems = (): NavItem[] => {
         border: '1px solid rgba(255, 255, 255, 0.18)'
       },
       pulseColor: '#00DFD8',
+      shortcut: ''
+    },
+    {
+      icon: Live,
+      label: 'Live',
+      path: '/live',
+      gradient: 'linear-gradient(135deg, #FF3366 0%, #FF0066 100%)',
+      glassEffect: {
+        background: 'rgba(255, 255, 255, 0.1)',
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255, 255, 255, 0.18)'
+      },
+      pulseColor: '#FF3366',
       shortcut: ''
     }
   ];

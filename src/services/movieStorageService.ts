@@ -1,6 +1,7 @@
 
   // services/movieStorageService.ts
   import axios, { AxiosInstance, AxiosResponse } from 'axios';
+import { MovieData } from '../types/movie.types';
   
   export class MovieStorageService {
     private readonly apiClient: AxiosInstance;
@@ -148,71 +149,3 @@
     }
   }
   
-  // Ejemplo de uso en un componente React o hook
-  /*
-  import { MovieStorageService } from './services/movieStorageService';
-  
-  const movieService = MovieStorageService.getInstance();
-  
-  // En un componente o hook
-  const saveMovie = async (movieData: MovieData) => {
-    try {
-      const result = await movieService.saveOrUpdateMovie({
-        tmdb_id: movieData.tmdb_id,
-        title: movieData.title,
-        classification: movieData.classification,
-        torrent_hash: movieData.torrent_hash,
-        resource_index: movieData.resource_index
-      });
-      console.log('Movie saved:', result);
-    } catch (error) {
-      console.error('Error saving movie:', error);
-    }
-  };
-  */
-  
-  // Hook personalizado para usar el servicio
-  import { useState, useCallback } from 'react';
-import { MovieData } from '../types/movie.types';
-  
-  export const useMovieStorage = () => {
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<Error | null>(null);
-    
-    const movieService = MovieStorageService.getInstance();
-  
-    const saveMovie = useCallback(async (movieData: Omit<MovieData, 'id' | 'created_at' | 'updated_at'>) => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const result = await movieService.saveOrUpdateMovie(movieData);
-        return result;
-      } catch (err) {
-        setError(err as Error);
-        throw err;
-      } finally {
-        setIsLoading(false);
-      }
-    }, []);
-  
-    const getMovie = useCallback(async (tmdbId: number) => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const result = await movieService.getMovieByTmdbId(tmdbId);
-        return result;
-      } catch (err) {
-        setError(err as Error);
-        throw err;
-      } finally {
-        setIsLoading(false);
-      }
-    }, []);
-  
-    return {
-      saveMovie,
-      getMovie,
-      isLoading,
-      error
-    };
-  };

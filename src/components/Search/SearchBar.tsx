@@ -117,6 +117,7 @@ const useSearch = (isOpen: boolean, onError: () => void) => {
       ? data.pages.flatMap(page =>
           page.map(content => ({
             ...content,
+            adult: '',
             primary_color: '#000000',
             genre_ids: content.genre_ids || [],
             type: content.media_type === 'movie' ? ContentType.Movie : ContentType.TVSeries,

@@ -68,6 +68,7 @@ const mapToCombinedContent = (item: TMDBContent): CombinedContent => {
   const title = 'title' in item ? item.title : item.name;
   
   return {
+    adult: '',
     ...item,
     overview: filterContent(item.overview),
     type: 'title' in item ? ContentType.Movie : ContentType.TVSeries,
