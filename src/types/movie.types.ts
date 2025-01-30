@@ -1,5 +1,6 @@
 // types/
 export interface MovieData {
+    movieDuration: number;
     id?: string;
     tmdb_id: number;
     title: string;

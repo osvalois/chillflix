@@ -1,5 +1,4 @@
-
-import React, { Suspense, useState, useEffect, useMemo } from 'react';
+import React, { Suspense, useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Box,
   Container,
@@ -13,30 +12,50 @@ import {
   Icon,
   Button,
   useToast,
+  IconButton,
+  Drawer,
+  DrawerBody,
+  DrawerHeader,
+  DrawerOverlay,
+  DrawerContent,
+  DrawerCloseButton,
+  Badge,
+  Tooltip,
+  keyframes,
+  Skeleton,
 } from '@chakra-ui/react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Calendar, Info, Video } from 'lucide-react';
+import { Play, Calendar, Info, Video, Menu, Clock, SkipForward, Volume2, VolumeX } from 'lucide-react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { HelmetProvider, Helmet } from 'react-helmet-async';
 import { useQuery } from 'react-query';
-
-// Components
-
-
-// Services
-import ProgramGuide, { ScheduledMovie } from '../components/ProgramGuide';
-import { MovieStorageService } from '../services/movieStorageService';
 import LoadingSkeleton from '../components/LoadingSkeleton';
-import ErrorFallback from '../components/UI/ErrorFallback';
+import { MovieStorageService } from '../services/movieStorageService';
 
-// Custom hook for managing channel state
+// Types
+interface ScheduledMovie {
+  id: string;
+  title: string;
+  description: string;
+  duration: number;
+  startTime: Date;
+  endTime: Date;
+  torrent_hash: string;
+  resource_index: number;
+  thumbnail?: string;
+  genre?: string;
+  year?: number;
+}
+
+// Custom hooks
 const useChannelState = () => {
   const [currentMovie, setCurrentMovie] = useState<ScheduledMovie | null>(null);
+  const [selectedMovie, setSelectedMovie] = useState<ScheduledMovie | null>(null);
   const [progress, setProgress] = useState(0);
   const [schedule, setSchedule] = useState<ScheduledMovie[]>([]);
+  const [isMuted, setIsMuted] = useState(false);
   const toast = useToast();
 
-  // Query stored movies
   const { data: movies, isLoading, error } = useQuery(
     'storedMovies',
     async () => {
@@ -53,40 +72,49 @@ const useChannelState = () => {
           isClosable: true,
         });
       },
+      staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
     }
   );
 
-  // Generate schedule
+  // Generate schedule with improved time slots
   useEffect(() => {
     if (movies) {
       const now = new Date();
       let currentTime = new Date(now.setMinutes(0, 0, 0));
       
       const newSchedule = movies.map((movie) => {
-        const duration = 7200; // 2 hours default
+        const duration = movie.movieDuration || 7200;
         const startTime = new Date(currentTime);
         const endTime = new Date(currentTime.getTime() + duration * 1000);
         
         currentTime = endTime;
         
         return {
-          ...movie,
-          startTime,
-          endTime,
-          duration,
-        } as ScheduledMovie;
+            ...movie,
+            startTime,
+            endTime,
+            duration,
+        } as unknown as ScheduledMovie;
       });
 
       setSchedule(newSchedule);
     }
   }, [movies]);
 
-  // Update current movie and progress
+  // Enhanced movie update logic
   useEffect(() => {
     if (schedule.length === 0) return;
 
     const updateCurrentMovie = () => {
       const now = new Date();
+      if (selectedMovie) {
+        setCurrentMovie(selectedMovie);
+        const elapsed = now.getTime() - selectedMovie.startTime.getTime();
+        const progress = (elapsed / (selectedMovie.duration * 1000)) * 100;
+        setProgress(Math.min(progress, 100));
+        return;
+      }
+
       const current = schedule.find(
         movie => now >= movie.startTime && now < movie.endTime
       );
@@ -103,7 +131,35 @@ const useChannelState = () => {
     updateCurrentMovie();
 
     return () => clearInterval(interval);
-  }, [schedule]);
+  }, [schedule, selectedMovie]);
+
+  const handleMovieSelect = useCallback((movie: ScheduledMovie) => {
+    setSelectedMovie(movie);
+    setProgress(0);
+    toast({
+      title: 'Switching Movie',
+      description: `Now playing: ${movie.title}`,
+      status: 'success',
+      duration: 3000,
+      isClosable: true,
+      position: 'top-right',
+    });
+  }, [toast]);
+
+  const toggleMute = useCallback(() => {
+    setIsMuted(prev => !prev);
+  }, []);
+
+  const skipToNext = useCallback(() => {
+    if (!currentMovie || schedule.length === 0) return;
+    
+    const currentIndex = schedule.findIndex(movie => movie.id === currentMovie.id);
+    const nextMovie = schedule[(currentIndex + 1) % schedule.length];
+    
+    if (nextMovie) {
+      handleMovieSelect(nextMovie);
+    }
+  }, [currentMovie, schedule, handleMovieSelect]);
 
   return {
     currentMovie,
@@ -111,14 +167,75 @@ const useChannelState = () => {
     schedule,
     isLoading,
     error,
+    handleMovieSelect,
+    selectedMovie,
+    isMuted,
+    toggleMute,
+    skipToNext,
   };
 };
 
-// Now Playing Info Component
+// Components
+const MovieCard: React.FC<{
+  movie: ScheduledMovie;
+  isCurrentMovie: boolean;
+  isSelected: boolean;
+  onClick: () => void;
+}> = ({ movie, isCurrentMovie, isSelected, onClick }) => {
+  const pulseAnimation = keyframes`
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+  `;
+
+  return (
+    <Box
+      p={4}
+      bg={isSelected ? 'red.900' : isCurrentMovie ? 'gray.700' : 'gray.800'}
+      borderRadius="md"
+      cursor="pointer"
+      onClick={onClick}
+      _hover={{ bg: 'red.800', transform: 'translateY(-2px)' }}
+      transition="all 0.2s"
+      position="relative"
+      animation={isCurrentMovie ? `${pulseAnimation} 2s infinite` : undefined}
+    >
+      <Flex justify="space-between" align="start" mb={2}>
+        <Heading size="sm" noOfLines={2}>
+          {movie.title}
+        </Heading>
+        {isCurrentMovie && (
+          <Badge colorScheme="red" variant="solid">
+            Live
+          </Badge>
+        )}
+      </Flex>
+      
+      <Text fontSize="sm" color="gray.400" mb={2} noOfLines={2}>
+        {movie.description}
+      </Text>
+      
+      <Flex justify="space-between" align="center">
+        <Text fontSize="xs" color="gray.500">
+          {movie.startTime.toLocaleTimeString()} - {movie.endTime.toLocaleTimeString()}
+        </Text>
+        {movie.genre && (
+          <Badge variant="outline" colorScheme="blue">
+            {movie.genre}
+          </Badge>
+        )}
+      </Flex>
+    </Box>
+  );
+};
+
 const NowPlayingInfo: React.FC<{
   currentMovie: ScheduledMovie;
   progress: number;
-}> = ({ currentMovie, progress }) => {
+  onSkipNext: () => void;
+  onToggleMute: () => void;
+  isMuted: boolean;
+}> = ({ currentMovie, progress, onSkipNext, onToggleMute, isMuted }) => {
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: true });
 
   return (
@@ -139,18 +256,51 @@ const NowPlayingInfo: React.FC<{
               <Flex align="center" gap={2}>
                 <Icon as={Play} color="red.500" />
                 <Text fontWeight="bold">NOW PLAYING</Text>
+                {currentMovie.genre && (
+                  <Badge colorScheme="blue" ml={2}>
+                    {currentMovie.genre}
+                  </Badge>
+                )}
               </Flex>
-              <Button
-                size="sm"
-                leftIcon={<Info size={16} />}
-                variant="ghost"
-                onClick={onToggle}
-              >
-                {isOpen ? 'Hide Info' : 'Show Info'}
-              </Button>
+              <Flex gap={2}>
+                <Tooltip label={isMuted ? 'Unmute' : 'Mute'}>
+                  <IconButton
+                    aria-label="Toggle mute"
+                    icon={<Icon as={isMuted ? VolumeX : Volume2} />}
+                    variant="ghost"
+                    size="sm"
+                    onClick={onToggleMute}
+                  />
+                </Tooltip>
+                <Tooltip label="Skip to next">
+                  <IconButton
+                    aria-label="Skip to next"
+                    icon={<Icon as={SkipForward} />}
+                    variant="ghost"
+                    size="sm"
+                    onClick={onSkipNext}
+                  />
+                </Tooltip>
+                <Button
+                  size="sm"
+                  leftIcon={<Info size={16} />}
+                  variant="ghost"
+                  onClick={onToggle}
+                >
+                  {isOpen ? 'Hide Info' : 'Show Info'}
+                </Button>
+              </Flex>
             </Flex>
             
-            <Heading size="md">{currentMovie.title}</Heading>
+            <Flex direction="column" gap={1}>
+              <Heading size="md">{currentMovie.title}</Heading>
+              {currentMovie.year && (
+                <Text fontSize="sm" color="gray.400">
+                  {currentMovie.year}
+                </Text>
+              )}
+            </Flex>
+            
             <Box
               w="100%"
               h="2px"
@@ -179,12 +329,17 @@ const LiveChannelContent: React.FC = () => {
     progress,
     schedule,
     isLoading,
-    error
+    error,
+    handleMovieSelect,
+    selectedMovie,
+    isMuted,
+    toggleMute,
+    skipToNext,
   } = useChannelState();
   
   const isMobile = useBreakpointValue({ base: true, md: false });
+  const { isOpen, onOpen, onClose } = useDisclosure();
 
-  // Generate stream URL
   const streamUrl = useMemo(() => {
     if (!currentMovie) return null;
     try {
@@ -195,10 +350,43 @@ const LiveChannelContent: React.FC = () => {
     }
   }, [currentMovie]);
 
-  if (isLoading) return <LoadingSkeleton />;
-  if (error) return <ErrorFallback error={error} resetErrorBoundary={function (): void {
-      throw new Error('Function not implemented.');
-  } } />;
+  if (isLoading) {
+    return (
+      <Box p={8}>
+        <VStack spacing={4} align="stretch">
+          <Skeleton height="40px" width="200px" />
+          <Skeleton height="400px" />
+          <Skeleton height="20px" />
+        </VStack>
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Flex
+        direction="column"
+        align="center"
+        justify="center"
+        h="100vh"
+        p={8}
+        textAlign="center"
+      >
+        <Icon as={Video} size={48} color="red.500" mb={4} />
+        <Heading size="lg" mb={2}>Unable to Load Content</Heading>
+        <Text color="gray.400">
+          We're having trouble loading the channel content. Please try again later.
+        </Text>
+        <Button
+          mt={4}
+          onClick={() => window.location.reload()}
+          colorScheme="red"
+        >
+          Refresh Page
+        </Button>
+      </Flex>
+    );
+  }
 
   return (
     <Box minH="100vh" bg="gray.900" color="white">
@@ -216,10 +404,12 @@ const LiveChannelContent: React.FC = () => {
                 <Suspense fallback={<LoadingSkeleton />}>
                   {streamUrl ? (
                     <video
+                      key={currentMovie?.id}
                       src={streamUrl}
                       style={{ width: '100%', height: '100%' }}
                       autoPlay
                       controls
+                      muted={isMuted}
                     />
                   ) : (
                     <Flex
@@ -239,11 +429,28 @@ const LiveChannelContent: React.FC = () => {
                   <NowPlayingInfo
                     currentMovie={currentMovie}
                     progress={progress}
+                    onSkipNext={skipToNext}
+                    onToggleMute={toggleMute}
+                    isMuted={isMuted}
                   />
                 )}
               </Box>
 
-              {/* Program Guide */}
+              {/* Mobile Menu Button */}
+              {isMobile && (
+                <IconButton
+                  aria-label="Open program guide"
+                  icon={<Icon as={Menu} />}
+                  position="fixed"
+                  top={4}
+                  right={4}
+                  onClick={onOpen}
+                  colorScheme="red"
+                  zIndex={20}
+                />
+              )}
+
+              {/* Program Guide - Desktop */}
               {!isMobile && (
                 <Box
                   w="400px"
@@ -258,18 +465,80 @@ const LiveChannelContent: React.FC = () => {
                     <Heading size="md">Program Guide</Heading>
                   </Flex>
                   
-                  <Suspense fallback={<LoadingSkeleton />}>
-                    <ProgramGuide
-                      schedule={schedule}
-                      currentMovie={currentMovie}
-                    />
-                  </Suspense>
+                  <VStack spacing={4} align="stretch">
+                    {schedule.map((movie) => (
+                      <MovieCard
+                        key={movie.id}
+                        movie={movie}
+                        isCurrentMovie={currentMovie?.id === movie.id}
+                        isSelected={selectedMovie?.id === movie.id}
+                        onClick={() => handleMovieSelect(movie)}
+                      />
+                    ))}
+                  </VStack>
                 </Box>
+              )}
+
+              {/* Program Guide - Mobile Drawer */}
+              {isMobile && (
+                <Drawer
+                  isOpen={isOpen}
+                  placement="right"
+                  onClose={onClose}
+                  size="full"
+                >
+                  <DrawerOverlay />
+                  <DrawerContent bg="gray.800">
+                    <DrawerCloseButton />
+                    <DrawerHeader>
+                      <Flex align="center" gap={2}>
+                        <Icon as={Calendar} />
+                        <Text>Program Guide</Text>
+                      </Flex>
+                    </DrawerHeader>
+
+                    <DrawerBody>
+                      <VStack spacing={4} align="stretch">
+                        {schedule.map((movie) => (
+                          <MovieCard
+                            key={movie.id}
+                            movie={movie}
+                            isCurrentMovie={currentMovie?.id === movie.id}
+                            isSelected={selectedMovie?.id === movie.id}
+                            onClick={() => {
+                              handleMovieSelect(movie);
+                              onClose();
+                            }}
+                          />
+                        ))}
+                      </VStack>
+                    </DrawerBody>
+                  </DrawerContent>
+                </Drawer>
               )}
             </Flex>
           </Container>
         </motion.div>
       </AnimatePresence>
+
+      {/* Time indicator */}
+      <Box
+        position="fixed"
+        top={4}
+        left={4}
+        bg="rgba(0, 0, 0, 0.8)"
+        backdropFilter="blur(10px)"
+        borderRadius="md"
+        p={2}
+        zIndex={20}
+      >
+        <Flex align="center" gap={2}>
+          <Icon as={Clock} size={16} />
+          <Text fontSize="sm" fontWeight="medium">
+            {new Date().toLocaleTimeString()}
+          </Text>
+        </Flex>
+      </Box>
     </Box>
   );
 };
@@ -278,9 +547,39 @@ const LiveChannelContent: React.FC = () => {
 const LiveChannelPage: React.FC = () => {
   return (
     <HelmetProvider>
-      <ErrorBoundary FallbackComponent={ErrorFallback}>
+      <ErrorBoundary
+        FallbackComponent={({ error }) => (
+          <Flex
+            direction="column"
+            align="center"
+            justify="center"
+            h="100vh"
+            p={8}
+            bg="gray.900"
+            color="white"
+          >
+            <Icon as={Video} size={48} color="red.500" mb={4} />
+            <Heading size="lg" mb={2}>Something went wrong</Heading>
+            <Text color="gray.400" textAlign="center" maxW="600px">
+              We encountered an error while loading the channel.
+              Please try refreshing the page or come back later.
+            </Text>
+            <Text color="gray.500" fontSize="sm" mt={4} maxW="600px" textAlign="center">
+              Error details: {error.message}
+            </Text>
+            <Button
+              mt={4}
+              onClick={() => window.location.reload()}
+              colorScheme="red"
+            >
+              Refresh Page
+            </Button>
+          </Flex>
+        )}
+      >
         <Helmet>
           <title>Live Channel - ChillFlix</title>
+          <meta name="description" content="Watch movies live on ChillFlix" />
         </Helmet>
         <LiveChannelContent />
       </ErrorBoundary>

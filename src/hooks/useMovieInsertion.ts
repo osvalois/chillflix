@@ -23,6 +23,7 @@ export const useMovieInsertion = (): MovieInsertionHook => {
 
     try {
       const movieData = {
+        movieDuration: 0,
         tmdb_id: movie.id,
         title: movie.title,
         classification: movie.adult ? 'R' : 'PG',
