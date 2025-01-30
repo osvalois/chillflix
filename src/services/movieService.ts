@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 
 export interface Mirror {
+  index: number;
   size: any;
   seeds: any;
   infoHash: string;

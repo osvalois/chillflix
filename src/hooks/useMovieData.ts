@@ -1,5 +1,5 @@
 // src/pages/MoviePage/hooks/useMovieData.ts
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient } from 'react-query';
 import { useToast } from '@chakra-ui/react';
 import { useMediaQuery } from 'react-responsive';
@@ -11,6 +11,7 @@ import { useMirrorLogic } from './useMirrorLogic';
 import { getMovieCredits, getSimilarMovies, getTMDBMovieDetails } from '../services/tmdbService';
 import movieService, { Mirror, MovieInfo } from '../services/movieService';
 import { CombinedContent, MovieCredits } from '../types';
+import { useMovieInsertion } from './useMovieInsertion';
 
 interface GroupedMirrors {
   [key: string]: {
@@ -213,6 +214,47 @@ export const useMovieData = (tmdbId: string | undefined) => {
     }
     return null;
   }, [finalMovieInfo]);
+  const [hasAttemptedInsert, setHasAttemptedInsert] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const { insertMovie, isInserting } = useMovieInsertion();
+  const handleMovieInsert = useCallback(async () => {
+    if (hasAttemptedInsert || !movie || !videoFile) return;
+
+    try {
+      setIsProcessing(true);
+      await insertMovie(movie, {
+        infoHash: videoFile.infoHash,
+        index: videoFile.index,
+        quality: selectedQuality || 'unknown',
+        language: selectedLanguage || 'unknown',
+        size: undefined,
+        seeds: undefined,
+        id: '',
+        title: '',
+        year: 0,
+        magnet: '',
+        tmdbId: 0,
+        imdbId: movie.imdb_id ?? '',
+        originalLanguage: '',
+        fileType: '',
+        sha256Hash: ''
+      });
+    } catch (error) {
+      console.error('Error saving movie:', error);
+      toast({
+        title: "Warning",
+        description: "Movie information was loaded but couldn't be saved for future reference",
+        status: "warning",
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setHasAttemptedInsert(true);
+      setIsProcessing(false);
+    }
+  }, [movie, videoFile, selectedQuality, selectedLanguage, insertMovie, hasAttemptedInsert, toast]);
+
 
   const streamUrl = useMemo(() => {
     if (!finalMovieInfo || !videoFile) {
@@ -220,6 +262,7 @@ export const useMovieData = (tmdbId: string | undefined) => {
     }
 
     try {
+      handleMovieInsert()
       return movieService.getStreamUrl(videoFile.infoHash, videoFile.index);
     } catch (error) {
       console.error('Error generating stream URL:', error);

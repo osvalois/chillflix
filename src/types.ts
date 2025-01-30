@@ -308,6 +308,7 @@ export interface Genre {
 
 // Combined content interface
 export interface CombinedContent extends BaseContent {
+  adult: any;
   primary_color: string;
   title: string;
   name?: string;
