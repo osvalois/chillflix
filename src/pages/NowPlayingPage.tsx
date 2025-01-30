@@ -25,15 +25,18 @@ import {
   Skeleton,
 } from '@chakra-ui/react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Calendar, Info, Video, Menu, Clock, SkipForward, Volume2, VolumeX } from 'lucide-react';
+import { Play, Calendar, Info, Video, Menu, SkipForward, Volume2, VolumeX, TrendingUp } from 'lucide-react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { HelmetProvider, Helmet } from 'react-helmet-async';
 import { useQuery } from 'react-query';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import { MovieStorageService } from '../services/movieStorageService';
+import GlassmorphicButton from '../components/Button/GlassmorphicButton';
+import { useNavigate } from 'react-router-dom';
 
 // Types
 interface ScheduledMovie {
+  tmdb_id: number;
   id: string;
   title: string;
   description: string;
@@ -175,7 +178,7 @@ const useChannelState = () => {
   };
 };
 
-// Components
+
 const MovieCard: React.FC<{
   movie: ScheduledMovie;
   isCurrentMovie: boolean;
@@ -187,7 +190,7 @@ const MovieCard: React.FC<{
     50% { transform: scale(1.02); }
     100% { transform: scale(1); }
   `;
-
+  const navigate = useNavigate();
   return (
     <Box
       p={4}
@@ -206,9 +209,90 @@ const MovieCard: React.FC<{
         </Heading>
         {isCurrentMovie && (
           <Badge colorScheme="red" variant="solid">
-            Live
+            Playing
           </Badge>
         )}
+                {!isCurrentMovie && (
+          <Badge colorScheme="blue" variant="solid">
+            Play
+          </Badge>
+        )}
+                         <GlassmorphicButton
+  variant="info"
+  size="sm"
+  glowIntensity="medium"
+  glassFrost="medium"
+  iconPosition="right"
+  animated={true}
+  neonEffect={false}
+  textGradient={false}
+  glowColor="#2D9CDB"
+  onClick={() => {
+      const route = `/movie/${movie.tmdb_id}`;
+      navigate(route);
+  }}
+  sx={{
+    fontWeight: '500',
+    fontSize: '14px',
+    py: '8px',
+    px: '16px',
+    minHeight: '36px',
+    letterSpacing: '0.3px',
+    borderRadius: '12px',
+    borderColor: 'rgba(45, 156, 219, 0.3)',
+    color: '#FFFFFF',
+    bg: 'rgba(14, 165, 233, 0.15)',
+    backdropFilter: 'blur(12px)',
+    boxShadow: '0 2px 8px rgba(45, 156, 219, 0.15)',
+    textShadow: '0 1px 2px rgba(0, 0, 0, 0.15)', // Mejora la legibilidad
+    WebkitFontSmoothing: 'antialiased', // Mejora el renderizado del texto
+    MozOsxFontSmoothing: 'grayscale', // Mejora el renderizado en Firefox
+    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+    '& .button-text': {
+      color: '#FFFFFF',
+      opacity: 1,
+      textShadow: '0 1px 2px rgba(0, 0, 0, 0.15)',
+    },
+    '&:hover': {
+      bg: 'rgba(14, 165, 233, 0.25)',
+      borderColor: 'rgba(45, 156, 219, 0.4)',
+      boxShadow: '0 4px 12px rgba(45, 156, 219, 0.25)',
+      '& .button-text': {
+        color: '#FFFFFF',
+        opacity: 1,
+      }
+    },
+    '&:active': {
+      bg: 'rgba(14, 165, 233, 0.3)',
+      transform: 'translateY(1px)',
+      boxShadow: '0 2px 4px rgba(45, 156, 219, 0.2)',
+      '& .button-text': {
+        color: '#FFFFFF',
+        opacity: 0.95,
+      }
+    },
+    // Estado de carga
+    '&[data-loading]': {
+      '& .loading-spinner': {
+        borderColor: '#FFFFFF transparent #FFFFFF #FFFFFF',
+      },
+      '& .button-text': {
+        color: '#FFFFFF',
+        opacity: 0.9,
+      }
+    },
+    // Estado deshabilitado
+    '&:disabled': {
+      bg: 'rgba(14, 165, 233, 0.1)',
+      '& .button-text': {
+        color: '#FFFFFF',
+        opacity: 0.6,
+      }
+    }
+  }}
+>
+  Details
+</GlassmorphicButton>
       </Flex>
       
       <Text fontSize="sm" color="gray.400" mb={2} noOfLines={2}>
@@ -216,9 +300,6 @@ const MovieCard: React.FC<{
       </Text>
       
       <Flex justify="space-between" align="center">
-        <Text fontSize="xs" color="gray.500">
-          {movie.startTime.toLocaleTimeString()} - {movie.endTime.toLocaleTimeString()}
-        </Text>
         {movie.genre && (
           <Badge variant="outline" colorScheme="blue">
             {movie.genre}
@@ -461,10 +542,9 @@ const LiveChannelContent: React.FC = () => {
                   borderColor="gray.700"
                 >
                   <Flex align="center" gap={2} mb={6}>
-                    <Icon as={Calendar} />
-                    <Heading size="md">Program Guide</Heading>
+                    <Icon as={TrendingUp} />
+                    <Heading size="md">Now playing</Heading>
                   </Flex>
-                  
                   <VStack spacing={4} align="stretch">
                     {schedule.map((movie) => (
                       <MovieCard
@@ -520,31 +600,12 @@ const LiveChannelContent: React.FC = () => {
           </Container>
         </motion.div>
       </AnimatePresence>
-
-      {/* Time indicator */}
-      <Box
-        position="fixed"
-        top={4}
-        left={4}
-        bg="rgba(0, 0, 0, 0.8)"
-        backdropFilter="blur(10px)"
-        borderRadius="md"
-        p={2}
-        zIndex={20}
-      >
-        <Flex align="center" gap={2}>
-          <Icon as={Clock} size={16} />
-          <Text fontSize="sm" fontWeight="medium">
-            {new Date().toLocaleTimeString()}
-          </Text>
-        </Flex>
-      </Box>
     </Box>
   );
 };
 
 // Page Wrapper
-const LiveChannelPage: React.FC = () => {
+const NowPlayingPage: React.FC = () => {
   return (
     <HelmetProvider>
       <ErrorBoundary
@@ -587,4 +648,4 @@ const LiveChannelPage: React.FC = () => {
   );
 };
 
-export default LiveChannelPage;
+export default NowPlayingPage;

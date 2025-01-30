@@ -33,8 +33,8 @@ export const useNavigationItems = (): NavItem[] => {
     },
     {
       icon: Live,
-      label: 'Live',
-      path: '/live',
+      label: 'Now Playing',
+      path: '/now-playing',
       gradient: 'linear-gradient(135deg, #FF3366 0%, #FF0066 100%)',
       glassEffect: {
         background: 'rgba(255, 255, 255, 0.1)',
