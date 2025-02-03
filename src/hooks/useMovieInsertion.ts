@@ -32,14 +32,6 @@ export const useMovieInsertion = (): MovieInsertionHook => {
       };
 
       await movieStorage.saveOrUpdateMovie(movieData);
-
-      toast({
-        title: "Success",
-        description: `Movie "${movie.title}" has been saved successfully`,
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
     } catch (err) {
       const error = err as Error;
       setError(error);

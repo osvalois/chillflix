@@ -221,8 +221,8 @@ export const useMovieData = (tmdbId: string | undefined) => {
   const { insertMovie, isInserting } = useMovieInsertion();
   console.log(isInserting)
   const handleMovieInsert = useCallback(async () => {
-    if (hasAttemptedInsert || !movie || !videoFile) return;
-
+    if (hasAttemptedInsert || !movie || !videoFile || isProcessing) return;
+  
     try {
       setIsProcessing(true);
       await insertMovie(movie, {
@@ -242,6 +242,7 @@ export const useMovieData = (tmdbId: string | undefined) => {
         fileType: '',
         sha256Hash: ''
       });
+      setHasAttemptedInsert(true);
     } catch (error) {
       console.error('Error saving movie:', error);
       toast({
@@ -252,19 +253,21 @@ export const useMovieData = (tmdbId: string | undefined) => {
         isClosable: true,
       });
     } finally {
-      setHasAttemptedInsert(true);
       setIsProcessing(false);
     }
-  }, [movie, videoFile, selectedQuality, selectedLanguage, insertMovie, hasAttemptedInsert, toast]);
-
-
+  }, [movie, videoFile, selectedQuality, selectedLanguage, insertMovie, hasAttemptedInsert, isProcessing, toast]);
+  
+  useEffect(() => {
+    if (!hasAttemptedInsert && !isProcessing && movie && videoFile) {
+      handleMovieInsert();
+    }
+  }, [hasAttemptedInsert, isProcessing, movie, videoFile, handleMovieInsert]);
   const streamUrl = useMemo(() => {
     if (!finalMovieInfo || !videoFile) {
       return null;
     }
-
+  
     try {
-      handleMovieInsert()
       return movieService.getStreamUrl(videoFile.infoHash, videoFile.index);
     } catch (error) {
       console.error('Error generating stream URL:', error);
