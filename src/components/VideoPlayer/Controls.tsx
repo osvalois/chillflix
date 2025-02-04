@@ -70,7 +70,8 @@ const Controls: React.FC<ControlsProps> = ({
     const [isConfigChanged, setIsConfigChanged] = useState(false);
 
     const lastSavedRef = useRef<SavedConfig | null>(null);
-
+    console.log(controlsVisible)
+    console.log("controlsVisible")
     const glassmorphismStyle = {
         background: "rgba(0, 0, 0, 0.3)",
         backdropFilter: "blur(10px)",
@@ -221,7 +222,9 @@ const Controls: React.FC<ControlsProps> = ({
         <>
             <LoadingSpinner isLoading={isLoading} />
             <Fade in={localControlsVisible} unmountOnExit>
-                <Box
+         
+            </Fade>
+            <Box
                     position="absolute"
                     bottom="0"
                     left="0"
@@ -305,7 +308,6 @@ const Controls: React.FC<ControlsProps> = ({
                         </Flex>
                     </Flex>
                 </Box>
-            </Fade>
         </>
     );
 };

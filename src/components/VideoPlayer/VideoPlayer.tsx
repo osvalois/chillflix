@@ -284,65 +284,90 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
 
     // Handle source changes
     useEffect(() => {
-      if (playerRef.current && options.sources?.length) {
+      const handleSourceChange = async () => {
+        if (!playerRef.current || !options.sources?.length) return;
+        
         const newSource = options.sources[0]?.src;
-        if (newSource !== previousSourceRef.current) {
+        if (newSource === previousSourceRef.current) return;
+        
+        try {
           setIsSourceChanging(true);
-          const currentTime = playerRef.current.currentTime();
-          const wasPlaying = !playerRef.current.paused();
-
-          playerRef.current.src(options.sources);
-          if (typeof currentTime === 'number') {
-            playerRef.current.currentTime(currentTime);
-          }
-
-          if (wasPlaying) {
-            //playerRef.current!.play().catch(e => {
-            //  console.error("Play error after source change:", e);
-            //  trackEvent('play_error_source_change', { error: e.message });
-            // });
-          }
-
+          const player = playerRef.current;
+          const currentTime = player.currentTime();
+          const wasPlaying = !player.paused();
+    
+          // Store playback state before source change
+          const playbackState = {
+            time: currentTime,
+            volume: player.volume(),
+            muted: player.muted()
+          };
+    
+          // Change source
+          player.src(options.sources);
+          
+          // Restore playback state after source loaded
+          player.one('loadedmetadata', () => {
+            if (typeof playbackState.time === 'number') {
+              player.currentTime(playbackState.time);
+            }
+            player.volume(playbackState.volume);
+            player.muted(playbackState.muted);
+    
+            if (wasPlaying) {
+              //player.play().catch(e => {
+              //  console.error("Play error after source change:", e);
+              //  trackEvent('play_error_source_change', { error: e.message });
+              //});
+            }
+          });
+    
           previousSourceRef.current = newSource;
+        } catch (error) {
+          console.error('Error changing source:', error);
+          trackEvent('source_change_error', { error: (error as Error).message });
+        } finally {
           setIsSourceChanging(false);
         }
-      }
-    }, [selectedQuality, selectedLanguage, options.sources, trackEvent]);
-
+      };
+    
+      handleSourceChange();
+    }, [options.sources]); // Remove selectedQuality, selectedLanguage from deps
     // Mouse movement handler for controls
     useEffect(() => {
       const debouncedShowControls = debounce(() => {
         setControlsVisible(true);
         setIsMouseMoving(true);
         
+        clearCustomTimeout('controls');
+        
         if (isFullscreen && !isPaused) {
           setCustomTimeout('controls', () => {
-            setControlsVisible(false);
+            setControlsVisible(false); 
             setIsMouseMoving(false);
           }, CONSTANTS.CONTROLS_HIDE_DELAY);
         }
-      }, 150);
-
+      }, 200);
+     
       const handleMouseLeave = () => {
         if (!isFullscreen) {
           setControlsVisible(false);
           setIsMouseMoving(false);
         }
       };
-
+     
       const container = containerRef.current;
       if (container) {
         container.addEventListener("mousemove", debouncedShowControls);
         container.addEventListener("mouseleave", handleMouseLeave);
-
+     
         return () => {
           container.removeEventListener("mousemove", debouncedShowControls);
           container.removeEventListener("mouseleave", handleMouseLeave);
           debouncedShowControls.cancel();
         };
       }
-    }, [isFullscreen, isPaused, setControlsVisible, setCustomTimeout]);
-
+     }, [isFullscreen, isPaused, setControlsVisible, setCustomTimeout, clearCustomTimeout]);
     // Subtitles loading
     useEffect(() => {
       const loadSubtitles = async () => {
@@ -626,8 +651,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
 
 
         <AnimatePresence>
-          {controlsVisible && (
-            <motion.div
+        <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -659,7 +683,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
                 onSubtitleChange={handleSubtitleChange}
               />
             </motion.div>
-          )}
         </AnimatePresence>
       </Box>
     );
