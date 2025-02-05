@@ -1,14 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Table,
-  Thead,
-  Tbody,
-  Tr,
   Th,
-  Td,
   Box,
   Button,
-  Badge,
   Card,
   CardHeader,
   CardBody,
@@ -16,14 +10,9 @@ import {
   useColorModeValue,
   HStack,
   Text,
-  Select,
-  VStack,
   useDisclosure,
-  Tooltip,
   IconButton,
   useToast,
-  Flex,
-  Progress,
   Tag,
   TagLabel,
   TagLeftIcon,
@@ -31,43 +20,27 @@ import {
   Input,
   InputGroup,
   InputLeftElement,
-  Skeleton,
   Stack,
   Alert,
   AlertIcon,
   AlertTitle,
   AlertDescription,
-  Drawer,
-  DrawerBody,
-  DrawerHeader,
-  DrawerOverlay,
-  DrawerContent,
-  DrawerCloseButton,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  Center,
   Spinner,
 } from '@chakra-ui/react';
 import {
-  Download,
-  PlayCircle,
-  ChevronLeft,
-  ChevronRight,
-  Info,
-  Share2,
   Search,
   Filter,
   SortAsc,
   SortDesc,
-  Wifi,
   Globe,
   RefreshCcw,
   Loader,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Mirror } from '../services/movieService';
+import SourceDetails from './Source/SourceDetails';
+import { MirrorList } from './Source/MirrorList';
+import { Pagination } from './Source/Pagination';
 interface MirrorTableProps {
   mirrors: Mirror[];
   onMirrorSelect: (mirror: Mirror) => void;
@@ -86,33 +59,6 @@ const formatFileSize = (bytes: number) => {
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`;
 };
-
-const QualityBadge: React.FC<{ quality: string }> = ({ quality }) => {
-  const getQualityColor = () => {
-    switch (quality.toLowerCase()) {
-      case '4k': return 'purple';
-      case '1080p': return 'blue';
-      case '720p': return 'green';
-      default: return 'gray';
-    }
-  };
-
-  return (
-    <Badge
-      colorScheme={getQualityColor()}
-      variant="subtle"
-      px={3}
-      py={1}
-      borderRadius="full"
-      fontSize="xs"
-      fontWeight="bold"
-    >
-      {quality}
-    </Badge>
-  );
-};
-
-const MotionTr = motion(Tr);
 const MotionButton = motion(Button);
 
 const MirrorTable: React.FC<MirrorTableProps> = ({
@@ -146,7 +92,6 @@ const MirrorTable: React.FC<MirrorTableProps> = ({
 
   // Theme values
   const bgColor = useColorModeValue('white', 'gray.800');
-  const selectedBgColor = useColorModeValue('blue.50', 'blue.900');
   const hoverBg = useColorModeValue('gray.50', 'gray.700');
 
   // Efectos
@@ -330,293 +275,33 @@ const MirrorTable: React.FC<MirrorTableProps> = ({
 
       <CardBody>
         <Box overflowX="auto">
-          <Table variant="simple">
-            <Thead>
-              <Tr>
-                {renderHeaderCell("Quality", "quality")}
-                {renderHeaderCell("Language", "language")}
-                {renderHeaderCell("Seeds", "seeds")}
-                <Th textAlign="right">Actions</Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {isLoading ? (
-                Array(5).fill(0).map((_, i) => (
-                  <Tr key={i}>
-                    {Array(5).fill(0).map((_, j) => (
-                      <Td key={j}><Skeleton height="20px" /></Td>
-                    ))}
-                  </Tr>
-                ))
-              ) : (
-                <AnimatePresence>
-                  {currentMirrors.map((mirror) => (
-                    <MotionTr
-                      key={mirror.id}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      style={{
-                        backgroundColor: selectedMirrorId === mirror.id ? selectedBgColor : 'transparent',
-                        cursor: 'pointer',
-                      }}
-                      onClick={() => handleMirrorSelect(mirror)}
-                      whileHover={{ backgroundColor: hoverBg }}
-                      _hover={{ bg: hoverBg }}
-                    >
-                      <Td><QualityBadge quality={mirror.quality} /></Td>
-                      <Td>
-                        <Badge colorScheme="blue" borderRadius="full">
-                          {mirror.language.toUpperCase()}
-                        </Badge>
-                      </Td>
-                      <Td>
-                        <HStack>
-                          <Badge
-                            colorScheme={mirror.seeds > 0 ? "green" : "red"}
-                            borderRadius="full"
-                          >
-                            {mirror.seeds}
-                          </Badge>
-                          <Tooltip
-                            label={`Connection: ${mirror.seeds > 10 ? 'Excellent' : mirror.seeds > 5 ? 'Good' : 'Poor'}`}
-                          >
-                            <Wifi
-                              size={16}
-                              color={mirror.seeds > 10 ? 'green' : mirror.seeds > 5 ? 'orange' : 'red'}
-                            />
-                          </Tooltip>
-                        </HStack>
-                      </Td>
-                      <Td>
-                        <HStack justify="flex-end" spacing={2}>
-                          <Tooltip label={selectedMirrorId === mirror.id ? 'Currently playing' : 'Play'}>
-                            <IconButton
-                              aria-label="Play"
-                              icon={<PlayCircle size={16} />}
-                              size="sm"
-                              colorScheme={selectedMirrorId === mirror.id ? "blue" : "gray"}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleMirrorSelect(mirror);
-                              }}
-                            />
-                          </Tooltip>
-                          <Tooltip label="Download info">
-                            <IconButton
-                              aria-label="Download info"
-                              icon={<Info size={16} />}
-                              size="sm"
-                              variant="ghost"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDetailsClick(mirror);
-                              }}
-                            />
-                          </Tooltip>
-                        </HStack>
-                      </Td>
-                    </MotionTr>
-                  ))}
-                </AnimatePresence>
-              )}
-            </Tbody>
-          </Table>
+          <MirrorList
+            currentMirrors={currentMirrors}
+            isLoading={isLoading}
+            selectedMirrorId={selectedMirrorId}
+            handleMirrorSelect={handleMirrorSelect}
+            handleDetailsClick={handleDetailsClick}
+            renderHeaderCell={renderHeaderCell}
+          />
 
-          {/* Paginación */}
-          <Flex justify="space-between" align="center" mt={4} px={2}>
-            <HStack spacing={4}>
-              <Select
-                value={itemsPerPage}
-                onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                size="sm"
-                width="auto"
-              >
-                {[5, 10, 15, 20].map(num => (<option key={num} value={num}>
-                  {num} per page
-                </option>
-                ))}
-              </Select>
-              <Text fontSize="sm" color="gray.500">
-                Showing {startIndex + 1}-{endIndex} of {filteredMirrors.length}
-              </Text>
-            </HStack>
-
-            <HStack spacing={2}>
-              <MotionButton
-                size="sm"
-                onClick={() => setCurrentPage(prev => prev - 1)}
-                isDisabled={currentPage === 1}
-                leftIcon={<ChevronLeft size={16} />}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                Previous
-              </MotionButton>
-              <HStack spacing={1}>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <MotionButton
-                    key={page}
-                    size="sm"
-                    variant={currentPage === page ? "solid" : "outline"}
-                    onClick={() => setCurrentPage(page)}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    {page}
-                  </MotionButton>
-                ))}
-              </HStack>
-              <MotionButton
-                size="sm"
-                onClick={() => setCurrentPage(prev => prev + 1)}
-                isDisabled={currentPage === totalPages}
-                rightIcon={<ChevronRight size={16} />}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                Next
-              </MotionButton>
-            </HStack>
-          </Flex>
+          <Pagination
+            setItemsPerPage={setItemsPerPage}
+            currentPage={currentPage}
+            setCurrentPage={setCurrentPage}
+            totalPages={totalPages}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            totalItems={filteredMirrors.length} itemsPerPage={0} />
         </Box>
-
         {/* Drawer de Detalles */}
-        <Drawer
+        <SourceDetails
           isOpen={isDetailsOpen}
-          placement="right"
           onClose={onDetailsClose}
-          size="md"
-        >
-          <DrawerOverlay backdropFilter="blur(10px)" />
-          <DrawerContent>
-            <DrawerCloseButton />
-            <DrawerHeader borderBottomWidth="1px">
-              <HStack>
-                <Text>Source Details</Text>
-              </HStack>
-            </DrawerHeader>
-
-            <DrawerBody>
-              {selectedMirror && (
-                <VStack spacing={6} align="stretch">
-                  <Card>
-                    <CardBody>
-                      <Stack spacing={4}>
-                        <Heading size="sm">{movieTitle}</Heading>
-                        <Tag size="lg" colorScheme="blue">
-                          <QualityBadge quality={selectedMirror.quality} />
-                        </Tag>
-                      </Stack>
-                    </CardBody>
-                  </Card>
-
-                  <Stack spacing={4}>
-                    <Stat>
-                      <StatLabel>Size</StatLabel>
-                      <StatNumber>{formatFileSize(selectedMirror.size)}</StatNumber>
-                      <StatHelpText>
-                        Format: {selectedMirror.fileType}
-                      </StatHelpText>
-                    </Stat>
-
-                    <Stat>
-                      <StatLabel>Connection</StatLabel>
-                      <StatNumber>
-                        <HStack>
-                          <Badge
-                            colorScheme={selectedMirror.seeds > 0 ? "green" : "red"}
-                            fontSize="lg"
-                          >
-                            {selectedMirror.seeds} seeds
-                          </Badge>
-                          <Progress
-                            value={selectedMirror.seeds > 10 ? 100 : (selectedMirror.seeds * 10)}
-                            size="sm"
-                            width="100px"
-                            colorScheme={selectedMirror.seeds > 10 ? "green" : selectedMirror.seeds > 5 ? "yellow" : "red"}
-                            borderRadius="full"
-                          />
-                        </HStack>
-                      </StatNumber>
-                      <StatHelpText>
-                        {selectedMirror.seeds > 10 ? 'Excellent' : selectedMirror.seeds > 5 ? 'Good' : 'Poor'} connection quality
-                      </StatHelpText>
-                    </Stat>
-                  </Stack>
-
-                  <Card>
-                    <CardBody>
-                      <VStack align="stretch" spacing={4}>
-                        <Heading size="sm">Download Information</Heading>
-
-                        <VStack align="stretch" spacing={2}>
-                          <Text fontWeight="bold">Magnet Link:</Text>
-                          <HStack
-                            p={2}
-                            bg={useColorModeValue('gray.50', 'gray.700')}
-                            borderRadius="md"
-                          >
-                            <Text fontSize="sm" fontFamily="monospace" noOfLines={1} flex={1}>
-                              magnet:?xt=urn:btih:{selectedMirror.id}&dn={encodeURIComponent(movieTitle)}_{selectedMirror.quality}
-                            </Text>
-                            <IconButton
-                              aria-label="Copy magnet link"
-                              icon={<Share2 size={16} />}
-                              size="xs"
-                              variant="ghost"
-                              onClick={() => copyToClipboard(`magnet:?xt=urn:btih:${selectedMirror.id}&dn=${encodeURIComponent(movieTitle)}_${selectedMirror.quality}`, 'Magnet link')}
-                            />
-                          </HStack>
-                        </VStack>
-
-                        <VStack align="stretch" spacing={2}>
-                          <HStack justify="space-between">
-                            <Text fontWeight="bold">Default Trackers</Text>
-                            <Tag size="sm" variant="subtle">
-                              Recommended
-                            </Tag>
-                          </HStack>
-                          <Box
-                            p={2}
-                            bg={useColorModeValue('gray.50', 'gray.700')}
-                            borderRadius="md"
-                            fontSize="sm"
-                            fontFamily="monospace"
-                          >
-                            <VStack align="stretch" spacing={2}>
-                              <Text>udp://tracker.opentrackr.org:1337/announce</Text>
-                              <Text>udp://open.tracker.cl:1337/announce</Text>
-                              <Text>udp://9.rarbg.com:2810/announce</Text>
-                            </VStack>
-                          </Box>
-                        </VStack>
-                      </VStack>
-                    </CardBody>
-                  </Card>
-
-                  <Center>
-                    <MotionButton
-                      colorScheme="green"
-                      leftIcon={<Download size={16} />}
-                      onClick={() => {
-                        copyToClipboard(
-                          `magnet:?xt=urn:btih:${selectedMirror.id}&dn=${encodeURIComponent(movieTitle)}_${selectedMirror.quality}`,
-                          'Magnet link'
-                        );
-                        onDetailsClose();
-                      }}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      Copy Magnet Link
-                    </MotionButton>
-                  </Center>
-                </VStack>
-              )}
-            </DrawerBody>
-          </DrawerContent>
-        </Drawer>
+          selectedMirror={selectedMirror}
+          movieTitle={movieTitle}
+          formatFileSize={formatFileSize}
+          copyToClipboard={copyToClipboard}
+        />
       </CardBody>
     </Card>
   );

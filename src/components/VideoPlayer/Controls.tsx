@@ -222,9 +222,7 @@ const Controls: React.FC<ControlsProps> = ({
         <>
             <LoadingSpinner isLoading={isLoading} />
             <Fade in={localControlsVisible} unmountOnExit>
-         
-            </Fade>
-            <Box
+                <Box
                     position="absolute"
                     bottom="0"
                     left="0"
@@ -308,6 +306,7 @@ const Controls: React.FC<ControlsProps> = ({
                         </Flex>
                     </Flex>
                 </Box>
+            </Fade>
         </>
     );
 };
