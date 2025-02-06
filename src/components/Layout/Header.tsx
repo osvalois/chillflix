@@ -175,7 +175,7 @@ const HeaderContent: React.FC<{
         justifyContent="space-between"
       >
         {/* Left Section */}
-        <Flex alignItems="center" gap={{ base: 2, md: 6 }}>
+        <Flex alignItems="center" gap={{ base: 1, md: 3 }}>
           {!isLargeScreen && (
             <IconButton
               aria-label="Open menu"

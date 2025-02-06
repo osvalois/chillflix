@@ -7,7 +7,6 @@ import { NavItemEnhanced } from '../Nav/NavItem';
 import { DesktopNavProps, NavItem } from '../../types';
 import { INTERSECTION_OPTIONS, enhancedContainerVariants } from '../../constants';
 
-// Definimos breakpoints más específicos para pantallas medianas
 const BREAKPOINT_SIZES = {
   sm: '30em',    // 480px
   md: '48em',    // 768px
@@ -22,7 +21,6 @@ const MAX_WIDTH = {
   lg: '1200px'
 };
 
-// Optimized motion component with proper typing
 const MotionBox = motion(Box as any);
 
 export const DesktopNav: React.FC<DesktopNavProps> = React.memo(({ 
@@ -34,7 +32,6 @@ export const DesktopNav: React.FC<DesktopNavProps> = React.memo(({
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [ref, inView] = useInView(INTERSECTION_OPTIONS);
   
-  // Hooks mejorados para responsive
   const containerPadding = useBreakpointValue({
     base: '3',
     sm: '4',
@@ -56,7 +53,6 @@ export const DesktopNav: React.FC<DesktopNavProps> = React.memo(({
     lg: '5'
   }) ?? '3';
 
-  // Memoized hover handlers
   const createHoverStartHandler = useCallback((label: string) => {
     return () => {
       requestAnimationFrame(() => setHoveredItem(label));
@@ -67,19 +63,16 @@ export const DesktopNav: React.FC<DesktopNavProps> = React.memo(({
     requestAnimationFrame(() => setHoveredItem(null));
   }, []);
 
-  // Memoized navigation handler
   const createClickHandler = useCallback((path: string) => {
     return () => {
       requestAnimationFrame(() => handleNavigation(path));
     };
   }, [handleNavigation]);
 
-  // Memoized item check
   const isItemActive = useCallback((path: string) => {
     return location.pathname === path;
   }, [location.pathname]);
 
-  // Memoized nav items rendering con ajustes responsive
   const renderedNavItems = useMemo(() => {
     return navItems.map((item: NavItem) => (
       <NavItemEnhanced
@@ -96,59 +89,69 @@ export const DesktopNav: React.FC<DesktopNavProps> = React.memo(({
   }, [navItems, hoveredItem, isItemActive, createClickHandler, createHoverStartHandler, handleHoverEnd]);
 
   return (
-    <MotionBox
-      ref={ref}
-      variants={enhancedContainerVariants}
-      initial="hidden"
-      animate={inView ? "visible" : "hidden"}
-      borderRadius="full"
-      p={containerPadding}
-      mx={containerMargin}
+    <Box
+      display="flex"
+      justifyContent="center"
       width="100%"
-      maxWidth={MAX_WIDTH}
-      role="navigation"
-      aria-label="Desktop navigation"
+      position="fixed"
+      left="50%"
+      transform="translateX(-50%)"
+      zIndex={1000}
     >
-      <HStack 
-        spacing={itemSpacing} 
-        px={containerPadding}
-        justifyContent="center"
-        alignItems="center"
-        flexWrap={{ base: 'wrap', md: 'nowrap' }}
-        minHeight={{
-          base: '48px',
-          md: '56px',
-          lg: '64px'
-        }}
-        style={{ 
-          gap: `${theme.space[itemSpacing as unknown as number]}`,
-          transition: `all ${theme.transition.duration.normal}`,
-        }}
+      <MotionBox
+        ref={ref}
+        variants={enhancedContainerVariants}
+        initial="hidden"
+        animate={inView ? "visible" : "hidden"}
+        borderRadius="full"
+        p={containerPadding}
+        mx={containerMargin}
+        width="100%"
+        maxWidth={MAX_WIDTH}
+        role="navigation"
+        aria-label="Desktop navigation"
       >
-        {renderedNavItems}
-      </HStack>
+        <HStack 
+          spacing={itemSpacing} 
+          px={containerPadding}
+          justifyContent="center"
+          alignItems="center"
+          flexWrap={{ base: 'wrap', md: 'nowrap' }}
+          minHeight={{
+            base: '48px',
+            md: '56px',
+            lg: '64px'
+          }}
+          style={{ 
+            gap: `${theme.space[itemSpacing as unknown as number]}`,
+            transition: `all ${theme.transition.duration.normal}`,
+          }}
+        >
+          {renderedNavItems}
+        </HStack>
 
-      <style>
-        {`
-          @media (max-width: ${BREAKPOINT_SIZES.md}) {
-            .chakra-stack {
-              row-gap: ${theme.space[2]};
+        <style>
+          {`
+            @media (max-width: ${BREAKPOINT_SIZES.md}) {
+              .chakra-stack {
+                row-gap: ${theme.space[2]};
+              }
             }
-          }
-          
-          @keyframes pulse {
-            0%, 100% { 
-              transform: scale(1); 
-              opacity: 0.6; 
+            
+            @keyframes pulse {
+              0%, 100% { 
+                transform: scale(1); 
+                opacity: 0.6; 
+              }
+              50% { 
+                transform: scale(1.5); 
+                opacity: 0; 
+              }
             }
-            50% { 
-              transform: scale(1.5); 
-              opacity: 0; 
-            }
-          }
-        `}
-      </style>
-    </MotionBox>
+          `}
+        </style>
+      </MotionBox>
+    </Box>
   );
 });
 
