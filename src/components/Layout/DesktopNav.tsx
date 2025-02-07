@@ -91,6 +91,7 @@ export const DesktopNav: React.FC<DesktopNavProps> = React.memo(({
   return (
     <Box
       display="flex"
+      pointerEvents="none"
       justifyContent="center"
       width="100%"
       position="fixed"
