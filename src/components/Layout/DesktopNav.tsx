@@ -90,19 +90,20 @@ export const DesktopNav: React.FC<DesktopNavProps> = React.memo(({
 
   return (
     <Box
-      display="flex"
-      pointerEvents="none"
-      justifyContent="center"
-      width="100%"
-      position="fixed"
-      left="50%"
-      transform="translateX(-50%)"
-      zIndex={1000}
+    display="flex"
+    pointerEvents="none"  // Bloquea eventos en el fondo
+    justifyContent="center"
+    width="100%"
+    position="fixed"
+    left="50%"
+    transform="translateX(-50%)"
+    zIndex={1000}
     >
       <MotionBox
         ref={ref}
         variants={enhancedContainerVariants}
         initial="hidden"
+        pointerEvents="auto"  
         animate={inView ? "visible" : "hidden"}
         borderRadius="full"
         p={containerPadding}

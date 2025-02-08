@@ -32,6 +32,7 @@ import { Virtuoso } from 'react-virtuoso';
 import { Subtitle } from '../../services/subtitle-types';
 import { Subtitles, Languages, Search, X } from 'lucide-react';
 import { ErrorBoundary } from 'react-error-boundary';
+import SubtitleTimeController from './SubtitleTimeController';
 
 // Types
 interface SubtitlePreferences {
@@ -346,6 +347,12 @@ export const SubtitleSelector: React.FC<SubtitleSelectorProps> = ({
                 </ModalHeader>
 
                 <ModalBody p={0}>
+                  <SubtitleTimeController currentTime={0} duration={0} offsetSeconds={0} onOffsetChange={function (): void {
+                    throw new Error('Function not implemented.');
+                  } } onSaveOffset={function (): void {
+                    throw new Error('Function not implemented.');
+                  } } />
+              
                   <ErrorBoundary
                     fallback={
                       <Box p={4} textAlign="center">
