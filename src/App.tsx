@@ -9,6 +9,7 @@ import  Auth  from './pages/Auth';
 import { RequireAuth } from './components/Auth/RequireAuth';
 import SiteSettings from './pages/SiteSettings';
 import NowPlayingPage from './pages/NowPlayingPage';
+import TvPageWrapper from './pages/TvPage';
 
 const ProtectedRoutes: React.FC = () => {
   return (
@@ -16,6 +17,7 @@ const ProtectedRoutes: React.FC = () => {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/movie/:tmdbId" element={<MoviePage />} />
+        <Route path="/tv/:tmdbId" element={<TvPageWrapper />} />
         <Route path="/settings" element={<SiteSettings />} />
         <Route path="/now-playing" element={<NowPlayingPage />} />
         <Route path="*" element={<NotFound />} />
