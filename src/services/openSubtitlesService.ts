@@ -13,7 +13,7 @@ class OpenSubtitlesService {
   private readonly REQUEST_DELAY = 1000;
 
   constructor() {
-    this.apiKey = 'CebeEIzDp2oKu8PhYhR1K8J2ZRAWEtQq';
+    this.apiKey = 'cnDJOg4tBN1Ir7VDsPmGFLSLkGVk4P8z';
     this.axiosInstance = axios.create({
       baseURL: 'https://chillflix-subtitles-service-production.up.railway.app/api/v1',
       headers: {

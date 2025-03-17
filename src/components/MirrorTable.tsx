@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   Th,
   Box,
@@ -41,6 +41,7 @@ import { Mirror } from '../services/movieService';
 import SourceDetails from './Source/SourceDetails';
 import { MirrorList } from './Source/MirrorList';
 import { Pagination } from './Source/Pagination';
+
 interface MirrorTableProps {
   mirrors: Mirror[];
   onMirrorSelect: (mirror: Mirror) => void;
@@ -50,7 +51,6 @@ interface MirrorTableProps {
   onSearchMore?: () => Promise<void>;
   isSearching?: boolean;
   handleBackupApiCall: () => Promise<void>;
-  tmdbId?: string;
 }
 
 const formatFileSize = (bytes: number) => {
@@ -59,6 +59,7 @@ const formatFileSize = (bytes: number) => {
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`;
 };
+
 const MotionButton = motion(Button);
 
 const MirrorTable: React.FC<MirrorTableProps> = ({
@@ -70,9 +71,8 @@ const MirrorTable: React.FC<MirrorTableProps> = ({
   onSearchMore,
   isSearching = false,
 }) => {
-  // Estados
+  // Estados esenciales
   const [selectedMirror, setSelectedMirror] = useState<Mirror | null>(null);
-  const [filteredMirrors, setFilteredMirrors] = useState(mirrors);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -81,73 +81,76 @@ const MirrorTable: React.FC<MirrorTableProps> = ({
     direction: 'asc' | 'desc';
   }>({ key: 'seeds', direction: 'desc' });
 
-  // Hooks
+  // Hooks de Chakra
   const toast = useToast();
   const { isOpen: isFilterOpen, onToggle: onFilterToggle } = useDisclosure();
   const {
     isOpen: isDetailsOpen,
     onOpen: onDetailsOpen,
-    onClose: onDetailsClose
+    onClose: onDetailsClose,
   } = useDisclosure();
 
-  // Theme values
+  // Valores de tema
   const bgColor = useColorModeValue('white', 'gray.800');
   const hoverBg = useColorModeValue('gray.50', 'gray.700');
 
-  // Efectos
-  useEffect(() => {
-    let result = [...mirrors];
-
-    // Aplicar filtro de búsqueda
+  // Filtrado y ordenamiento optimizados con useMemo
+  const filteredMirrors = useMemo(() => {
+    let result = mirrors;
     if (searchTerm) {
+      const lowerTerm = searchTerm.toLowerCase();
       result = result.filter(mirror =>
-        mirror.quality.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        mirror.language.toLowerCase().includes(searchTerm.toLowerCase())
+        mirror.quality.toLowerCase().includes(lowerTerm) ||
+        mirror.language.toLowerCase().includes(lowerTerm)
       );
     }
-
-    // Aplicar ordenamiento
-    result.sort((a, b) => {
+    return [...result].sort((a, b) => {
       const aValue = a[sortConfig.key];
       const bValue = b[sortConfig.key];
       const direction = sortConfig.direction === 'asc' ? 1 : -1;
-
       if (typeof aValue === 'number' && typeof bValue === 'number') {
         return (aValue - bValue) * direction;
       }
-
       return String(aValue).localeCompare(String(bValue)) * direction;
     });
-
-    setFilteredMirrors(result);
-    setCurrentPage(1);
   }, [mirrors, searchTerm, sortConfig]);
 
-  // Cálculos de paginación
-  const totalPages = Math.ceil(filteredMirrors.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = Math.min(startIndex + itemsPerPage, filteredMirrors.length);
-  const currentMirrors = filteredMirrors.slice(startIndex, endIndex);
+  // Cálculos de paginación optimizados con useMemo
+  const totalPages = useMemo(
+    () => Math.ceil(filteredMirrors.length / itemsPerPage),
+    [filteredMirrors, itemsPerPage]
+  );
 
-  // Handlers
-  const handleMirrorSelect = (mirror: Mirror) => {
+  const { startIndex, endIndex } = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = Math.min(startIndex + itemsPerPage, filteredMirrors.length);
+    return { startIndex, endIndex };
+  }, [filteredMirrors, currentPage, itemsPerPage]);
+
+  const currentMirrors = useMemo(
+    () => filteredMirrors.slice(startIndex, endIndex),
+    [filteredMirrors, startIndex, endIndex]
+  );
+
+  // Handlers memorizados para evitar re-renderizados
+  const handleMirrorSelect = useCallback((mirror: Mirror) => {
     onMirrorSelect(mirror);
     setSelectedMirror(mirror);
-  };
+  }, [onMirrorSelect]);
 
-  const handleDetailsClick = (mirror: Mirror) => {
+  const handleDetailsClick = useCallback((mirror: Mirror) => {
     setSelectedMirror(mirror);
     onDetailsOpen();
-  };
+  }, [onDetailsOpen]);
 
-  const handleSort = (key: keyof Mirror) => {
+  const handleSort = useCallback((key: keyof Mirror) => {
     setSortConfig(current => ({
       key,
       direction: current.key === key && current.direction === 'desc' ? 'asc' : 'desc'
     }));
-  };
+  }, []);
 
-  const copyToClipboard = async (text: string, type: string = 'link') => {
+  const copyToClipboard = useCallback(async (text: string, type: string = 'link') => {
     try {
       await navigator.clipboard.writeText(text);
       toast({
@@ -164,9 +167,9 @@ const MirrorTable: React.FC<MirrorTableProps> = ({
         isClosable: true,
       });
     }
-  };
+  }, [toast]);
 
-  const handleSearchMore = async () => {
+  const handleSearchMore = useCallback(async () => {
     if (onSearchMore) {
       try {
         await onSearchMore();
@@ -187,15 +190,15 @@ const MirrorTable: React.FC<MirrorTableProps> = ({
         });
       }
     }
-  };
+  }, [onSearchMore, toast]);
 
-  // Render helpers
-  const renderSortIcon = (field: keyof Mirror) => {
+  // Render helpers optimizados con useCallback
+  const renderSortIcon = useCallback((field: keyof Mirror) => {
     if (sortConfig.key !== field) return <SortAsc size={14} opacity={0.3} />;
     return sortConfig.direction === 'asc' ? <SortAsc size={14} /> : <SortDesc size={14} />;
-  };
+  }, [sortConfig]);
 
-  const renderHeaderCell = (label: string, field: keyof Mirror) => (
+  const renderHeaderCell = useCallback((label: string, field: keyof Mirror) => (
     <Th
       cursor="pointer"
       onClick={() => handleSort(field)}
@@ -207,13 +210,13 @@ const MirrorTable: React.FC<MirrorTableProps> = ({
         {renderSortIcon(field)}
       </HStack>
     </Th>
-  );
+  ), [handleSort, hoverBg, renderSortIcon]);
+
   return (
     <Card bg={bgColor} boxShadow="sm" borderRadius="lg">
       <CardHeader>
         <Stack spacing={4}>
           <HStack justify="space-between">
-
             <Heading size="md" display="flex" alignItems="center" gap={2}>
               Available Sources
               {isLoading && <Spinner size="sm" />}
@@ -255,7 +258,10 @@ const MirrorTable: React.FC<MirrorTableProps> = ({
               <Input
                 placeholder="Search by quality, language..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1); // Reinicia la página al filtrar
+                }}
                 borderRadius="md"
               />
             </InputGroup>
@@ -291,9 +297,11 @@ const MirrorTable: React.FC<MirrorTableProps> = ({
             totalPages={totalPages}
             startIndex={startIndex}
             endIndex={endIndex}
-            totalItems={filteredMirrors.length} itemsPerPage={0} />
+            totalItems={filteredMirrors.length}
+            itemsPerPage={itemsPerPage}
+          />
         </Box>
-        {/* Drawer de Detalles */}
+
         <SourceDetails
           isOpen={isDetailsOpen}
           onClose={onDetailsClose}

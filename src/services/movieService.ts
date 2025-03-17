@@ -39,7 +39,7 @@ export type VideoQuality = '4K' | '1080p' | '720p' | '480p';
 
 const API_BASE_URL = 'https://chillflix-indexer-production.up.railway.app/api/v1';
 const TORRENT_INFO_URL = 'https://p2md.fly.dev/';
-//const TORRENT_INFO_URL = 'http://localhost:8080/';
+//const TORRENT_INFO_URL = 'https://p2md.fly.dev/';
 
 class MovieService {
   private apiInstance: AxiosInstance;
