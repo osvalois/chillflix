@@ -424,7 +424,7 @@ const LiveChannelContent: React.FC = () => {
   const streamUrl = useMemo(() => {
     if (!currentMovie) return null;
     try {
-      return `https://p2md.fly.dev/stream/${currentMovie.torrent_hash}/${currentMovie.resource_index}`;
+      return `http://localhost:8080/stream/${currentMovie.torrent_hash}/${currentMovie.resource_index}`;
     } catch (error) {
       console.error('Error generating stream URL:', error);
       return null;
