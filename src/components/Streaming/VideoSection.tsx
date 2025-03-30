@@ -1,4 +1,4 @@
-import React, { Suspense, useMemo, memo, useState, useCallback } from 'react';
+import React, { Suspense, useMemo, memo, useState, useCallback, lazy } from 'react';
 import { Box, Text, VStack } from '@chakra-ui/react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -6,14 +6,16 @@ import dynamic from 'next/dynamic';
 import { useInView } from 'react-intersection-observer';
 import { FloatingButton } from '../Button/CustomButton';
 
-// Dynamic imports para reducir el tamaño del bundle inicial
+// Dynamic imports optimizados con prioridad de carga
 const VideoPlayer = dynamic(() => import('../VideoPlayer/VideoPlayer'), {
   ssr: false,
-  loading: () => <LoadingMessage />
+  loading: () => <LoadingMessage />,
+  // Precargar para reducir tiempo de espera
+  suspense: true
 });
 
-const LoadingMessage = dynamic(() => import('../common/LoadingMessage'));
-const ErrorFallback = dynamic(() => import('../UI/ErrorFallback'));
+const LoadingMessage = dynamic(() => import('../common/LoadingMessage'), { ssr: true });
+const ErrorFallback = dynamic(() => import('../UI/ErrorFallback'), { ssr: true });
 
 // Types
 interface VideoSectionProps {
@@ -155,10 +157,11 @@ export const VideoSection: React.FC<VideoSectionProps> = memo(({
   handleBackupApiCall,
   onError
 }) => {
-  // Intersection Observer para lazy loading
+  // Intersection Observer optimizado para lazy loading con carga anticipada
   const [ref, inView] = useInView({
-    threshold: 0.1,
-    triggerOnce: true
+    threshold: 0.05, // Reducir threshold para cargar antes
+    triggerOnce: true,
+    rootMargin: '200px' // Precargar cuando el componente está cerca del viewport
   });
 
   // Error tracking

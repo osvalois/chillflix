@@ -68,10 +68,9 @@ const Controls: React.FC<ControlsProps> = ({
     });
     const [localAudioTrack, setLocalAudioTrack] = useState(selectedAudioTrack);
     const [isConfigChanged, setIsConfigChanged] = useState(false);
+    const [lastSaveTime, setLastSaveTime] = useState(0);
 
     const lastSavedRef = useRef<SavedConfig | null>(null);
-    console.log(controlsVisible)
-    console.log("controlsVisible")
     const glassmorphismStyle = {
         background: "rgba(0, 0, 0, 0.3)",
         backdropFilter: "blur(10px)",
@@ -181,6 +180,9 @@ const Controls: React.FC<ControlsProps> = ({
     }, [player, loadSavedConfig, subtitles]);
 
     useEffect(() => {
+        if (!isConfigChanged) return;
+
+        // Debounce el guardado para evitar múltiples operaciones de localStorage
         const timer = setTimeout(() => {
             saveConfig();
         }, 1000);
@@ -189,8 +191,11 @@ const Controls: React.FC<ControlsProps> = ({
     }, [isConfigChanged, saveConfig]);
 
     useEffect(() => {
-        setLocalControlsVisible(controlsVisible);
-    }, [controlsVisible]);
+        // Solo actualizar si es diferente para evitar re-renderizados innecesarios
+        if (localControlsVisible !== controlsVisible) {
+            setLocalControlsVisible(controlsVisible);
+        }
+    }, [controlsVisible, localControlsVisible]);
 
     useEffect(() => {
         const handleFullscreenChange = () => {
@@ -221,7 +226,12 @@ const Controls: React.FC<ControlsProps> = ({
     return (
         <>
             <LoadingSpinner isLoading={isLoading} />
-            <Fade in={localControlsVisible} unmountOnExit>
+            <Fade 
+              in={localControlsVisible} 
+              unmountOnExit={false} // Mantener en DOM para evitar reinicio
+              style={{ pointerEvents: localControlsVisible ? 'auto' : 'none' }}
+              transition={{ enter: { duration: 0.3 }, exit: { duration: 0.2 } }}
+            >
                 <Box
                     position="absolute"
                     bottom="0"
@@ -229,8 +239,19 @@ const Controls: React.FC<ControlsProps> = ({
                     width="100%"
                     p={2}
                     zIndex={1000}
+                    opacity={localControlsVisible ? 1 : 0}
+                    pointerEvents={localControlsVisible ? 'auto' : 'none'}
+                    transition="opacity 0.3s ease"
+                    visibility={localControlsVisible ? 'visible' : 'hidden'}
+                    data-testid="video-controls"
                 >
-                    <Flex flexDirection="column" {...glassmorphismStyle} p={2}>
+                    <Flex 
+                      flexDirection="column" 
+                      {...glassmorphismStyle} 
+                      p={2}
+                      role="toolbar"
+                      aria-label="Video controls"
+                    >
                         <TitleDisplay title={title} />
                         <SeekBar currentTime={currentTime} duration={duration} onSeek={handleSeek} />
                         <Flex alignItems="center" justifyContent="space-between" flexWrap={["wrap", "nowrap"]}>
@@ -263,25 +284,18 @@ const Controls: React.FC<ControlsProps> = ({
                                         onAudioTrackChange={(track: AudioTrack) => handleAudioTrackChange(track.id)}
                                         subtitles={subtitles as unknown as Subtitle[]}
                                         selectedSubtitle={localSubtitle.subtitle}
-                                        onSubtitleChange={function (subtitle: Subtitle | null): void {
-                                            console.log(subtitle)
-                                            throw new Error('Function not implemented.');
-                                        }} />
+                                        onSubtitleChange={handleSubtitleChange} />
                                         <FullscreenButton
                                             isFullscreen={isFullscreen}
                                             onFullscreenToggle={handleFullscreenToggle}
                                         />
                                     </>
-
                                 )}
                                 </Flex>
-                                
-
                             </Flex>
                             <Flex alignItems="center" mt={[2, 0]} width={["100%", "auto"]} justifyContent={["space-between", "flex-end"]}>
                                 {isLargerThan768 ? (
                                     <>
-                                 
                                         <AudioSettingsMenu
                                             audioTracks={audioTracks}
                                             selectedAudioTrack={localAudioTrack}
@@ -292,13 +306,11 @@ const Controls: React.FC<ControlsProps> = ({
                                             selectedSubtitle={localSubtitle.subtitle}
                                             onSubtitleChange={handleSubtitleChange}
                                         />
-
                                         <FullscreenButton
                                             isFullscreen={isFullscreen}
                                             onFullscreenToggle={handleFullscreenToggle}
                                         />
                                     </>
-
                                 ) : (
                                     null
                                 )}

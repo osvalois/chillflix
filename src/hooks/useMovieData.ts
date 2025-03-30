@@ -216,10 +216,8 @@ export const useMovieData = (tmdbId: string | undefined) => {
   }, [finalMovieInfo]);
   const [hasAttemptedInsert, setHasAttemptedInsert] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  console.log(isProcessing)
 
-  const { insertMovie, isInserting } = useMovieInsertion();
-  console.log(isInserting)
+  const { insertMovie } = useMovieInsertion();
   const handleMovieInsert = useCallback(async () => {
     if (hasAttemptedInsert || !movie || !videoFile || isProcessing) return;
   
