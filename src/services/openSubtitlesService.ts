@@ -46,7 +46,7 @@ class OpenSubtitlesService {
    */
   async searchSubtitles(
     imdbId: string, 
-    preferredLanguages: string[] = navigator.languages || ['en', 'es']
+    preferredLanguages: string[] = navigator.languages ? [...navigator.languages] : ['en', 'es']
   ): Promise<Subtitle[]> {
     // Verificar caché de sesión (memoria)
     const cachedSubtitles = this.subtitleCache.get(imdbId);

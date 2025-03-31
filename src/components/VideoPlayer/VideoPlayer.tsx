@@ -11,7 +11,7 @@ import { AudioTrack, VideoPlayerProps } from "./types";
 import Controls from "./Controls";
 import { ErrorOverlay } from "./ErrorOverlay";
 import { useHotkeys } from "react-hotkeys-hook";
-import { motion, AnimatePresence } from "framer-motion";
+// import { motion, AnimatePresence } from "framer-motion";
 import { SubtitlesDisplay } from "./SubtitlesDisplay";
 import { useAnalytics } from "../../hooks/useAnalytics";
 import OpenSubtitlesService from "../../services/openSubtitlesService";
@@ -57,7 +57,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
     const { 
       networkQuality, 
       updateNetworkQuality, 
-      isOffline,
+      // isOffline,
       isLowBandwidth,
       recommendedQuality,
       registerBufferingEvent,
@@ -232,7 +232,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
         optimizedPlayerOptions = {
           ...optimizedPlayerOptions,
           controlBar: {
-            ...optimizedPlayerOptions.controlBar,
+            ...(optimizedPlayerOptions as any).controlBar,
             children: ['playToggle', 'progressControl', 'fullscreenToggle'] // Controles mínimos
           }
         };
@@ -424,7 +424,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
       playerRef.current = player;
       
       // Optimizaciones especiales para Safari/iOS
-      const isSafari = deviceCapabilities.isSafari || deviceCapabilities.isIOS;
+      // const isSafari = deviceCapabilities.isSafari || deviceCapabilities.isIOS;
       
       // Optimizaciones para Safari/iOS después de que el reproductor esté listo
       if (deviceCapabilities.isSafari || deviceCapabilities.isIOS) {
@@ -432,7 +432,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
           // Forzar precargar imagen del poster para mejor experiencia
           if (player.poster() && typeof player.preload === 'function') {
             const img = new Image();
-            img.src = player.poster();
+            img.src = player.poster() || '';
           }
           
           // Optimizar la reproducción HLS nativa en Safari
@@ -463,8 +463,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
               videoElement.controls = false; // Usar controles personalizados
               
               // Mejorar sincronización entre audio y video en iOS
-              if (player.audioTracks && player.audioTracks()) {
-                const audioTracks = player.audioTracks();
+              if (player.tech_ && player.tech_.audioTracks && player.tech_.audioTracks()) {
+                const audioTracks = player.tech_.audioTracks();
                 for (let i = 0; i < audioTracks.length; i++) {
                   // Asegurar que las pistas de audio estén correctamente configuradas
                   audioTracks[i].enabled = i === 0; // Activar primera pista por defecto
@@ -511,7 +511,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
                 videoElement.setAttribute('x-webkit-airplay', 'allow');
                 
                 // Habilitar gestión avanzada de audio para Safari 15+
-                if (player.audioTracks && player.audioTracks()) {
+                if (player.tech_ && player.tech_.audioTracks && player.tech_.audioTracks()) {
                   player.on('audiochange', () => {
                     // Forzar actualización del contexto de audio al cambiar pistas
                     player.trigger('audioupdate');
@@ -576,8 +576,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
                 if ((deviceCapabilities.isSafari || deviceCapabilities.isIOS) && player && !player.paused()) {
                   try {
                     // Técnica de recuperación específica para Safari/iOS
-                    const currentTime = player.currentTime();
-                    const duration = player.duration() || 0;
+                    const currentTime = player.currentTime() || 0;
+                    // const _duration = player.duration() || 0;
                     
                     // Verificar si el video tiene información de buffer
                     const buffered = player.buffered();
@@ -602,7 +602,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
                         player.pause();
                         setTimeout(() => {
                           if (player && !player.isDisposed()) {
-                            player.play().catch(() => {});
+                            if (player && typeof player.play === 'function') player.play()?.then(() => {}).catch(() => {});
                           }
                         }, 250);
                       }
@@ -722,7 +722,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
               const buffered = player.buffered();
               if (buffered && buffered.length > 0) {
                 const bufferEnd = buffered.end(buffered.length - 1);
-                updateNetworkQuality(bufferEnd, time, player.duration());
+                updateNetworkQuality(bufferEnd, time, player.duration() || 0);
               }
             } catch (e) {
               // Ignorar errores en la detección de buffer
@@ -844,7 +844,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
             
             // Optimizaciones específicas por dispositivo
             userActions: {
-              ...baseOptions.userActions,
+              ...(baseOptions as any).userActions,
               // Deshabilitar atajos en dispositivos táctiles sin teclado
               hotkeys: deviceCapabilities.hasPointer
             },
@@ -856,7 +856,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
             
             // Optimizaciones de UI
             controlBar: {
-              ...baseOptions.controlBar,
+              ...(baseOptions as any).controlBar,
               // Ajustar visibilidad de controles según tipo de dispositivo
               fadeTime: deviceCapabilities.shouldReduceAnimations ? 0 : 300
             }
@@ -975,11 +975,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
             };
             
             // Garantizar uso del reproductor nativo de HLS en Safari (crucial)
-            enhancedOptions.techOrder = ['html5'];
+            (enhancedOptions as any).techOrder = ['html5'];
             
             // Ajustes de audio para Safari
             // Configuración directa del audio sin usar plugins
-            enhancedOptions.audioSettings = {
+            (enhancedOptions as any).audioSettings = {
               defaultVolume: 1.0
             };
             
@@ -1124,9 +1124,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
                 }
                 
                 // Mejorar calidad de audio para todos los navegadores
-                if (player.audioTracks && player.audioTracks()) {
+                if (player.tech_ && player.tech_.audioTracks && player.tech_.audioTracks()) {
                   try {
-                    const tracks = player.audioTracks();
+                    const tracks = player.tech_.audioTracks();
                     if (tracks.length > 0) {
                       // Seleccionar pista de audio de mejor calidad por defecto
                       // Generalmente la que tiene 'high', 'hd', 'main' o mayor número de canales
@@ -1242,9 +1242,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
         if ('IntersectionObserver' in window) {
           visibilityObserver = new IntersectionObserver((entries) => {
             const [entry] = entries;
-            if (!entry.isIntersecting && player && !player.paused()) {
+            const videoPlayer = player as any;
+            if (!entry.isIntersecting && videoPlayer && videoPlayer.pause && typeof videoPlayer.pause === 'function') {
               // Pausar automáticamente cuando el video no está visible
-              player.pause();
+              videoPlayer.pause();
             }
           }, { threshold: 0.1 });
           
@@ -1266,7 +1267,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
               playerRef.current.src('');
               
               // Liberar referencias a objetos grandes
-              playerRef.current.off();
+              playerRef.current.off('ready');
               
               // Eliminación retrasada para permitir limpieza interna
               setTimeout(() => {
@@ -1397,7 +1398,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
                     console.warn("[VideoPlayer] Error al reanudar reproducción nativa:", nativeErr);
                     // Si falla la reproducción nativa, intentamos con el reproductor
                     if (player && !player.isDisposed()) {
-                      player.play().catch(e => {
+                      if (player) player.play()?.then(() => {}).catch(e => {
                         console.error("Play error after source change:", e);
                         trackEvent('play_error_source_change', { error: e.message });
                       });
@@ -1405,7 +1406,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
                   });
                 } else {
                   // Fallback al método normal
-                  player.play().catch(e => {
+                  if (player) player.play()?.then(() => {}).catch(e => {
                     console.error("Play error after source change:", e);
                     trackEvent('play_error_source_change', { error: e.message });
                   });
@@ -1413,14 +1414,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
               } catch (safariErr) {
                 console.error("[VideoPlayer] Error al reanudar en Safari:", safariErr);
                 // Intentar con el método estándar
-                player.play().catch(e => {
+                if (player) player.play()?.then(() => {}).catch(e => {
                   console.error("Play error after source change:", e);
                   trackEvent('play_error_source_change', { error: e.message });
                 });
               }
             } else {
               // Navegadores no Safari - manejo normal
-              player.play().catch(e => {
+              if (player) player.play()?.then(() => {}).catch(e => {
                 console.error("Play error after source change:", e);
                 trackEvent('play_error_source_change', { error: e.message });
               });
@@ -1889,7 +1890,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
                 } else {
                   // Si no podemos acceder al elemento de video nativo, intentar con playerRef
                   console.log("[VideoPlayer] Fallback a reproducción vía VideoJS");
-                  playerRef.current.play().catch(e => {
+                  playerRef.current?.play()?.then(() => {}).catch(e => {
                     console.error("[VideoPlayer] Error de reproducción fallback:", e);
                     // Mantener controles visibles en caso de error
                     setControlsVisible(true);
@@ -2067,23 +2068,23 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
                 videoElem.play().catch(nativeErr => {
                   console.warn("[VideoPlayer] Error en hotkey para Safari:", nativeErr);
                   // Si falla, intentar a través del player
-                  playerRef.current?.play().catch(err => console.error("[VideoPlayer] Hotkey play error:", err));
+                  playerRef.current?.play()?.then(() => {}).catch(err => console.error("[VideoPlayer] Hotkey play error:", err));
                 });
               } else {
                 // Fallback al método estándar
-                playerRef.current.play().catch(err => console.error("[VideoPlayer] Hotkey play error:", err));
+                playerRef.current?.play()?.then(() => {}).catch(err => console.error("[VideoPlayer] Hotkey play error:", err));
               }
             } catch (safariErr) {
               console.error("[VideoPlayer] Error de Safari en hotkey:", safariErr);
-              playerRef.current.play().catch(err => console.error("[VideoPlayer] Hotkey play error:", err));
+              playerRef.current?.play()?.then(() => {}).catch(err => console.error("[VideoPlayer] Hotkey play error:", err));
             }
           } else {
             // Otros navegadores - método estándar
-            (playerRef.current as any).play().catch((err: any) => console.error("[VideoPlayer] Hotkey play error:", err));
+            if (playerRef.current) (playerRef.current as any).play()?.then(() => {}).catch((err: any) => console.error("[VideoPlayer] Hotkey play error:", err));
           }
         } else {
           // Pausar es siempre seguro
-          playerRef.current.pause();
+          playerRef.current?.pause?.();
         }
         trackEvent('hotkey_play_pause');
       }

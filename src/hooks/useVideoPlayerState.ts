@@ -53,7 +53,8 @@ export const useVideoPlayerState = (movieId: string) => {
         // Validar datos antes de aplicarlos
         if (state && typeof state === 'object') {
           // Establecer tiempo solo si es un valor válido y menor que la duración
-          if (typeof state.time === 'number' && state.time > 0 && state.time < player.duration()) {
+          const playerDuration = typeof player.duration === 'function' ? player.duration() : 0;
+          if (typeof state.time === 'number' && state.time > 0 && playerDuration && state.time < playerDuration) {
             player.currentTime(state.time);
           } else {
             player.currentTime(0); // Resetear a inicio si es inválido
@@ -98,7 +99,8 @@ export const useVideoPlayerState = (movieId: string) => {
   const saveCurrentState = useCallback((player: Player) => {
     try {
       // Solo guardar estado si el reproductor está inicializado y tiene duración
-      if (!player || typeof player.duration() !== 'number' || player.duration() <= 0) {
+      const playerDuration = (player && typeof player.duration === 'function') ? player.duration() : 0;
+      if (!player || typeof player.duration !== 'function' || !playerDuration || isNaN(playerDuration) || playerDuration <= 0) {
         return; // Salir si no hay un video válido
       }
       

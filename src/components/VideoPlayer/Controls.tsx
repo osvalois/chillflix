@@ -68,7 +68,7 @@ const Controls: React.FC<ControlsProps> = ({
     });
     const [localAudioTrack, setLocalAudioTrack] = useState(selectedAudioTrack);
     const [isConfigChanged, setIsConfigChanged] = useState(false);
-    const [lastSaveTime, setLastSaveTime] = useState(0);
+    // const [lastSaveTime, setLastSaveTime] = useState(0);
 
     const lastSavedRef = useRef<SavedConfig | null>(null);
     const glassmorphismStyle = {

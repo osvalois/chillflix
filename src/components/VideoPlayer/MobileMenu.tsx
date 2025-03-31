@@ -37,7 +37,7 @@ interface MobileMenuProps {
   onAudioTrackChange: (track: AudioTrack) => void;
   subtitles: Subtitle[];
   selectedSubtitle: Subtitle | null;
-  onSubtitleChange: (subtitle: Subtitle | null) => void;
+  onSubtitleChange: (subtitle: Subtitle | null, parsedCues: any[] | null) => void;
 }
 
 interface MenuSection {

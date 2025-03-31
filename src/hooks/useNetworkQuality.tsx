@@ -60,7 +60,7 @@ export const useNetworkQuality = () => {
   });
 
   // Update buffer health and adjust network quality accordingly
-  const updateNetworkQuality = useCallback((bufferEnd: number, currentTime: number, duration: number) => {
+  const updateNetworkQuality = useCallback((bufferEnd: number, currentTime: number, _duration: number) => {
     // Calculate buffer health as a ratio of buffer to expected buffer
     let expectedBuffer;
     

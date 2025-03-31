@@ -179,7 +179,7 @@ export const FloatingButton: React.FC<FloatingButtonProps> = React.memo(({
   loadingTooltip = 'Please wait while we process your request',
   ...props
 }) => {
-  const [clickCount, setClickCount] = useState(0);
+  // const [clickCount, setClickCount] = useState(0);
   const status: ButtonStatus = isDisabled ? 'disabled' : (isLoading ? 'loading' : 'normal');
   
   const { baseStyle, size } = useFloatingButtonStyles({
@@ -203,7 +203,7 @@ export const FloatingButton: React.FC<FloatingButtonProps> = React.memo(({
 
   const handleClick = useCallback(async () => {
     if (!isLoading && !isDisabled) {
-      setClickCount(prev => prev + 1);
+      // setClickCount(prev => prev + 1);
       await onClick();
     }
   }, [isLoading, isDisabled, onClick]);

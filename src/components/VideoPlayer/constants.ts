@@ -141,7 +141,7 @@ const browserDetection = () => {
     
     // Detección de iPad específicamente (importante para optimizaciones)
     const isIPad = /ipad/i.test(ua) || 
-                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1 && !window.MSStream);
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     
     // Detección de Chrome
     const isChrome = /chrome/i.test(ua) && !/edge|edg/i.test(ua);
@@ -197,7 +197,7 @@ const browserDetection = () => {
         }
     } else {
         // Si no hay Network Info API, hacemos estimación basada en dispositivo
-        isSlowConnection = isIOS && iOSVersion && iOSVersion < 11;
+        isSlowConnection = isIOS && iOSVersion ? iOSVersion < 11 : false;
     }
     
     // Detectar problemas de reproducción específicos para diferentes navegadores
@@ -377,79 +377,77 @@ export const initialOptions: PlayerOptions = {
         }
     },
     // Tecnologías de reproducción prioritarias
-    techOrder: [
-        'html5',            // Estándar moderno primero
-    ],
+    // techOrder: ['html5'] as string[],
     // Para transmisiones DASH se aconseja configurar buffer más largo
-    liveui: true,             // Mejor soporte para contenido en vivo
-    inactivityTimeout: 2000,  // 2 segundos sin actividad para ocultar controles
+    // liveui: true,             // Mejor soporte para contenido en vivo
+    // inactivityTimeout: 2000,  // 2 segundos sin actividad para ocultar controles
     preload: "auto",
     sources: [],
     // Optimizaciones de buffering avanzadas
-    buffer: {
-        fastSeek: true,                 // Habilitar seek rápido cuando sea posible
-        bufferWhilePaused: true,        // Permitir buffering durante pausa para evitar esperas
-    },
+    // buffer: {
+    //     fastSeek: true,                 // Habilitar seek rápido cuando sea posible
+    //     bufferWhilePaused: true,        // Permitir buffering durante pausa para evitar esperas
+    // },
     // Optimizaciones de calidad de imagen
-    videoQuality: {
-        defaultQuality: 'auto',          // Calidad inicial automática
-        maintainPitchOnSeek: true,       // Mantener tono durante seek rápido
-        restoreBitratePriority: 'max',   // Al recuperar conexión, priorizar calidad
-    },
+    // videoQuality: {
+    //     defaultQuality: 'auto',          // Calidad inicial automática
+    //     maintainPitchOnSeek: true,       // Mantener tono durante seek rápido
+    //     restoreBitratePriority: 'max',   // Al recuperar conexión, priorizar calidad
+    // },
     // Optimizaciones de inicio rápido
-    playbackOptimization: {
-        fastStart: true,                 // Priorizar inicio rápido
-        aggressiveBuffering: false,      // No sobrecargar buffer inicialmente
-        prioritizePlaybackRate: true,    // Priorizar mantener velocidad vs calidad
-    },
+    // playbackOptimization: {
+    //     fastStart: true,                 // Priorizar inicio rápido
+    //     aggressiveBuffering: false,      // No sobrecargar buffer inicialmente
+    //     prioritizePlaybackRate: true,    // Priorizar mantener velocidad vs calidad
+    // },
     // Controles personalizados
-    controlBar: {
-        children: [
-            'playToggle',
-            'volumePanel',
-            'currentTimeDisplay',
-            'timeDivider',
-            'durationDisplay',
-            'progressControl',
-            'liveDisplay',
-            'customControlSpacer',
-            'playbackRateMenuButton',
-            'chaptersButton',
-            'descriptionsButton',
-            'pictureInPictureToggle',
-            'fullscreenToggle'
-        ],
-        volumePanel: {
-            inline: false,    // Panel emergente para ahorro de espacio
-            vertical: true    // Orientación vertical para control más preciso
-        }
-    },
+    // controlBar: {
+    //     children: [
+    //         'playToggle',
+    //         'volumePanel',
+    //         'currentTimeDisplay',
+    //         'timeDivider',
+    //         'durationDisplay',
+    //         'progressControl',
+    //         'liveDisplay',
+    //         'customControlSpacer',
+    //         'playbackRateMenuButton',
+    //         'chaptersButton',
+    //         'descriptionsButton',
+    //         'pictureInPictureToggle',
+    //         'fullscreenToggle'
+    //     ],
+    //     volumePanel: {
+    //         inline: false,    // Panel emergente para ahorro de espacio
+    //         vertical: true    // Orientación vertical para control más preciso
+    //     }
+    // },
     poster: "",               // Se establece dinámicamente
-    userActions: {
-        hotkeys: {
-            enableNumbers: true,       // Habilitar números para saltar porcentajes
-            enableVolumeScroll: true,  // Permitir rueda de ratón para volumen
-            enableModifiersForNumbers: true, // Permitir Ctrl+# para funciones avanzadas
-        },
-        doubleClick: true,    // Habilitar doble clic para pantalla completa
-    },
+    // userActions: {
+    //     hotkeys: {
+    //         enableNumbers: true,       // Habilitar números para saltar porcentajes
+    //         enableVolumeScroll: true,  // Permitir rueda de ratón para volumen
+    //         enableModifiersForNumbers: true, // Permitir Ctrl+# para funciones avanzadas
+    //     },
+    //     doubleClick: true,    // Habilitar doble clic para pantalla completa
+    // },
     // Optimizaciones visuales
-    disablePictureInPicture: false,    // Habilitar PiP en navegadores que lo soportan
-    enableSourceset: true,             // Mejora el manejo de cambio de fuentes
-    loadingSpinner: true,              // Mostrar spinner durante la carga
-    suppressNotSupportedError: true,   // Manejar errores de compatibilidad de manera elegante
+    // disablePictureInPicture: false,    // Habilitar PiP en navegadores que lo soportan
+    // enableSourceset: true,             // Mejora el manejo de cambio de fuentes
+    // loadingSpinner: true,              // Mostrar spinner durante la carga
+    // suppressNotSupportedError: true,   // Manejar errores de compatibilidad de manera elegante
     // Accesibilidad y subtítulos
-    textTrackSettings: {
-        enabled: true,
-        persistTextTrackSettings: true,  // Recordar configuración de subtítulos
-    },
+    // textTrackSettings: {
+    //     enabled: true,
+    //     persistTextTrackSettings: true,  // Recordar configuración de subtítulos
+    // },
     // Métricas de rendimiento
-    enablePerformanceLogging: process.env.NODE_ENV === 'development',
+    // enablePerformanceLogging: process.env.NODE_ENV === 'development',
     // Interoperabilidad mejorada
-    experimentalWebCodecsSupport: true,    // Usar WebCodecs donde esté disponible (Chrome)
-    experimentalNativeFullscreen: true,    // Mejorar soporte de pantalla completa nativa
+    // experimentalWebCodecsSupport: true,    // Usar WebCodecs donde esté disponible (Chrome)
+    // experimentalNativeFullscreen: true,    // Mejorar soporte de pantalla completa nativa
     // Soporta forzar la salida a HDR donde esté disponible
-    colorSpace: 'bt709'                    // Espacio de color estándar (bt709, bt2020, etc.)
+    // colorSpace: 'bt709'                    // Espacio de color estándar (bt709, bt2020, etc.)
 };
 
 // Configuración avanzada para dispositivos móviles
