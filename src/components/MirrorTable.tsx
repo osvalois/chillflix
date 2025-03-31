@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, memo, useEffect } from 'react';
+import useWindowSize from '../hooks/useWindowSize';
 import {
   Th,
   Box,
@@ -26,6 +27,7 @@ import {
   AlertTitle,
   AlertDescription,
   Spinner,
+  Flex,
 } from '@chakra-ui/react';
 import {
   Search,
@@ -53,6 +55,7 @@ interface MirrorTableProps {
   handleBackupApiCall: () => Promise<void>;
 }
 
+// Mover funciones fuera del componente para evitar recálculos
 const formatFileSize = (bytes: number) => {
   if (!bytes) return 'Unknown';
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
@@ -60,9 +63,101 @@ const formatFileSize = (bytes: number) => {
   return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`;
 };
 
+// Optimización de componentes con motion
 const MotionButton = motion(Button);
+const MotionHeading = motion(Heading);
 
-const MirrorTable: React.FC<MirrorTableProps> = ({
+// Componente memoizado de encabezado
+const TableHeading = memo(({ title, isLoading }: { title: string; isLoading: boolean }) => (
+  <MotionHeading 
+    size="md" 
+    display="flex" 
+    alignItems="center" 
+    gap={2}
+    initial={{ opacity: 0.9 }}
+    animate={{ opacity: 1 }}
+    transition={{ duration: 0.2 }}
+  >
+    {title}
+    {isLoading && <Spinner size="sm" />}
+  </MotionHeading>
+));
+
+// Componente memoizado para acciones de búsqueda
+const SearchActions = memo(({ 
+  onSearchMore, 
+  isSearching, 
+  mirrorsLength, 
+  onFilterToggle 
+}: { 
+  onSearchMore?: () => Promise<void>; 
+  isSearching: boolean; 
+  mirrorsLength: number; 
+  onFilterToggle: () => void; 
+}) => (
+  <HStack>
+    {onSearchMore && (
+      <MotionButton
+        size="sm"
+        leftIcon={isSearching ? <Loader size={16} /> : <RefreshCcw size={16} />}
+        onClick={onSearchMore}
+        isLoading={isSearching}
+        loadingText="Searching..."
+        colorScheme="blue"
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+      >
+        Find More Sources
+      </MotionButton>
+    )}
+    <Tag colorScheme="blue" size="md">
+      <TagLeftIcon as={Globe} />
+      <TagLabel>{mirrorsLength} sources</TagLabel>
+    </Tag>
+    <IconButton
+      aria-label="Filter sources"
+      icon={<Filter size={16} />}
+      size="sm"
+      variant="ghost"
+      onClick={onFilterToggle}
+    />
+  </HStack>
+));
+
+// Estilo para la tarjeta principal con optimizaciones CSS
+const cardStyle = {
+  transform: 'translateZ(0)', // Forzar aceleración GPU
+  willChange: 'transform, opacity', // Optimización de rendimiento
+  contain: 'content', // Reducir repintados
+  overflowX: 'clip' as const,
+  overscrollBehavior: 'none' as const,
+  maxWidth: '100%',
+  width: '100%',
+  transition: 'all 0.2s ease-in-out',
+  position: 'relative' as const,
+};
+
+// Hoja de estilos para responsive design
+const responsiveStyles = {
+  card: {
+    sm: { padding: '16px 12px', borderRadius: '12px' },
+    md: { padding: '20px 16px', borderRadius: '16px' },
+    lg: { padding: '24px 20px', borderRadius: '20px' }
+  },
+  heading: {
+    sm: { fontSize: '16px', marginBottom: '12px' },
+    md: { fontSize: '18px', marginBottom: '16px' },
+    lg: { fontSize: '20px', marginBottom: '20px' }
+  },
+  badge: {
+    sm: { fontSize: '12px', padding: '4px 8px' },
+    md: { fontSize: '14px', padding: '6px 10px' },
+    lg: { fontSize: '16px', padding: '8px 12px' }
+  }
+};
+
+const MirrorTable: React.FC<MirrorTableProps> = memo(({ 
   mirrors,
   onMirrorSelect,
   selectedMirrorId,
@@ -71,7 +166,8 @@ const MirrorTable: React.FC<MirrorTableProps> = ({
   onSearchMore,
   isSearching = false,
 }) => {
-  // Estados esenciales
+
+  // Estados esenciales con inicialización optimizada
   const [selectedMirror, setSelectedMirror] = useState<Mirror | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -94,43 +190,53 @@ const MirrorTable: React.FC<MirrorTableProps> = ({
   const bgColor = useColorModeValue('white', 'gray.800');
   const hoverBg = useColorModeValue('gray.50', 'gray.700');
 
+  // Resetear a la primera página cuando cambia significativamente el dataset
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [mirrors.length]);
+
   // Filtrado y ordenamiento optimizados con useMemo
   const filteredMirrors = useMemo(() => {
     let result = mirrors;
     if (searchTerm) {
       const lowerTerm = searchTerm.toLowerCase();
-      result = result.filter(mirror =>
-        mirror.quality.toLowerCase().includes(lowerTerm) ||
-        mirror.language.toLowerCase().includes(lowerTerm)
-      );
+      // Algoritmo de filtrado optimizado
+      result = result.filter(mirror => {
+        const qualityMatch = mirror.quality?.toLowerCase().includes(lowerTerm);
+        const languageMatch = mirror.language?.toLowerCase().includes(lowerTerm);
+        return qualityMatch || languageMatch;
+      });
     }
+
+    // Ordenamiento optimizado
     return [...result].sort((a, b) => {
       const aValue = a[sortConfig.key];
       const bValue = b[sortConfig.key];
       const direction = sortConfig.direction === 'asc' ? 1 : -1;
+      
+      // Optimización para comparación numérica
       if (typeof aValue === 'number' && typeof bValue === 'number') {
         return (aValue - bValue) * direction;
       }
-      return String(aValue).localeCompare(String(bValue)) * direction;
+      
+      // Optimización para comparación de strings
+      const aString = String(aValue || '');
+      const bString = String(bValue || '');
+      return aString.localeCompare(bString) * direction;
     });
   }, [mirrors, searchTerm, sortConfig]);
 
   // Cálculos de paginación optimizados con useMemo
-  const totalPages = useMemo(
-    () => Math.ceil(filteredMirrors.length / itemsPerPage),
-    [filteredMirrors, itemsPerPage]
-  );
-
-  const { startIndex, endIndex } = useMemo(() => {
+  const paginationData = useMemo(() => {
+    const totalPages = Math.ceil(filteredMirrors.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = Math.min(startIndex + itemsPerPage, filteredMirrors.length);
-    return { startIndex, endIndex };
+    const currentMirrors = filteredMirrors.slice(startIndex, endIndex);
+    
+    return { totalPages, startIndex, endIndex, currentMirrors };
   }, [filteredMirrors, currentPage, itemsPerPage]);
 
-  const currentMirrors = useMemo(
-    () => filteredMirrors.slice(startIndex, endIndex),
-    [filteredMirrors, startIndex, endIndex]
-  );
+  const { totalPages, startIndex, endIndex, currentMirrors } = paginationData;
 
   // Handlers memorizados para evitar re-renderizados
   const handleMirrorSelect = useCallback((mirror: Mirror) => {
@@ -148,6 +254,11 @@ const MirrorTable: React.FC<MirrorTableProps> = ({
       key,
       direction: current.key === key && current.direction === 'desc' ? 'asc' : 'desc'
     }));
+  }, []);
+
+  const handleSearchTermChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1); // Reinicia la página al filtrar
   }, []);
 
   const copyToClipboard = useCallback(async (text: string, type: string = 'link') => {
@@ -204,83 +315,132 @@ const MirrorTable: React.FC<MirrorTableProps> = ({
       onClick={() => handleSort(field)}
       _hover={{ bg: hoverBg }}
       transition="all 0.2s"
+      px={4}
+      py={3}
     >
       <HStack spacing={1}>
-        <Text>{label}</Text>
+        <Text fontWeight="semibold">{label}</Text>
         {renderSortIcon(field)}
       </HStack>
     </Th>
   ), [handleSort, hoverBg, renderSortIcon]);
 
+  // Determinar tamaño de pantalla para estilos responsivos
+  const { width } = useWindowSize();
+  const screenSize = useMemo(() => {
+    if (width < 768) return 'sm';
+    if (width < 1200) return 'md';
+    return 'lg';
+  }, [width]);
+  
+  // Aplicar estilos responsivos
+  const currentStyles = responsiveStyles.card[screenSize as keyof typeof responsiveStyles.card];
+  
   return (
-    <Card bg={bgColor} boxShadow="sm" borderRadius="lg">
-      <CardHeader>
-        <Stack spacing={4}>
-          <HStack justify="space-between">
-            <Heading size="md" display="flex" alignItems="center" gap={2}>
-              Available Sources
-              {isLoading && <Spinner size="sm" />}
-            </Heading>
-            <HStack>
-              {onSearchMore && (
-                <MotionButton
-                  size="sm"
-                  leftIcon={isSearching ? <Loader size={16} /> : <RefreshCcw size={16} />}
-                  onClick={handleSearchMore}
-                  isLoading={isSearching}
-                  loadingText="Searching..."
-                  colorScheme="blue"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  Find More Sources
-                </MotionButton>
-              )}
-              <Tag colorScheme="blue" size="md">
-                <TagLeftIcon as={Globe} />
-                <TagLabel>{mirrors.length} sources</TagLabel>
-              </Tag>
-              <IconButton
-                aria-label="Filter sources"
-                icon={<Filter size={16} />}
-                size="sm"
-                variant="ghost"
-                onClick={onFilterToggle}
+    <Card 
+      bg={bgColor} 
+      boxShadow="sm" 
+      borderRadius={currentStyles.borderRadius}
+      style={{
+        ...cardStyle,
+        padding: currentStyles.padding
+      }}
+      height="auto"
+      data-testid="mirror-table"
+      role="region"
+      aria-label="Available Sources"
+      transition="all 0.3s ease"
+    >
+      <CardHeader px={['2', '3', '4']} py={['3', '4', '5']}>
+        <Stack spacing={[3, 4]} width="100%">
+          <Flex 
+            justify="space-between" 
+            align="center" 
+            flexDirection={['column', 'column', 'row']}
+            gap={[3, 4]}
+            width="100%"
+          >
+            <TableHeading title="Available Sources" isLoading={isLoading} />
+            <Box width={['100%', '100%', 'auto']}>
+              <SearchActions 
+                onSearchMore={onSearchMore ? handleSearchMore : undefined} 
+                isSearching={isSearching} 
+                mirrorsLength={mirrors.length} 
+                onFilterToggle={onFilterToggle} 
               />
-            </HStack>
-          </HStack>
+            </Box>
+          </Flex>
 
           <Collapse in={isFilterOpen} animateOpacity>
-            <InputGroup size="sm">
-              <InputLeftElement>
+            <InputGroup size={['sm', 'md']}>
+              <InputLeftElement pointerEvents="none">
                 <Search size={16} />
               </InputLeftElement>
               <Input
                 placeholder="Search by quality, language..."
                 value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1); // Reinicia la página al filtrar
-                }}
+                onChange={handleSearchTermChange}
                 borderRadius="md"
+                aria-label="Search sources"
+                spellCheck="false"
+                autoComplete="off"
+                _focus={{
+                  boxShadow: "0 0 0 1px rgba(66, 153, 225, 0.6)",
+                  borderColor: "blue.300"
+                }}
+                fontSize={['sm', 'md']}
               />
             </InputGroup>
           </Collapse>
 
           {filteredMirrors.length === 0 && !isLoading && (
-            <Alert status="info" borderRadius="md">
+            <Alert 
+              status="info" 
+              borderRadius="md" 
+              variant="left-accent"
+              flexDirection={['column', 'row']}
+              alignItems={['flex-start', 'center']}
+              py={[3, 4]}
+              pl={[3, 4]}
+              pr={[3, 5]}
+            >
               <AlertIcon />
-              <AlertTitle>No sources found</AlertTitle>
-              <AlertDescription>
-                Try adjusting your search or click "Find More Sources"
-              </AlertDescription>
+              <Box flex="1">
+                <AlertTitle fontSize={['sm', 'md']} mb={[1, 0]}>No sources found</AlertTitle>
+                <AlertDescription fontSize={['xs', 'sm']}>
+                  Try adjusting your search or click "Find More Sources"
+                </AlertDescription>
+              </Box>
             </Alert>
           )}
         </Stack>
       </CardHeader>
 
-      <CardBody>
-        <Box overflowX="auto">
+      <CardBody px={['2', '3', '4']} py={['3', '4', '5']}>
+        <Box 
+          overflowX="auto" 
+          overflowY="hidden"
+          style={{ WebkitOverflowScrolling: 'touch' }} // Mejora el desplazamiento en iOS
+          sx={{ 
+            scrollbarWidth: 'thin',
+            scrollSnapType: 'x mandatory', // Ayuda con el desplazamiento en dispositivos táctiles
+            '&::-webkit-scrollbar': {
+              width: '6px',
+              height: '6px',
+              borderRadius: '8px',
+              backgroundColor: `rgba(0, 0, 0, 0.05)`
+            },
+            '&::-webkit-scrollbar-thumb': {
+              backgroundColor: `rgba(0, 0, 0, 0.1)`,
+              borderRadius: '8px',
+              '&:hover': {
+                backgroundColor: `rgba(0, 0, 0, 0.2)`
+              }
+            }
+          }}
+          borderRadius="md"
+          className="source-table-container"
+        >
           <MirrorList
             currentMirrors={currentMirrors}
             isLoading={isLoading}
@@ -290,16 +450,19 @@ const MirrorTable: React.FC<MirrorTableProps> = ({
             renderHeaderCell={renderHeaderCell}
           />
 
-          <Pagination
-            setItemsPerPage={setItemsPerPage}
-            currentPage={currentPage}
-            setCurrentPage={setCurrentPage}
-            totalPages={totalPages}
-            startIndex={startIndex}
-            endIndex={endIndex}
-            totalItems={filteredMirrors.length}
-            itemsPerPage={itemsPerPage}
-          />
+          {/* Solo mostrar paginador si hay más de una página */}
+          {totalPages > 1 && filteredMirrors.length > 0 && (
+            <Pagination
+              setItemsPerPage={setItemsPerPage}
+              currentPage={currentPage}
+              setCurrentPage={setCurrentPage}
+              totalPages={totalPages}
+              startIndex={startIndex}
+              endIndex={endIndex}
+              totalItems={filteredMirrors.length}
+              itemsPerPage={itemsPerPage}
+            />
+          )}
         </Box>
 
         <SourceDetails
@@ -313,6 +476,6 @@ const MirrorTable: React.FC<MirrorTableProps> = ({
       </CardBody>
     </Card>
   );
-};
+});
 
 export default MirrorTable;
