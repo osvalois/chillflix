@@ -86,10 +86,12 @@ const SimilarMoviesSection: React.FC<SimilarMoviesSectionProps> = ({ movies, isL
     initialInView: isMobile
   });
 
+  const bgColor = useColorModeValue("rgba(255, 255, 255, 0.08)", "rgba(0, 0, 0, 0.3)");
+  
   // Enhanced glassmorphism styles
   const styles = useMemo(() => ({
     glassmorphism: {
-      bg: useColorModeValue("rgba(255, 255, 255, 0.08)", "rgba(0, 0, 0, 0.3)"),
+      bg: bgColor,
       backdropFilter: "blur(20px)",
       borderRadius: "xl",
       border: "1px solid rgba(255, 255, 255, 0.15)",
@@ -104,7 +106,7 @@ const SimilarMoviesSection: React.FC<SimilarMoviesSectionProps> = ({ movies, isL
         transform: "translateY(-2px)"
       }
     }
-  }), []);
+  }), [bgColor]);
 
   // Refined animation config
   const fadeIn = useSpring({

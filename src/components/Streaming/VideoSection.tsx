@@ -2,20 +2,13 @@ import React, { Suspense, useMemo, memo, useState, useCallback, lazy } from 'rea
 import { Box, Text, VStack } from '@chakra-ui/react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { motion, AnimatePresence } from 'framer-motion';
-import dynamic from 'next/dynamic';
 import { useInView } from 'react-intersection-observer';
 import { FloatingButton } from '../Button/CustomButton';
 
-// Dynamic imports optimizados con prioridad de carga
-const VideoPlayer = dynamic(() => import('../VideoPlayer/VideoPlayer'), {
-  ssr: false,
-  loading: () => <LoadingMessage />,
-  // Precargar para reducir tiempo de espera
-  suspense: true
-});
-
-const LoadingMessage = dynamic(() => import('../common/LoadingMessage'), { ssr: true });
-const ErrorFallback = dynamic(() => import('../UI/ErrorFallback'), { ssr: true });
+// Lazy-loaded components
+const VideoPlayer = lazy(() => import('../VideoPlayer/VideoPlayer'));
+const LoadingMessage = lazy(() => import('../common/LoadingMessage'));
+const ErrorFallback = lazy(() => import('../UI/ErrorFallback'));
 
 // Types
 interface VideoSectionProps {

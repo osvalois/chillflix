@@ -111,6 +111,7 @@ const Logo = memo(({ className, onClick }: LogoProps) => {
     >
       <AnimatePresence mode="sync">
         <MotionBox
+          key="logo-icon"
           width={dimensions.icon.width}
           height={dimensions.icon.height}
           sx={containerStyles}
@@ -133,10 +134,12 @@ const Logo = memo(({ className, onClick }: LogoProps) => {
             style={imageStyles}
           />
         </MotionBox>
+      </AnimatePresence>
 
-        {/* Text appears on larger screens */}
+      {/* Text appears on larger screens */}
+      <AnimatePresence mode="sync">
         {dimensions.text.fontSize !== 'lg' && (
-          <MotionBox {...textAnimation}>
+          <MotionBox key="logo-text" {...textAnimation}>
             <Text
               fontSize={dimensions.text.fontSize}
               fontWeight="bold"

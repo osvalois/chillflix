@@ -21,6 +21,7 @@ import { debounce } from 'lodash';
 import { CONSTANTS, initialOptions, mobileOptions, lowPowerOptions } from "./constants";
 import { useTimeout } from "../../hooks/useTimeout";
 import { Subtitle } from "../../services/subtitle-types";
+import { useNetworkQuality } from "../../hooks/useNetworkQuality";
 
 const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
   ({
@@ -53,6 +54,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
     const toast = useToast();
     const { trackEvent } = useAnalytics();
     const { setCustomTimeout, clearCustomTimeout, clearAllTimeouts } = useTimeout();
+    const { 
+      networkQuality, 
+      updateNetworkQuality, 
+      isOffline,
+      isLowBandwidth,
+      recommendedQuality,
+      registerBufferingEvent,
+      registerPlaybackStall
+    } = useNetworkQuality();
 
     const {
       isLoading,
@@ -90,6 +100,26 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
       const isTablet = /iPad|tablet|Tablet/i.test(navigator.userAgent) || (window.innerWidth >= 600 && window.innerWidth <= 1024);
       const isTV = /TV|SmartTV|SMART-TV|Apple TV|GoogleTV|HbbTV|webOS.+TV/i.test(navigator.userAgent);
       
+      // Detección de navegadores específicos
+      const ua = navigator.userAgent.toLowerCase();
+      const isSafari = /^((?!chrome|android).)*safari/i.test(ua) || 
+                     (/iphone|ipod|ipad/i.test(ua) && /webkit/i.test(ua) && !/crios|chrome|fxios|firefox/i.test(ua));
+      const isIOS = /iphone|ipad|ipod/i.test(ua);
+      const isChrome = /chrome/i.test(ua) && !/edge|edg/i.test(ua);
+      const isFirefox = /firefox/i.test(ua);
+      const isEdge = /edge|edg/i.test(ua);
+      
+      // Detección de versión de iOS para problemas específicos
+      const iOSVersion = isIOS ? parseFloat(
+        ('' + (/CPU.*OS ([0-9_]{1,5})|(CPU like).*AppleWebKit.*Mobile/i.exec(ua) || [0,''])[1])
+        .replace('undefined', '3_2').replace('_', '.').replace('_', '')
+      ) || null : null;
+      
+      // Safari versión
+      const safariVersion = isSafari && !isIOS ? parseFloat(
+        ('' + (/Version\/([0-9.]+).*Safari/i.exec(ua) || [0,''])[1])
+      ) || null : null;
+      
       // Detección de capacidades de hardware
       const isLowPower = (() => {
         // Usar hardwareConcurrency si está disponible
@@ -98,8 +128,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
         }
         
         // Heurística basada en dispositivo y memoria
-        if (navigator.deviceMemory) {
-          return navigator.deviceMemory < 4;
+        if ('deviceMemory' in navigator) {
+          return (navigator as any).deviceMemory < 4;
         }
         
         // Heurística basada en agente de usuario para dispositivos conocidos de baja potencia
@@ -120,30 +150,75 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
       const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
       
       // Capacidades de red
-      const connection = navigator.connection;
+      const connection = 'connection' in navigator ? (navigator as any).connection : null;
       const isSaveData = connection ? connection.saveData : false;
       const effectiveConnectionType = connection ? connection.effectiveType : '4g';
       const isSlowConnection = effectiveConnectionType === '2g' || effectiveConnectionType === 'slow-2g';
       const isMediumConnection = effectiveConnectionType === '3g';
       const estimatedBandwidth = connection?.downlink ? connection.downlink * 1000 : 5000; // kbps
       
-      // Detección de capacidades del navegador
+      // Detección de capacidades del navegador para video
       const supportsMSE = 'MediaSource' in window;
-      const supportsHLSNatively = (() => {
-        const video = document.createElement('video');
-        return video.canPlayType('application/vnd.apple.mpegurl') !== '';
-      })();
+      const videoElement = document.createElement('video');
+      const supportsHLSNatively = videoElement.canPlayType('application/vnd.apple.mpegurl') !== '';
+      const supportsMP4 = videoElement.canPlayType('video/mp4') !== '';
+      const supportsWebM = videoElement.canPlayType('video/webm') !== '';
+      
+      // Soporte de codecs específicos para Safari
+      const supportsHEVC = isSafari && ((iOSVersion && iOSVersion >= 11) || 
+                                      (safariVersion && safariVersion >= 11));
+      const supportsDolbyVision = isSafari && ((iOSVersion && iOSVersion >= 14) || 
+                                             (safariVersion && safariVersion >= 14));
+      
+      // Soporte de tecnologías avanzadas
+      const supportsMediaSession = 'mediaSession' in navigator;
+      const supportsWakeLock = 'wakeLock' in navigator;
+      const supportsEME = 'requestMediaKeySystemAccess' in navigator || 'WebKitMediaKeys' in window;
+      
+      // Problemas conocidos específicos
+      const hasStableHLSImplementation = isSafari || isIOS; // Safari tiene la mejor implementación nativa de HLS
+      const requiresUserInteractionForPlay = isIOS || (isSafari && !isIOS); // Safari y iOS requieren interacción del usuario
+      const hasAutoplayRestrictions = isIOS || isSafari || isChrome;
+      const hasPlaybackIssues = isIOS && iOSVersion && iOSVersion < 12;
       
       // Factores combinados para decisiones de rendimiento
       const shouldUseMinimalUI = isLowPower || isSaveData || isSlowConnection;
       const shouldReduceAnimations = preferReducedMotion || isLowPower || isSaveData || isSlowConnection;
       const shouldUseHDVideo = !shouldUseMinimalUI && !isSlowConnection && !isMediumConnection && !isSmallScreen;
-      const shouldPreload = !isSaveData && !isSlowConnection;
+      const shouldPreload = !isSaveData && !isSlowConnection && (!isIOS || (iOSVersion && iOSVersion >= 13));
       const shouldUseLowQualityImages = isSlowConnection || isSaveData || isLowPower;
       
-      // Seleccionar configuración óptima basada en el dispositivo
+      // Seleccionar configuración óptima basada en el dispositivo y navegador
       let optimizedPlayerOptions;
-      if (isLowPower || isSlowConnection) {
+      
+      if (isSafari || isIOS) {
+        // Configuración optimizada para Safari/iOS
+        optimizedPlayerOptions = {
+          ...initialOptions,
+          html5: {
+            ...initialOptions.html5,
+            vhs: {
+              ...initialOptions.html5.vhs,
+              overrideNative: false, // NUNCA sobreescribir la implementación nativa en Safari/iOS
+              enableLowInitialPlaylist: true, // Comenzar con baja calidad para inicio rápido
+              cacheEncryptionKeys: true,
+              limitRenditionByPlayerDimensions: true,
+              useDevicePixelRatio: true, // Considerar pantallas retina para calidad
+            }
+          },
+          // Configuraciones específicas para Safari
+          techOrder: ['html5'], // Utilizar solo HTML5 en Safari
+          preload: isIOS ? 'metadata' : 'auto', // En iOS precargar solo metadatos
+          allowedEvents: ['loadstart', 'loadedmetadata', 'canplay'], // Eventos clave para monitoreo
+          // Reproducción optimizada
+          playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2],
+          // Usar volumen nativo
+          volumePanel: {
+            inline: false,
+            vertical: true
+          }
+        };
+      } else if (isLowPower || isSlowConnection) {
         optimizedPlayerOptions = lowPowerOptions;
       } else if (isMobile || isTablet) {
         optimizedPlayerOptions = mobileOptions;
@@ -170,6 +245,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
         isTV,
         isLowPower,
         
+        // Navegador
+        isSafari,
+        isIOS,
+        isChrome,
+        isFirefox,
+        isEdge,
+        iOSVersion,
+        safariVersion,
+        
         // Pantalla
         isHighDensityDisplay,
         isSmallScreen,
@@ -190,9 +274,22 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
         isMediumConnection,
         estimatedBandwidth,
         
-        // Navegador
+        // Capacidades de vídeo y multimedia
         supportsMSE,
         supportsHLSNatively,
+        supportsMP4,
+        supportsWebM,
+        supportsHEVC,
+        supportsDolbyVision,
+        supportsMediaSession,
+        supportsWakeLock,
+        supportsEME,
+        
+        // Problemas conocidos
+        hasStableHLSImplementation,
+        requiresUserInteractionForPlay,
+        hasAutoplayRestrictions,
+        hasPlaybackIssues,
         
         // Factores combinados
         shouldUseMinimalUI,
@@ -325,24 +422,277 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
     // Player event handlers
     const handlePlayerReady = useCallback((player: Player) => {
       playerRef.current = player;
+      
+      // Optimizaciones especiales para Safari/iOS
+      const isSafari = deviceCapabilities.isSafari || deviceCapabilities.isIOS;
+      
+      // Optimizaciones para Safari/iOS después de que el reproductor esté listo
+      if (deviceCapabilities.isSafari || deviceCapabilities.isIOS) {
+        try {
+          // Forzar precargar imagen del poster para mejor experiencia
+          if (player.poster() && typeof player.preload === 'function') {
+            const img = new Image();
+            img.src = player.poster();
+          }
+          
+          // Optimizar la reproducción HLS nativa en Safari
+          if (player.tech_ && player.tech_.hls) {
+            // Aplicar configuraciones HLS avanzadas específicas de Safari
+            const hlsObj = player.tech_.hls;
+            if (hlsObj && typeof hlsObj.bandwidth === 'number') {
+              // Ajustar bitrate inicial para mejorar arranque en Safari
+              hlsObj.bandwidth = deviceCapabilities.isSlowConnection ? 1000000 : 3000000;
+              
+              // Desactivar ABR agresivo en iOS para evitar cambios de calidad frecuentes
+              if (deviceCapabilities.isIOS && hlsObj.representations) {
+                hlsObj.representations().sort((a: any, b: any) => b.bandwidth - a.bandwidth);
+              }
+            }
+          }
+          
+          // Optimizaciones específicas de audio para Safari
+          const videoElement = player.el().querySelector('video');
+          if (videoElement) {
+            // Mejorar manejo de audio en Safari/iOS
+            videoElement.setAttribute('x-webkit-airplay', 'allow');
+            
+            // Mejoras de audio para iOS
+            if (deviceCapabilities.isIOS) {
+              // Configuración explícita del audio para iOS
+              videoElement.playsInline = true;
+              videoElement.controls = false; // Usar controles personalizados
+              
+              // Mejorar sincronización entre audio y video en iOS
+              if (player.audioTracks && player.audioTracks()) {
+                const audioTracks = player.audioTracks();
+                for (let i = 0; i < audioTracks.length; i++) {
+                  // Asegurar que las pistas de audio estén correctamente configuradas
+                  audioTracks[i].enabled = i === 0; // Activar primera pista por defecto
+                }
+              }
+              
+              // Reparar problemas conocidos de audio en iOS
+              if (deviceCapabilities.iOSVersion && deviceCapabilities.iOSVersion < 15) {
+                // Solución para problemas de audio en iOS antiguos
+                const fixAudioContext = () => {
+                  try {
+                    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+                    if (AudioContext) {
+                      const audioCtx = new AudioContext();
+                      // Crear un nodo ficticio para forzar la activación del contexto de audio
+                      const oscillator = audioCtx.createOscillator();
+                      oscillator.frequency.value = 0; // Silencio
+                      oscillator.connect(audioCtx.destination);
+                      oscillator.start(0);
+                      oscillator.stop(0.1);
+                    }
+                  } catch (e) {
+                    console.warn('[VideoPlayer] Error al inicializar AudioContext:', e);
+                  }
+                };
+                
+                // Aplicar fix de audio al primer gesto del usuario
+                const userInteractionHandler = () => {
+                  fixAudioContext();
+                  document.removeEventListener('touchstart', userInteractionHandler);
+                  document.removeEventListener('mousedown', userInteractionHandler);
+                };
+                
+                document.addEventListener('touchstart', userInteractionHandler, { once: true });
+                document.addEventListener('mousedown', userInteractionHandler, { once: true });
+              }
+            }
+            
+            // Optimizaciones de audio para Safari de escritorio
+            if (deviceCapabilities.isSafari && !deviceCapabilities.isIOS) {
+              // Mejorar compatibilidad de audio en Safari de escritorio
+              if (deviceCapabilities.safariVersion && deviceCapabilities.safariVersion >= 15) {
+                // Safari moderno tiene mejor soporte para audio espacial
+                videoElement.setAttribute('x-webkit-airplay', 'allow');
+                
+                // Habilitar gestión avanzada de audio para Safari 15+
+                if (player.audioTracks && player.audioTracks()) {
+                  player.on('audiochange', () => {
+                    // Forzar actualización del contexto de audio al cambiar pistas
+                    player.trigger('audioupdate');
+                  });
+                }
+              }
+            }
+          }
+        } catch (e) {
+          // Ignorar errores de optimización - no son críticos
+          console.warn("[VideoPlayer] Error al aplicar optimizaciones Safari:", e);
+        }
+      }
 
       const eventHandlers = {
+        // Detección de buffering mejorada específica por navegador
         waiting: () => {
           setIsLoading(true);
           setIsBuffering(true);
+          
+          // Registrar evento de buffering para análisis de calidad de red
+          registerBufferingEvent();
+          
+          // Tiempo de espera adaptativo basado en el navegador y la conexión
+          let bufferThreshold = CONSTANTS.BUFFER_THRESHOLD;
+          
+          // Ajustes especiales para diferentes navegadores
+          if (deviceCapabilities.isSafari) {
+            bufferThreshold *= 1.5; // Safari necesita más tiempo
+          } else if (deviceCapabilities.isIOS) {
+            bufferThreshold *= 2.0; // iOS necesita aún más tiempo
+          }
+          
+          // Ajustes basados en red
+          if (deviceCapabilities.isSlowConnection) {
+            bufferThreshold *= 2.0; // Conexiones lentas necesitan más tiempo
+          } else if (deviceCapabilities.isMediumConnection) {
+            bufferThreshold *= 1.5; // Conexiones medias
+          }
+          
+          // Controlar el buffering prolongado
           setCustomTimeout('buffer', () => {
             if (isBuffering) {
+              // Registrar eventos de buffering prolongado
               trackEvent('long_buffering', { 
-                duration: CONSTANTS.BUFFER_THRESHOLD,
-                currentTime: player.currentTime()
+                duration: bufferThreshold,
+                currentTime: player.currentTime(),
+                networkQuality: networkQuality,
+                isLowBandwidth: isLowBandwidth,
+                recommendedQuality: recommendedQuality,
+                browser: deviceCapabilities.isSafari ? 'safari' : 
+                        deviceCapabilities.isIOS ? 'ios' :
+                        deviceCapabilities.isChrome ? 'chrome' : 
+                        deviceCapabilities.isFirefox ? 'firefox' : 'other'
               });
+              
+              // Registrar como stall si es muy largo
+              if (bufferThreshold > 1000) {
+                registerPlaybackStall(bufferThreshold);
+                
+                // Estrategias de recuperación específicas por navegador
+                if ((deviceCapabilities.isSafari || deviceCapabilities.isIOS) && player && !player.paused()) {
+                  try {
+                    // Técnica de recuperación específica para Safari/iOS
+                    const currentTime = player.currentTime();
+                    const duration = player.duration() || 0;
+                    
+                    // Verificar si el video tiene información de buffer
+                    const buffered = player.buffered();
+                    if (buffered && buffered.length > 0) {
+                      // Recuperación inteligente basada en buffer disponible
+                      const bufferEnd = buffered.end(buffered.length - 1);
+                      const bufferStart = buffered.start(0);
+                      
+                      if (currentTime < bufferEnd - 2) {
+                        // Si hay suficiente buffer por delante, avanzar a una posición con buffer
+                        const newTime = Math.min(currentTime + 1.5, bufferEnd - 0.5);
+                        console.log(`[VideoPlayer] Recuperación: Avanzando de ${currentTime} a ${newTime}`);
+                        player.currentTime(newTime);
+                      } else if (currentTime > bufferStart + 10) {
+                        // Si estamos cerca del final del buffer, retroceder para rebuffering
+                        const newTime = Math.max(currentTime - 3, bufferStart + 1);
+                        console.log(`[VideoPlayer] Recuperación: Retrocediendo de ${currentTime} a ${newTime}`);
+                        player.currentTime(newTime);
+                      } else {
+                        // Caso extremo: alternar entre pausa y reproducción puede ayudar
+                        console.log(`[VideoPlayer] Recuperación: Alternando pausa/reproducción`);
+                        player.pause();
+                        setTimeout(() => {
+                          if (player && !player.isDisposed()) {
+                            player.play().catch(() => {});
+                          }
+                        }, 250);
+                      }
+                    } else {
+                      // Fallback: retroceder un poco si no hay información de buffer
+                      if (currentTime > 0.5) {
+                        const newTime = Math.max(0, currentTime - 0.5);
+                        console.log(`[VideoPlayer] Recuperación fallback: Retrocediendo a ${newTime}`);
+                        player.currentTime(newTime);
+                      }
+                    }
+                    
+                    // Forzar actualización del elemento de video (técnica específica para Safari)
+                    const videoElem = player.el().querySelector('video');
+                    if (videoElem) {
+                      videoElem.style.display = 'none';
+                      // Forzar reflow
+                      void videoElem.offsetHeight;
+                      setTimeout(() => { videoElem.style.display = 'block'; }, 10);
+                    }
+                  } catch (e) {
+                    console.warn("[VideoPlayer] Error en recuperación de buffering:", e);
+                  }
+                } else if (deviceCapabilities.isChrome && player && !player.paused()) {
+                  // Recuperación específica para Chrome
+                  try {
+                    // En Chrome, a veces ayuda alternar la tasa de reproducción
+                    const currentRate = player.playbackRate();
+                    player.playbackRate(0.5); // Reducir velocidad temporalmente
+                    setTimeout(() => {
+                      if (player && !player.isDisposed()) {
+                        player.playbackRate(currentRate); // Restaurar
+                      }
+                    }, 200);
+                  } catch (e) {
+                    // Ignorar errores de recuperación
+                  }
+                }
+              }
             }
-          }, CONSTANTS.BUFFER_THRESHOLD);
+          }, bufferThreshold);
         },
+        // Evento canplay mejorado con optimizaciones por navegador
         canplay: () => {
           setIsLoading(false);
           setIsBuffering(false);
           clearCustomTimeout('buffer');
+          
+          // Optimizaciones específicas por navegador cuando el contenido está listo para reproducir
+          if (deviceCapabilities.isSafari && player) {
+            try {
+              // Aplicar hack de forzado de visualización en Safari
+              const videoElem = player.el().querySelector('video');
+              if (videoElem) {
+                // Forzar repintado para resolver problemas de visualización en Safari
+                const currentDisplay = videoElem.style.display;
+                videoElem.style.display = 'none';
+                // Forzar reflow
+                void videoElem.offsetHeight;
+                setTimeout(() => { videoElem.style.display = currentDisplay || 'block'; }, 0);
+              }
+              
+              // En Safari, verificar si realmente podemos reproducir (prevenir falsos positivos)
+              if (player.readyState() < 3) { // HAVE_FUTURE_DATA
+                // Establecer un timeout de seguridad para volver a verificar
+                setTimeout(() => {
+                  if (player && !player.isDisposed() && player.readyState() >= 3) {
+                    // Ahora sí podemos reproducir con confianza
+                    setIsLoading(false);
+                  }
+                }, 50);
+              }
+              
+              // Optimizar reproducción de audio
+              if (deviceCapabilities.isIOS) {
+                // En iOS, intentar restaurar contexto de audio si está suspendido
+                try {
+                  const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+                  if (AudioContext && (window as any).audioContext && 
+                      (window as any).audioContext.state === 'suspended') {
+                    (window as any).audioContext.resume().catch(() => {});
+                  }
+                } catch (e) {
+                  // Ignorar errores de audio
+                }
+              }
+            } catch (e) {
+              console.warn("[VideoPlayer] Error en optimizaciones canplay:", e);
+            }
+          }
         },
         play: () => {
           setIsPaused(false);
@@ -366,6 +716,17 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
           if (typeof time === 'number') {
             setCurrentTime(time);
             saveCurrentState(player);
+            
+            // Actualizar métricas de calidad de red usando el buffer actual
+            try {
+              const buffered = player.buffered();
+              if (buffered && buffered.length > 0) {
+                const bufferEnd = buffered.end(buffered.length - 1);
+                updateNetworkQuality(bufferEnd, time, player.duration());
+              }
+            } catch (e) {
+              // Ignorar errores en la detección de buffer
+            }
           }
         },
         loadedmetadata: () => {
@@ -436,7 +797,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
       setControlsVisible, loadSavedState, saveCurrentState, 
       handleError, checkAudioTracks, trackEvent, title, 
       selectedQuality, selectedLanguage, setCustomTimeout, 
-      clearCustomTimeout
+      clearCustomTimeout, registerBufferingEvent, registerPlaybackStall,
+      networkQuality, isLowBandwidth, recommendedQuality, updateNetworkQuality
     ]);
 
     // Inicialización avanzada del reproductor con optimizaciones específicas para el dispositivo
@@ -444,117 +806,423 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
       if (!playerRef.current && videoRef.current) {
         const videoElement = videoRef.current;
         
-        // Elegir la configuración óptima según el dispositivo detectado
-        const baseOptions = deviceCapabilities.optimizedPlayerOptions || initialOptions;
-        
-        // Fusionar opciones basadas en capacidades del dispositivo
-        const enhancedOptions = {
-          ...baseOptions,
-          ...options,
-          poster: options.poster || posterUrl || '',
-          
-          // Optimizaciones para mejorar rendimiento inicial en todos los dispositivos
-          html5: {
-            ...baseOptions.html5,
-            vhs: {
-              ...baseOptions.html5.vhs,
-              // Ajustar ancho de banda según la conexión detectada
-              bandwidth: deviceCapabilities.estimatedBandwidth || baseOptions.html5.vhs.bandwidth,
-              // Usar la API de Network Information si está disponible
-              useNetworkInformationApi: 'connection' in navigator,
-              // Guardar información de rendimiento para futuras cargas
-              useBandwidthFromLocalStorage: !deviceCapabilities.isSlowConnection
-            }
-          },
-          
-          // Ajustar precarga según la red
-          preload: deviceCapabilities.shouldPreload ? 'auto' : 'metadata',
-          
-          // Evitar autoplay para compatibilidad con políticas de navegador
-          autoplay: false,
-          
-          // Optimizaciones específicas por dispositivo
-          userActions: {
-            ...baseOptions.userActions,
-            // Deshabilitar atajos en dispositivos táctiles sin teclado
-            hotkeys: deviceCapabilities.hasPointer
-          },
-          
-          // Optimizaciones para diferentes tipos de pantalla
-          responsive: true,
-          fluid: true,
-          aspectRatio: deviceCapabilities.isTV ? '16:9' : undefined,
-          
-          // Optimizaciones de UI
-          controlBar: {
-            ...baseOptions.controlBar,
-            // Ajustar visibilidad de controles según tipo de dispositivo
-            fadeTime: deviceCapabilities.shouldReduceAnimations ? 0 : 300
-          }
-        };
-        
-        // Log de configuración para depuración (solo en desarrollo)
-        if (process.env.NODE_ENV === 'development') {
-          console.debug('[VideoPlayer] Inicializando con opciones optimizadas:', {
-            deviceType: deviceCapabilities.isMobile ? 'mobile' : deviceCapabilities.isTablet ? 'tablet' : 'desktop',
-            connection: deviceCapabilities.effectiveConnectionType,
-            options: enhancedOptions
-          });
+        // Asegurarse de que videojs está disponible
+        if (typeof videojs === 'undefined') {
+          console.error('[VideoPlayer] Error: videojs no está disponible');
+          return;
         }
         
-        // Crear instancia del reproductor con opciones optimizadas
-        const player = videojs(videoElement, enhancedOptions, () => {
-          handlePlayerReady(player);
-        });
-        
-        // Preparación inicial para mejorar el tiempo de primera reproducción
-        if (options.sources?.length) {
-          try {
-            // Aplicar la fuente con protección contra errores
-            player.src(options.sources);
-            previousSourceRef.current = options.sources[0]?.src || null;
+        try {
+          // Elegir la configuración óptima según el dispositivo detectado
+          const baseOptions = deviceCapabilities.optimizedPlayerOptions || initialOptions;
+          
+          // Fusionar opciones basadas en capacidades del dispositivo
+          const enhancedOptions = {
+            ...baseOptions,
+            ...options,
+            poster: options.poster || posterUrl || '',
             
-            // Estrategia de precarga adaptativa
-            if (deviceCapabilities.shouldPreload) {
-              // Precarga agresiva para conexiones rápidas
-              player.one('loadedmetadata', () => {
-                // Técnica avanzada: precarga incremental para minimizar buffering inicial
-                const preloadStrategy = async () => {
+            // Optimizaciones para mejorar rendimiento inicial en todos los dispositivos
+            html5: {
+              ...baseOptions.html5,
+              vhs: {
+                ...baseOptions.html5.vhs,
+                // Ajustar ancho de banda según la conexión detectada
+                bandwidth: deviceCapabilities.estimatedBandwidth || baseOptions.html5.vhs.bandwidth,
+                // Usar la API de Network Information si está disponible
+                useNetworkInformationApi: 'connection' in navigator,
+                // Guardar información de rendimiento para futuras cargas
+                useBandwidthFromLocalStorage: !deviceCapabilities.isSlowConnection
+              }
+            },
+            
+            // Ajustar precarga según la red
+            preload: deviceCapabilities.shouldPreload ? 'auto' : 'metadata',
+            
+            // Evitar autoplay para compatibilidad con políticas de navegador
+            autoplay: false,
+            
+            // Optimizaciones específicas por dispositivo
+            userActions: {
+              ...baseOptions.userActions,
+              // Deshabilitar atajos en dispositivos táctiles sin teclado
+              hotkeys: deviceCapabilities.hasPointer
+            },
+            
+            // Optimizaciones para diferentes tipos de pantalla
+            responsive: true,
+            fluid: true,
+            aspectRatio: deviceCapabilities.isTV ? '16:9' : undefined,
+            
+            // Optimizaciones de UI
+            controlBar: {
+              ...baseOptions.controlBar,
+              // Ajustar visibilidad de controles según tipo de dispositivo
+              fadeTime: deviceCapabilities.shouldReduceAnimations ? 0 : 300
+            }
+          };
+          
+          // Aplicar optimizaciones especiales para Safari/iOS
+          if (deviceCapabilities.isSafari || deviceCapabilities.isIOS) {
+            // Optimizaciones de video específicas para Safari
+            if (videoElement) {
+              // Atributos críticos para reproducción en Safari
+              videoElement.setAttribute('playsinline', 'true');
+              videoElement.setAttribute('webkit-playsinline', 'true');
+              videoElement.setAttribute('x-webkit-airplay', 'allow');
+              
+              // Requerido para streaming adaptativo en iOS
+              videoElement.setAttribute('autoplaysinline', 'true');
+              
+              // Habilitar Picture-in-Picture en Safari
+              videoElement.setAttribute('autopictureinpicture', 'true');
+              
+              // Mejorar la reproducción de audio en Safari
+              videoElement.setAttribute('preload', deviceCapabilities.isIOS ? 'metadata' : 'auto');
+              
+              // Configurar crossorigin para recursos externos (crucial para audio)
+              if (options.sources?.some(src => 
+                  src.src && !src.src.startsWith(window.location.origin) && 
+                  !src.src.startsWith('blob:') && !src.src.startsWith('data:'))) {
+                videoElement.setAttribute('crossorigin', 'anonymous');
+              }
+              
+              // Optimizaciones de rendimiento para iOS
+              if (deviceCapabilities.isIOS) {
+                // Mejoras de rendimiento específicas para iOS
+                videoElement.setAttribute('autoplay-policy', 'user-gesture-required');
+                
+                // Ajustes específicos para iPads
+                if (deviceCapabilities.isTablet && deviceCapabilities.isIOS) {
+                  videoElement.setAttribute('disablePictureInPicture', 'false');
+                  videoElement.setAttribute('disableRemotePlayback', 'false');
+                }
+                
+                // Optimizaciones para versiones específicas de iOS
+                if (deviceCapabilities.iOSVersion) {
+                  if (deviceCapabilities.iOSVersion >= 14) {
+                    // En iOS 14+ podemos usar funciones avanzadas de audio
+                    videoElement.setAttribute('allow', 'autoplay; fullscreen; picture-in-picture');
+                    
+                  } else if (deviceCapabilities.iOSVersion < 13) {
+                    // Para iOS antiguo, forzar repintado para prevenir pantalla en negro
+                    videoElement.onloadeddata = () => {
+                      videoElement.style.display = 'none';
+                      setTimeout(() => { videoElement.style.display = 'block'; }, 0);
+                    };
+                  }
+                }
+                
+                // Forzar actualización del layout para prevenir problemas en cualquier versión
+                videoElement.addEventListener('canplay', () => {
+                  const currentDisplay = videoElement.style.display;
+                  videoElement.style.display = 'none';
+                  // Forzar reflow
+                  void videoElement.offsetHeight;
+                  setTimeout(() => { videoElement.style.display = currentDisplay || 'block'; }, 0);
+                }, { once: true });
+              }
+              
+              // Optimizaciones para Safari de escritorio
+              if (deviceCapabilities.isSafari && !deviceCapabilities.isIOS) {
+                // Habilitar funciones avanzadas en Safari moderno
+                if (deviceCapabilities.safariVersion && deviceCapabilities.safariVersion >= 15) {
+                  videoElement.setAttribute('controlslist', 'nodownload');
+                  
+                  // Habilitar soporte de color HDR si está disponible
+                  if (deviceCapabilities.supportsHEVC) {
+                    try {
+                      // @ts-ignore - La propiedad puede no estar en todas las definiciones de TS
+                      videoElement.colorSpace = 'rec2020';
+                    } catch (e) {
+                      // Ignorar errores - funcionalidad experimental
+                    }
+                  }
+                } else {
+                  // Para Safari antiguo, evitar algunas características problemáticas
+                  videoElement.setAttribute('disableRemotePlayback', 'true');
+                }
+              }
+            }
+            
+            // Configurar opciones específicas para tipos de reproducción en Safari
+            enhancedOptions.html5 = {
+              ...enhancedOptions.html5,
+              // Optimización principal: usar audio y video nativos en Safari
+              nativeAudioTracks: true,
+              nativeVideoTracks: true,
+              nativeTextTracks: true,
+              // Habilitar opciones específicas de Safari y iOS
+              vhs: {
+                ...(enhancedOptions.html5?.vhs || {}),
+                overrideNative: false, // NUNCA sobreescribir la implementación nativa en Safari/iOS
+                enableLowInitialPlaylist: true, // Comenzar con baja calidad para inicio rápido
+                cacheEncryptionKeys: true,
+                // Ajustes específicos para versiones de Safari/iOS
+                backBufferLength: deviceCapabilities.isIOS ? 10 : 20,
+                // Configuración de rendimiento para streaming adaptativo
+                bandwidth: deviceCapabilities.isSlowConnection ? 1000000 : 
+                           deviceCapabilities.isMobile ? 2500000 : 5500000,
+                // Mejorar estabilidad en Safari
+                useForcedSubtitles: true,
+                // Ajustes de calidad adaptativa específicos para Safari
+                limitRenditionByPlayerDimensions: deviceCapabilities.isHighDensityDisplay,
+                useDevicePixelRatio: deviceCapabilities.isHighDensityDisplay,
+                // Parámetros específicos para Safari
+                fastQualityChange: true,
+                maxPlaylistRetries: deviceCapabilities.isIOS ? 8 : 5,
+              }
+            };
+            
+            // Garantizar uso del reproductor nativo de HLS en Safari (crucial)
+            enhancedOptions.techOrder = ['html5'];
+            
+            // Ajustes de audio para Safari
+            // Configuración directa del audio sin usar plugins
+            enhancedOptions.audioSettings = {
+              defaultVolume: 1.0
+            };
+            
+            // Configuración específica del panel de volumen
+            enhancedOptions.controlBar = {
+              ...enhancedOptions.controlBar,
+              volumePanel: {
+                inline: deviceCapabilities.isIOS, // Panel horizontal en iOS
+                vertical: !deviceCapabilities.isIOS // Vertical en otros
+              }
+            };
+          }
+          
+          // Log de configuración para depuración (solo en desarrollo)
+          if (process.env.NODE_ENV === 'development') {
+            console.debug('[VideoPlayer] Inicializando con opciones optimizadas:', {
+              deviceType: deviceCapabilities.isMobile ? 'mobile' : deviceCapabilities.isTablet ? 'tablet' : 'desktop',
+              browser: deviceCapabilities.isSafari ? 'Safari/iOS' : 
+                       deviceCapabilities.isChrome ? 'Chrome' : 
+                       deviceCapabilities.isFirefox ? 'Firefox' : 'Other',
+              connection: deviceCapabilities.effectiveConnectionType,
+              options: enhancedOptions
+            });
+          }
+          
+          // Crear instancia del reproductor con opciones optimizadas
+          const player = videojs(videoElement, enhancedOptions, () => {
+            handlePlayerReady(player);
+          });
+          
+          // Preparación inicial para mejorar el tiempo de primera reproducción
+          if (options.sources?.length) {
+            try {
+              // Optimizar tipo de fuente para diferentes navegadores
+              if (options.sources?.length) {
+                let sourcesToUse = [...options.sources]; // Copiar para no modificar las originales
+                
+                // Asegurarse de que todas las fuentes tengan tipo explícito
+                sourcesToUse = sourcesToUse.map(source => ({
+                  ...source,
+                  // Asegurar que tenga tipo definido para mejor compatibilidad
+                  type: source.type || (
+                    source.src?.includes('.m3u8') ? 'application/vnd.apple.mpegurl' :
+                    source.src?.includes('.mp4') ? 'video/mp4' :
+                    source.src?.includes('.webm') ? 'video/webm' :
+                    source.src?.includes('.mkv') ? 'video/x-matroska' :
+                    source.src?.includes('.mpd') ? 'application/dash+xml' :
+                    'video/mp4' // Por defecto
+                  )
+                }));
+                
+                // Optimizaciones específicas por navegador
+                if (deviceCapabilities.isSafari || deviceCapabilities.isIOS) {
+                  // Para Safari/iOS, priorizar fuentes HLS nativas
+                  const hlsSources = sourcesToUse.filter(s => 
+                    s.type === 'application/x-mpegURL' || 
+                    s.type === 'application/vnd.apple.mpegurl' ||
+                    (s.src && (s.src.includes('.m3u8') || s.src.includes('hls')))
+                  );
+                  
+                  if (hlsSources.length > 0) {
+                    console.log("[VideoPlayer] Usando fuentes HLS nativas para Safari/iOS");
+                    player.src(hlsSources);
+                    previousSourceRef.current = hlsSources[0]?.src || null;
+                  } else {
+                    // Si no hay HLS, preferir MP4 para Safari
+                    const mp4Sources = sourcesToUse.filter(s => 
+                      s.type === 'video/mp4' || (s.src && s.src.includes('.mp4'))
+                    );
+                    
+                    if (mp4Sources.length > 0) {
+                      console.log("[VideoPlayer] Usando fuentes MP4 para Safari/iOS");
+                      player.src(mp4Sources);
+                      previousSourceRef.current = mp4Sources[0]?.src || null;
+                    } else {
+                      // Si no hay MP4, usar lo que haya disponible
+                      console.log("[VideoPlayer] Usando fuentes genéricas para Safari/iOS");
+                      player.src(sourcesToUse);
+                      previousSourceRef.current = sourcesToUse[0]?.src || null;
+                    }
+                  }
+                } else if (deviceCapabilities.isChrome || deviceCapabilities.isFirefox) {
+                  // Chrome y Firefox tienen excelente soporte para diferentes formatos
+                  // Priorizar fuentes según el navegador
+                  if (deviceCapabilities.isChrome) {
+                    // Chrome: Priorizar DASH > HLS > WebM > MP4
+                    const dashSources = sourcesToUse.filter(s => s.type === 'application/dash+xml');
+                    const hlsSources = sourcesToUse.filter(s => 
+                      s.type?.includes('mpegurl') || (s.src && s.src.includes('.m3u8'))
+                    );
+                    const webmSources = sourcesToUse.filter(s => s.type === 'video/webm');
+                    
+                    if (dashSources.length) {
+                      console.log("[VideoPlayer] Usando fuentes DASH para Chrome");
+                      player.src(dashSources);
+                      previousSourceRef.current = dashSources[0]?.src || null;
+                    } else if (hlsSources.length) {
+                      console.log("[VideoPlayer] Usando fuentes HLS para Chrome");
+                      player.src(hlsSources);
+                      previousSourceRef.current = hlsSources[0]?.src || null;
+                    } else if (webmSources.length && !deviceCapabilities.isLowPower) {
+                      console.log("[VideoPlayer] Usando fuentes WebM para Chrome");
+                      player.src(webmSources);
+                      previousSourceRef.current = webmSources[0]?.src || null;
+                    } else {
+                      console.log("[VideoPlayer] Usando fuentes genéricas para Chrome");
+                      player.src(sourcesToUse);
+                      previousSourceRef.current = sourcesToUse[0]?.src || null;
+                    }
+                  } else {
+                    // Firefox: similar a Chrome pero diferente prioridad
+                    // Priorizar HLS > DASH > MP4 > WebM
+                    const hlsSources = sourcesToUse.filter(s => 
+                      s.type?.includes('mpegurl') || (s.src && s.src.includes('.m3u8'))
+                    );
+                    const dashSources = sourcesToUse.filter(s => s.type === 'application/dash+xml');
+                    const mp4Sources = sourcesToUse.filter(s => s.type === 'video/mp4');
+                    
+                    if (hlsSources.length) {
+                      console.log("[VideoPlayer] Usando fuentes HLS para Firefox");
+                      player.src(hlsSources);
+                      previousSourceRef.current = hlsSources[0]?.src || null;
+                    } else if (dashSources.length) {
+                      console.log("[VideoPlayer] Usando fuentes DASH para Firefox");
+                      player.src(dashSources);
+                      previousSourceRef.current = dashSources[0]?.src || null;
+                    } else if (mp4Sources.length) {
+                      console.log("[VideoPlayer] Usando fuentes MP4 para Firefox");
+                      player.src(mp4Sources);
+                      previousSourceRef.current = mp4Sources[0]?.src || null;
+                    } else {
+                      console.log("[VideoPlayer] Usando fuentes genéricas para Firefox");
+                      player.src(sourcesToUse);
+                      previousSourceRef.current = sourcesToUse[0]?.src || null;
+                    }
+                  }
+                } else {
+                  // Para otros navegadores, usar configuración estándar
+                  console.log("[VideoPlayer] Usando fuentes estándar para navegador genérico");
+                  player.src(sourcesToUse);
+                  previousSourceRef.current = sourcesToUse[0]?.src || null;
+                }
+                
+                // Mejorar calidad de audio para todos los navegadores
+                if (player.audioTracks && player.audioTracks()) {
                   try {
-                    // Precargar un segmento para iniciar el buffer en segundo plano
-                    player.currentTime(0.1);
-                    
-                    // Esperar a que se cargue el primer segmento
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    
-                    // Volver al inicio para la reproducción
-                    player.currentTime(0);
-                    
-                    // Preparar cache de segmentos adicionales si la conexión es buena
-                    if (deviceCapabilities.estimatedBandwidth > 5000) { // > 5Mbps
-                      // Precargar más adelante para tener buffer adicional
-                      player.currentTime(5);
-                      await new Promise(resolve => setTimeout(resolve, 50));
-                      player.currentTime(0);
+                    const tracks = player.audioTracks();
+                    if (tracks.length > 0) {
+                      // Seleccionar pista de audio de mejor calidad por defecto
+                      // Generalmente la que tiene 'high', 'hd', 'main' o mayor número de canales
+                      let bestTrackIndex = 0;
+                      let bestScore = -1;
+                      
+                      for (let i = 0; i < tracks.length; i++) {
+                        const track = tracks[i];
+                        let score = 0;
+                        
+                        // Preferir pistas con más canales (generalmente indica mejor calidad)
+                        if (track.channelCount) score += track.channelCount * 10;
+                        
+                        // Preferir pistas con indicadores de calidad en el nombre
+                        const label = track.label?.toLowerCase() || '';
+                        if (label.includes('high') || label.includes('hd')) score += 50;
+                        if (label.includes('main')) score += 30;
+                        if (label.includes('stereo')) score += 20;
+                        if (label.includes('surround') || label.includes('5.1') || label.includes('7.1')) score += 40;
+                        
+                        if (score > bestScore) {
+                          bestScore = score;
+                          bestTrackIndex = i;
+                        }
+                      }
+                      
+                      // Activar la mejor pista de audio
+                      for (let i = 0; i < tracks.length; i++) {
+                        tracks[i].enabled = (i === bestTrackIndex);
+                      }
                     }
                   } catch (e) {
-                    // Ignorar errores de precarga - no son críticos
-                    player.currentTime(0);
+                    console.warn("[VideoPlayer] Error al optimizar pistas de audio:", e);
                   }
-                };
-                
-                // Ejecutar estrategia de precarga
-                preloadStrategy().catch(() => {}); // No bloquear por fallos de precarga
-              });
-            } else {
-              // Para conexiones lentas, solo cargar lo mínimo necesario
-              player.currentTime(0);
+                }
+              } else {
+                console.warn("[VideoPlayer] No se proporcionaron fuentes de video");
+              }
+              
+              // Estrategia de precarga adaptativa según navegador
+              if (deviceCapabilities.shouldPreload && !deviceCapabilities.isIOS) {
+                // Precarga optimizada para navegadores no iOS
+                player.one('loadedmetadata', () => {
+                  const preloadStrategy = async () => {
+                    try {
+                      // Estrategia modificada para Safari (evitar cambios rápidos de currentTime)
+                      if (deviceCapabilities.isSafari) {
+                        // En Safari, hacer precarga más suave
+                        player.currentTime(0);
+                        
+                        // Solo precargar si hay buena conexión
+                        if (!deviceCapabilities.isSlowConnection) {
+                          // Precargar sutilmente
+                          setTimeout(() => {
+                            player.currentTime(0.5);
+                            setTimeout(() => player.currentTime(0), 200);
+                          }, 300);
+                        }
+                      } else {
+                        // Para otros navegadores, precarga más agresiva
+                        player.currentTime(0.1);
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        player.currentTime(0);
+                        
+                        if (deviceCapabilities.estimatedBandwidth > 5000) {
+                          player.currentTime(5);
+                          await new Promise(resolve => setTimeout(resolve, 50));
+                          player.currentTime(0);
+                        }
+                      }
+                    } catch (e) {
+                      // Ignorar errores de precarga - no son críticos
+                      player.currentTime(0);
+                    }
+                  };
+                  
+                  preloadStrategy().catch(() => {});
+                });
+              } else {
+                // Para iOS o conexiones lentas, solo lo mínimo necesario
+                player.currentTime(0);
+              }
+            } catch (error) {
+              console.error("[VideoPlayer] Error al establecer fuente inicial:", error);
+              setRetryCount(prev => prev + 1);
             }
-          } catch (error) {
-            console.error("[VideoPlayer] Error al establecer fuente inicial:", error);
-            setRetryCount(prev => prev + 1);
           }
+        } catch (error) {
+          console.error("[VideoPlayer] Error al inicializar el reproductor:", error);
+          setRetryCount(prev => prev + 1);
+          return; // Salir si hay error en la inicialización
         }
+        
+        // Referencia al player para usar en la configuración de observadores
+        const player = playerRef.current;
+        if (!player) return;
         
         // Monitoreo de recursos y rendimiento
         let memoryCheckInterval: number;
@@ -574,7 +1242,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
         if ('IntersectionObserver' in window) {
           visibilityObserver = new IntersectionObserver((entries) => {
             const [entry] = entries;
-            if (!entry.isIntersecting && !player.paused()) {
+            if (!entry.isIntersecting && player && !player.paused()) {
               // Pausar automáticamente cuando el video no está visible
               player.pause();
             }
@@ -712,10 +1380,51 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
     
           // Reanudar reproducción solo si estaba reproduciendo
           if (wasPlaying) {
-            player.play().catch(e => {
-              console.error("Play error after source change:", e);
-              trackEvent('play_error_source_change', { error: e.message });
-            });
+            // Manejo especial para Safari/iOS
+            if (deviceCapabilities.isSafari || deviceCapabilities.isIOS) {
+              try {
+                // Obtener el elemento de video nativo
+                const videoElem = player.el()?.querySelector('video');
+                if (videoElem) {
+                  // Aplicar optimizaciones para Safari/iOS
+                  videoElem.setAttribute('playsinline', 'true');
+                  videoElem.setAttribute('webkit-playsinline', 'true');
+                  videoElem.setAttribute('x-webkit-airplay', 'allow');
+                  
+                  // Intentar reproducción nativa
+                  console.log("[VideoPlayer] Reanudando reproducción nativa en Safari/iOS");
+                  videoElem.play().catch(nativeErr => {
+                    console.warn("[VideoPlayer] Error al reanudar reproducción nativa:", nativeErr);
+                    // Si falla la reproducción nativa, intentamos con el reproductor
+                    if (player && !player.isDisposed()) {
+                      player.play().catch(e => {
+                        console.error("Play error after source change:", e);
+                        trackEvent('play_error_source_change', { error: e.message });
+                      });
+                    }
+                  });
+                } else {
+                  // Fallback al método normal
+                  player.play().catch(e => {
+                    console.error("Play error after source change:", e);
+                    trackEvent('play_error_source_change', { error: e.message });
+                  });
+                }
+              } catch (safariErr) {
+                console.error("[VideoPlayer] Error al reanudar en Safari:", safariErr);
+                // Intentar con el método estándar
+                player.play().catch(e => {
+                  console.error("Play error after source change:", e);
+                  trackEvent('play_error_source_change', { error: e.message });
+                });
+              }
+            } else {
+              // Navegadores no Safari - manejo normal
+              player.play().catch(e => {
+                console.error("Play error after source change:", e);
+                trackEvent('play_error_source_change', { error: e.message });
+              });
+            }
           }
     
           previousSourceRef.current = newSource;
@@ -1125,28 +1834,99 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
             // Intentar reproducir con mejor manejo de estado
             setControlsVisible(true); // Mostrar controles mientras se inicia reproducción
             
-            const playPromise = playerRef.current.play();
-            if (playPromise !== undefined) {
-              playPromise
-                .then(() => {
-                  // Reproducción iniciada exitosamente
-                  // Programar ocultamiento de controles si el sitio lo requiere
-                  if (deviceCapabilities?.isMobile) {
-                    clearCustomTimeout('controls');
-                    setCustomTimeout('controls', () => {
-                      setControlsVisible(false);
-                      setIsMouseMoving(false);
-                    }, CONSTANTS.CONTROLS_HIDE_DELAY_MOBILE);
+            // Manejo especial para Safari/iOS para evitar NotSupportedError
+            if (deviceCapabilities.isSafari || deviceCapabilities.isIOS) {
+              try {
+                // En Safari, necesitamos manejar la reproducción de manera diferente
+                // debido a las políticas de interacción de usuario
+                const videoElem = playerRef.current.el()?.querySelector('video');
+                if (videoElem) {
+                  // Paso 1: Activar contexto de audio si existe
+                  try {
+                    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+                    if (AudioContext && !(window as any).___audioContext) {
+                      (window as any).___audioContext = new AudioContext();
+                    }
+                    
+                    if ((window as any).___audioContext?.state === 'suspended') {
+                      (window as any).___audioContext.resume().catch(() => {});
+                    }
+                  } catch (audioErr) {
+                    console.warn("[VideoPlayer] Error al inicializar AudioContext:", audioErr);
                   }
-                })
-                .catch(e => {
-                  console.error("Play error on click:", e);
-                  trackEvent('play_error_click', { error: e.message });
                   
-                  // Mantener controles visibles en caso de error para permitir interacción
-                  setControlsVisible(true);
-                  setIsMouseMoving(true);
-                });
+                  // Paso 2: Forzar atributos críticos antes de reproducir
+                  videoElem.setAttribute('playsinline', 'true');
+                  videoElem.setAttribute('webkit-playsinline', 'true');
+                  videoElem.setAttribute('x-webkit-airplay', 'allow');
+                  videoElem.muted = false; // Asegurar que no esté silenciado
+                  
+                  // Paso 3: Usar play() directo en el elemento de video nativo
+                  console.log("[VideoPlayer] Intentando reproducción nativa en Safari/iOS");
+                  videoElem.play()
+                    .then(() => {
+                      console.log("[VideoPlayer] Reproducción nativa exitosa en Safari/iOS");
+                      // Programar ocultamiento de controles si corresponde
+                      if (deviceCapabilities.isMobile) {
+                        clearCustomTimeout('controls');
+                        setCustomTimeout('controls', () => {
+                          setControlsVisible(false);
+                          setIsMouseMoving(false);
+                        }, CONSTANTS.CONTROLS_HIDE_DELAY_MOBILE);
+                      }
+                    })
+                    .catch(err => {
+                      console.warn("[VideoPlayer] Error en reproducción nativa:", err);
+                      // Mostrar controles si falla la reproducción
+                      setControlsVisible(true);
+                      setIsMouseMoving(true);
+                      
+                      // Si es un error de interacción, mostrar mensaje en consola
+                      if (err.name === 'NotAllowedError') {
+                        console.info("[VideoPlayer] Safari requiere interacción del usuario para reproducir audio");
+                      }
+                    });
+                } else {
+                  // Si no podemos acceder al elemento de video nativo, intentar con playerRef
+                  console.log("[VideoPlayer] Fallback a reproducción vía VideoJS");
+                  playerRef.current.play().catch(e => {
+                    console.error("[VideoPlayer] Error de reproducción fallback:", e);
+                    // Mantener controles visibles en caso de error
+                    setControlsVisible(true);
+                    setIsMouseMoving(true);
+                  });
+                }
+              } catch (safariErr) {
+                console.error("[VideoPlayer] Error completo en Safari:", safariErr);
+                // Mantener controles visibles
+                setControlsVisible(true);
+                setIsMouseMoving(true);
+              }
+            } else {
+              // Navegadores no Safari - manejo normal
+              const playPromise = playerRef.current.play();
+              if (playPromise !== undefined) {
+                playPromise
+                  .then(() => {
+                    // Reproducción iniciada exitosamente
+                    // Programar ocultamiento de controles si el sitio lo requiere
+                    if (deviceCapabilities?.isMobile) {
+                      clearCustomTimeout('controls');
+                      setCustomTimeout('controls', () => {
+                        setControlsVisible(false);
+                        setIsMouseMoving(false);
+                      }, CONSTANTS.CONTROLS_HIDE_DELAY_MOBILE);
+                    }
+                  })
+                  .catch(e => {
+                    console.error("Play error on click:", e);
+                    trackEvent('play_error_click', { error: e.message });
+                    
+                    // Mantener controles visibles en caso de error para permitir interacción
+                    setControlsVisible(true);
+                    setIsMouseMoving(true);
+                  });
+              }
             }
           } else {
             // Pausar es inmediato y seguro
@@ -1272,12 +2052,42 @@ const VideoPlayer: React.FC<VideoPlayerProps> = React.memo(
     useHotkeys("space", (e) => {
       e.preventDefault();
       if (playerRef.current) {
-        playerRef.current.paused() ? 
-        (playerRef.current as any).play().catch((err: any) => console.error(err)) : 
+        if (playerRef.current.paused()) {
+          // Si está pausado, intentar reproducir
+          if (deviceCapabilities.isSafari || deviceCapabilities.isIOS) {
+            // Manejo específico para Safari/iOS
+            try {
+              const videoElem = playerRef.current.el()?.querySelector('video');
+              if (videoElem) {
+                // Asegurar atributos clave para Safari
+                videoElem.setAttribute('playsinline', 'true');
+                videoElem.setAttribute('webkit-playsinline', 'true');
+                
+                // Intentar reproducción nativa
+                videoElem.play().catch(nativeErr => {
+                  console.warn("[VideoPlayer] Error en hotkey para Safari:", nativeErr);
+                  // Si falla, intentar a través del player
+                  playerRef.current?.play().catch(err => console.error("[VideoPlayer] Hotkey play error:", err));
+                });
+              } else {
+                // Fallback al método estándar
+                playerRef.current.play().catch(err => console.error("[VideoPlayer] Hotkey play error:", err));
+              }
+            } catch (safariErr) {
+              console.error("[VideoPlayer] Error de Safari en hotkey:", safariErr);
+              playerRef.current.play().catch(err => console.error("[VideoPlayer] Hotkey play error:", err));
+            }
+          } else {
+            // Otros navegadores - método estándar
+            (playerRef.current as any).play().catch((err: any) => console.error("[VideoPlayer] Hotkey play error:", err));
+          }
+        } else {
+          // Pausar es siempre seguro
           playerRef.current.pause();
+        }
         trackEvent('hotkey_play_pause');
       }
-    }, [trackEvent]);
+    }, [trackEvent, deviceCapabilities]);
 
     useHotkeys("m", () => {
       setIsMuted(!isMuted);
